@@ -1,9 +1,10 @@
 name: coding-team-setup
-version: 2.0.0
+version: 2.1.0
 description: >
   Flexible multi-agent development team wizard (2–10 agents).
-  Supports multiple named teams, 10 preset + custom roles, 
-  4 workflow templates, and smart model assignment.
+  Supports multiple named teams, 10 preset + custom roles,
+  4 workflow templates, smart model assignment, and a standard
+  post-setup flow with weekly cross-team skill optimization.
 author: DeepEye
 tags:
   - multi-agent
