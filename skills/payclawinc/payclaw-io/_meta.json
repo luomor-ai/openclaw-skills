@@ -1,13 +1,18 @@
 {
   "owner": "payclawinc",
   "slug": "payclaw-io",
-  "displayName": "PayClaw",
+  "displayName": "Payclaw Io",
   "latest": {
-    "version": "1.2.0",
-    "publishedAt": 1772304672154,
-    "commit": "https://github.com/openclaw/skills/commit/08e4db9e914ca34eb34d7b19db1d4bef94461693"
+    "version": "0.6.0",
+    "publishedAt": 1772405116938,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.2.0",
+      "publishedAt": 1772304672154,
+      "commit": "https://github.com/openclaw/skills/commit/08e4db9e914ca34eb34d7b19db1d4bef94461693"
+    },
     {
       "version": "2.0.0",
       "publishedAt": 1772068292777,

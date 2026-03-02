@@ -1,11 +1,11 @@
 ---
 name: payclaw-io
-description: "Declare your agent's identity before merchants ban your user's account. Badge + Spend: identity and virtual cards for AI agents. MCP-native, human-approved, fully audited."
+description: "Agents are not bots. PayClaw proves it — then lets them pay. Badge declares your agent as an authorized actor. Spend issues single-use virtual Visa cards. Your real card never enters the chat."
 metadata:
   {
     "openclaw":
       {
-        "emoji": "🛡️",
+        "emoji": "💳",
         "requires": { "bins": ["npx"], "env": ["PAYCLAW_API_KEY"] },
         "mcp":
           {
@@ -20,107 +20,34 @@ metadata:
 
 # PayClaw — Badge + Spend for AI Agents
 
-> **Merchants are banning anonymous agents.** Walmart, Shopify, Instacart — all setting policies. Anonymous agent actions get accounts flagged and banned. No warning. No appeal.
+**Agents are not bots. PayClaw proves it — then lets them pay.**
 
-PayClaw gives your agent two things:
+Your AI agent looks like a bot to every merchant on the internet. PayClaw gives it two things:
 
-**Badge** — Declare identity and intent before every action. The account is protected. The action is traceable.
+**Badge** — Declares your agent as an authorized actor. The skeleton key that lets it through merchant defenses. Free. No card required.
 
-**Spend** — Virtual Visa card at checkout. Card-per-task, human-approved, expires when the task is done. Your real card never enters the chat.
+**Spend** — Issues a single-use virtual Visa when your agent needs to pay. Human-approved. Self-destructs after use. Your real card never enters the chat.
 
-Badge = your agent's license plate. Spend = your agent's wallet.
+> 🧪 **Developer Sandbox is open.** Real infrastructure, test money. [Get sandbox access →](https://payclaw.io)
 
-## Setup (5 minutes)
+## Setup
 
-### 1. Sign up at [payclaw.io](https://payclaw.io/signup)
+### 1. Create a PayClaw account
 
-MFA required (this is how we verify you're human).
+Sign up at [payclaw.io/signup](https://payclaw.io/signup).
 
 ### 2. Get your API key
 
-Dashboard → Settings → Create API Key. Copy the `pk_test_...` key.
+Dashboard → Settings → Create API Key.
 
-### 3. Set the environment variable
+### 3. Add to your agent
 
-```bash
-export PAYCLAW_API_KEY="pk_test_your_key_here"
-```
-
-That's it. Your agent now has identity and payment.
-
-## Tools
-
-### `payclaw_getAgentIdentity` (Badge)
-
-Call **before** browsing, searching, or buying. Declares your agent's identity to merchants.
-
-Your agent says:
-> "I'd like to activate my PayClaw identity before shopping. This identifies me as your authorized agent to merchants."
-
-Returns a verification token, disclosure text, and trust URL. No card issued. No money moves.
-
-### `payclaw_getCard` (Spend)
-
-Declare what you're buying → get a virtual Visa card. Human approves via tool-call prompt.
-
-**Parameters:**
-- `merchant` — Where you're buying
-- `estimated_amount` — Budget in USD (max $500)
-- `description` — What you're buying
-
-### `payclaw_reportPurchase`
-
-Report the outcome after every purchase. Auto-audits against declared intent.
-
-**Parameters:**
-- `intent_id` — From getCard
-- `success` — Did the purchase work?
-- `actual_amount` — What was charged
-- `merchant_name`, `items`, `order_confirmation` — Receipt details
-
-## Example
-
-```
-You: "Order me coffee beans from Trade Coffee, budget $20"
-
-Agent: I'll identify myself first and then make the purchase.
-       [calls payclaw_getAgentIdentity]
-       ✅ Identity active — verified agent session.
-
-       [calls payclaw_getCard: merchant=tradecoffee.com, amount=$20]
-       ✅ Card approved. Completing checkout...
-
-       [calls payclaw_reportPurchase: $16.99, intent matched ✅]
-
-       Done! Ordered a bag of Ethiopian Yirgacheffe for $16.99.
-       Balance: $483.01
-```
-
-## Security
-
-- **Identity-first:** Agent declares who it is before any action
-- **Intent-based:** Agent declares what it's buying before getting a card
-- **Human-in-the-loop:** You approve every action via tool-call prompt
-- **Auto-audit:** Every purchase compared against declared intent
-- **$500 ceiling:** Hard cap on account balance
-- **MFA required:** Every account requires authenticator app
-- **Zero standing access:** No card exists until requested
-
-## Just Need Identity?
-
-If your agent browses but doesn't buy, install Badge standalone:
-
-```bash
-clawhub install payclaw-badge
-```
-
-Or via npm:
 ```json
 {
   "mcpServers": {
-    "payclaw-badge": {
+    "payclaw": {
       "command": "npx",
-      "args": ["-y", "@payclaw/badge"],
+      "args": ["-y", "@payclaw/mcp-server"],
       "env": {
         "PAYCLAW_API_KEY": "pk_your_key_here",
         "PAYCLAW_API_URL": "https://payclaw.io"
@@ -130,8 +57,67 @@ Or via npm:
 }
 ```
 
+Five-minute setup. Works with Claude Desktop, Cursor, any MCP client.
+
+## Why Your Agent Needs This
+
+Without PayClaw, your agent browses → bot detection fires → blocked. Even if it gets through, it can't check out without your real card.
+
+With Badge, your agent declares itself → merchants see verified identity → agent gets through.
+
+With Spend, your agent declares a purchase → you approve → single-use virtual Visa → checkout → card self-destructs.
+
+## Tools
+
+| Tool | What It Does |
+|------|-------------|
+| `payclaw_getAgentIdentity` | Declare identity → get verification token (Badge). Pass optional `merchant` param. |
+| `payclaw_getCard` | Declare purchase intent → get virtual Visa (Spend) |
+| `payclaw_reportPurchase` | Report transaction outcome → close the audit trail |
+
+## How Authorization Scales
+
+| Action | What Happens |
+|--------|-------------|
+| **Browse** | Badge declaration — identity token issued |
+| **Search** | Badge declaration — identity token issued |
+| **Checkout** | Badge + Spend — human approval → single-use Visa issued |
+
+## Example
+
+```
+You: "Buy me a cold brew from Starbucks"
+
+Agent: Let me declare myself first...
+       [calls payclaw_getAgentIdentity({ merchant: "starbucks.com" })]
+       
+       ✓ DECLARED — authorized actor at starbucks.com
+       
+       Found a cold brew for $5.95. Getting a card...
+       [calls payclaw_getCard: merchant=Starbucks, amount=$5.95]
+       
+       ✅ Virtual Visa issued. Completing purchase...
+       [calls payclaw_reportPurchase: success ✅]
+       
+       Done! Cold brew ordered. Card self-destructed.
+```
+
+## Security
+
+- **Zero standing access** — no card exists until your agent requests one
+- **Single-use cards** — merchant-locked, amount-capped, 15-minute expiry
+- **Human approval** — every purchase requires your explicit OK
+- **Intent audit** — every purchase compared against declared intent
+- **$500 cap** — hard ceiling on account balance
+- **Your real card never enters the chat**
+
+## Badge Only?
+
+If you only need identity (no payment): `clawhub install payclaw-badge`
+
 ## Links
 
-- [payclaw.io](https://payclaw.io) — Sign up + dashboard
-- [payclaw.io/trust](https://payclaw.io/trust) — How verification works
-- [GitHub](https://github.com/payclaw/mcp-server) — Source
+- [payclaw.io](https://payclaw.io)
+- [Trust & Verification](https://payclaw.io/trust)
+- [npm: @payclaw/mcp-server](https://www.npmjs.com/package/@payclaw/mcp-server)
+- [GitHub](https://github.com/payclaw/mcp-server)
