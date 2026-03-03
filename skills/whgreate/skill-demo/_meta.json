@@ -1,0 +1,11 @@
+{
+  "owner": "whgreate",
+  "slug": "skill-demo",
+  "displayName": "my skill demo showcase",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1772441059181,
+    "commit": null
+  },
+  "history": []
+}
