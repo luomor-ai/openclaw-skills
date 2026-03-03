@@ -1,6 +1,7 @@
 ---
 name: wallhaven-downloader
 description: Download wallpapers in batch from wallhaven.cc via API v1 with flexible query parameters (q, categories, purity, sorting, order, topRange, atleast, resolutions, ratios, colors, page, seed). Use when user asks to download one or many wallpapers from Wallhaven, especially with custom filters (e.g. purity/category/toplist/time range) and target folder requirements.
+metadata: {"clawdbot":{"requires":{"commands":["python3","curl"],"env":["WALLHAVEN_API_KEY"]}}}
 ---
 
 # Wallhaven Downloader
@@ -34,7 +35,7 @@ python3 {baseDir}/scripts/wallhaven_download.py \
 - `--search-url` (optional): Paste a Wallhaven search URL; script auto-parses supported query parameters.
 - `--count`: Total number of images to download.
 - `--out`: Output directory.
-- `--base-url`: API endpoint (default: `https://wallhaven.cc/api/v1/search`).
+- `--base-url`: API endpoint (default: `https://wallhaven.cc/api/v1/search`). Restricted to Wallhaven API hosts for safety.
 - Any API search parameter as `--<name> <value>` (e.g. `--q`, `--categories`, `--purity`, `--sorting`, `--order`, `--topRange`, `--atleast`, `--resolutions`, `--ratios`, `--colors`, `--seed`, `--page`).
 - When both `--search-url` and explicit `--<name> <value>` are provided, explicit args override URL values.
 
@@ -42,7 +43,7 @@ python3 {baseDir}/scripts/wallhaven_download.py \
 
 - Auto-paginates until requested count is reached or no more results.
 - Reads `meta.last_page` and stops safely.
-- Downloads from each result `path` URL.
+- Downloads from each result `path` URL after strict safety validation.
 - Names files with index + wallpaper id: `01-wallhaven-<id>.<ext>`.
 - Writes `manifest.json` with source query and downloaded items.
 
@@ -103,5 +104,6 @@ python3 {baseDir}/scripts/wallhaven_download.py \
 
 - API limit is 45 requests/min. Script inserts a small delay between page requests.
 - Do not hardcode API keys in the skill/script. Pass via `--apikey` or `WALLHAVEN_API_KEY` only.
+- Security guardrails: only `https://wallhaven.cc` API endpoints and `https://w.wallhaven.cc` image URLs are accepted; local/private/non-HTTPS hosts are rejected.
 - If API returns errors, script exits with clear message.
 - If fewer results exist than requested, script downloads available items and reports actual count.

@@ -7,6 +7,8 @@ import time
 from pathlib import Path
 from urllib.parse import urlencode, urlparse, parse_qs
 import subprocess
+import ipaddress
+import socket
 
 
 def fetch_json(url: str) -> dict:
@@ -51,8 +53,55 @@ def parse_unknown_args(unknown: list[str]) -> dict[str, str]:
     return params
 
 
+def _is_private_or_local_host(hostname: str) -> bool:
+    lowered = hostname.lower()
+    if lowered in {"localhost", "127.0.0.1", "::1"}:
+        return True
+    try:
+        infos = socket.getaddrinfo(hostname, None)
+    except socket.gaierror:
+        return True
+    for info in infos:
+        ip = info[4][0]
+        try:
+            addr = ipaddress.ip_address(ip)
+        except ValueError:
+            return True
+        if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+            return True
+    return False
+
+
+def validate_base_url(base_url: str) -> None:
+    parsed = urlparse(base_url)
+    if parsed.scheme != "https":
+        raise ValueError("base-url must use https")
+    if not parsed.hostname:
+        raise ValueError("base-url must include hostname")
+    host = parsed.hostname.lower()
+    allowed_hosts = {"wallhaven.cc", "www.wallhaven.cc"}
+    if host not in allowed_hosts:
+        raise ValueError("base-url host is not allowed")
+    if _is_private_or_local_host(host):
+        raise ValueError("base-url resolves to private/local address")
+
+
+def validate_image_url(img_url: str) -> None:
+    parsed = urlparse(img_url)
+    if parsed.scheme != "https":
+        raise ValueError("image url must use https")
+    host = (parsed.hostname or "").lower()
+    if host != "w.wallhaven.cc":
+        raise ValueError("image host is not allowed")
+    if _is_private_or_local_host(host):
+        raise ValueError("image host resolves to private/local address")
+
+
 def parse_search_url(search_url: str) -> dict[str, str]:
     parsed = urlparse(search_url)
+    host = (parsed.hostname or "").lower()
+    if parsed.scheme != "https" or host not in {"wallhaven.cc", "www.wallhaven.cc"}:
+        raise ValueError("search-url must be https://wallhaven.cc/... or https://www.wallhaven.cc/...")
     query = parse_qs(parsed.query, keep_blank_values=True)
     params: dict[str, str] = {}
     for key, values in query.items():
@@ -93,6 +142,16 @@ def main() -> int:
 
     if args.apikey and "apikey" not in params:
         params["apikey"] = args.apikey
+
+    safe_params = dict(params)
+    if "apikey" in safe_params:
+        safe_params["apikey"] = "***REDACTED***"
+
+    try:
+        validate_base_url(args.base_url)
+    except ValueError as e:
+        print(f"[error] invalid --base-url: {e}", file=sys.stderr)
+        return 2
 
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -138,6 +197,11 @@ def main() -> int:
             if wid in seen_ids:
                 continue
             seen_ids.add(wid)
+            try:
+                validate_image_url(img_url)
+            except ValueError as e:
+                print(f"[warn] skip {wid}: {e}", file=sys.stderr)
+                continue
             ext = img_url.rsplit(".", 1)[-1].lower()
             if ext not in {"jpg", "jpeg", "png", "webp"}:
                 ext = "jpg"
@@ -167,7 +231,7 @@ def main() -> int:
     manifest = {
         "requested": requested,
         "downloaded": downloaded,
-        "params": params,
+        "params": safe_params,
         "last_page": last_page,
         "items": items,
     }
