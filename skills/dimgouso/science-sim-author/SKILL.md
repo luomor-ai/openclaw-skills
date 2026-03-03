@@ -1,9 +1,7 @@
 ---
 name: science-sim-author
-description: Generate self-contained interactive science simulations as a single index.html from a SimSpec YAML or JSON. Use when the user asks for physics, chemistry, biology, or STEM demos with parameter sliders, plots, inquiry worksheets, data export, or PhET-style activities.
-homepage: https://clawhub.ai
-user-invocable: true
-metadata: {"openclaw":{"requires":{"bins":[],"env":[],"config":[]},"os":["darwin","linux","win32"]}}
+description: Generate self-contained interactive science simulations as a single index.html from a SimSpec YAML or JSON. Use when the user asks for physics, chemistry, biology, STEM, science education, classroom demos, virtual labs, PhET-style activities, mechanics simulations, circuit simulations, parameter sliders, plots, inquiry worksheets, or offline canvas-based teaching tools.
+metadata: {"openclaw":{"emoji":"🧪","requires":{"bins":[],"env":[],"config":[]},"os":["darwin","linux","win32"]}}
 ---
 
 # Science Simulation Author
@@ -43,7 +41,7 @@ Validate against [templates/sim_spec_schema.json](templates/sim_spec_schema.json
    - `mechanics` + state includes `x` and `v` -> `oscillator1d`
    - `electromagnetism` + state includes `q` or `vc` -> `circuit_rc`
    - Otherwise stop and ask the user for a clearer SimSpec instead of guessing.
-4. Populate [templates/sim_single_file_html.mustache](templates/sim_single_file_html.mustache) with pre-normalized values.
+4. Populate [templates/sim_single_file_html_template.html](templates/sim_single_file_html_template.html) with pre-normalized values.
 5. Run [rubrics/validation_checklist.md](rubrics/validation_checklist.md) before returning the final `index.html`.
 
 ## Template placeholders
@@ -93,7 +91,7 @@ Apply [rubrics/security_notes.md](rubrics/security_notes.md) strictly.
 
 ## Templates and references
 
-- Template: [templates/sim_single_file_html.mustache](templates/sim_single_file_html.mustache)
+- Template: [templates/sim_single_file_html_template.html](templates/sim_single_file_html_template.html)
 - Schema: [templates/sim_spec_schema.json](templates/sim_spec_schema.json)
 - Validation checklist: [rubrics/validation_checklist.md](rubrics/validation_checklist.md)
 - Pedagogy prompts: [rubrics/pedagogy_inquiry_prompts.md](rubrics/pedagogy_inquiry_prompts.md)
