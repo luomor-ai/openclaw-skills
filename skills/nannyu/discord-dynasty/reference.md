@@ -127,6 +127,8 @@
 
 ## 8. 与 ClawHub / 官方 Discord skill 结合
 
+OpenClaw 侧 `openclaw.json` 与 Discord 通道的完整配置项、多账号、故障排查见项目根目录 [OpenClaw配置与Discord参考.md](../OpenClaw配置与Discord参考.md)。
+
 ### 8.1 ClawHub 上的 Discord 相关 skill
 
 - **steipete/discord**（官方/社区 Discord skill）
@@ -149,19 +151,19 @@
 ### 8.3 推荐组合用法
 
 1. 安装并配置 **discord** skill（`channels.discord` 配置好 token、guild 等）。
-2. 将 **discord-task-center** 与本 skill 同放在工作区 `skills/` 下（如 `skills/discord-task-center/`）。
+2. 将 **discord-dynasty** 与本 skill 同放在工作区 `skills/` 下（如 `skills/discord-dynasty/`）。
 3. Agent 在任务帖内收到「新建任务/归档任务」时，先应用本 skill 的语义，再调用 discord 的 `threadCreate` / `channelEdit` 等；若工具暂无 applied_tags，则完成发帖/改标题后提示用户手动在 Discord 勾选标签。
 
 ---
 
 ## 9. OpenClaw 侧使用说明
 
-- **Skill 放置位置**：OpenClaw 从工作区 `skills/` 目录加载 skill（对应运行时的 `/skills`）。将本 skill 目录（含 `SKILL.md` 与 `reference.md`）放到 OpenClaw 工作区的 `skills/discord-task-center/` 下即可被加载。
+- **Skill 放置位置**：OpenClaw 从工作区 `skills/` 目录加载 skill（对应运行时的 `/skills`）。将本 skill 目录（含 `SKILL.md` 与 `reference.md`）放到 OpenClaw 工作区的 `skills/discord-dynasty/` 下即可被加载。
 - **可选 frontmatter 门控**：若希望仅在配置了 Discord 任务中心时才加载本 skill，可在 `SKILL.md` 的 frontmatter 中加入 `metadata`（单行 JSON），例如：
   ```yaml
   metadata: { "openclaw": { "requires": { "config": ["discord.taskCenterForumId"] } } }
   ```
-  具体 config 路径以你的 `openclaw.json` 中 Discord 集成配置为准。
+  具体 config 路径以 `~/.openclaw/openclaw.json` 中 Discord 集成配置为准。
 - **Agent 指令**：SKILL.md 正文是写给 OpenClaw agent 的指令（何时触发、如何响应新建/归档、模型标签的含义）；本 reference 供实现工具/插件或排查 API 时查阅。
 
 ---
@@ -184,12 +186,12 @@
 
 ### 10.2 模板 JSON 结构
 
-模板文件位于本 skill 目录下（路径相对于 skill 根目录，即 `discord-task-center/`）：
+模板文件位于本 skill 目录下（路径相对于 skill 根目录，即 `discord-dynasty/`）：
 
 - **完整版**：`templates/six-ministries.json`
 - **精简版**：`templates/six-ministries-minimal.json`（司礼监 1 频道 + 每部 1 文本频道 + 工部任务中心）
 
-实现时若从工作区根目录解析路径，则应为 `discord-task-center/templates/six-ministries.json`（或当前 skill 目录名 + `/templates/...`）。
+实现时若从工作区根目录解析路径，则应为 `discord-dynasty/templates/six-ministries.json`（或当前 skill 目录名 + `/templates/...`）。
 
 **根字段**：
 
@@ -223,7 +225,7 @@
 
 ## 11. 多 Agent 协作协议（上朝 / 上奏 / 回传 / 巡检）
 
-司礼监与六部可各由独立 Agent 代理。以下约定**消息格式与流向**，便于调度器与各 Agent 实现对接。实现时需运行时具备多 Agent 调度、定时任务与（可选）司礼监与各部之间的消息总线或 API。
+司礼监与六部可各由独立 Agent 代理。以下约定**消息格式与流向**，便于调度器与各 Agent 实现对接。实现时需运行时具备多 Agent 调度、定时任务与（可选）司礼监与各部之间的消息总线或 API。本节中的 `court.*` 等为**自定义扩展配置**，与 openclaw.json 官方 schema 的衔接见 [OpenClaw配置与Discord参考.md](../OpenClaw配置与Discord参考.md)，避免与官方字段混淆。
 
 ### 11.1 配置项建议
 

@@ -1,5 +1,5 @@
 ---
-name: discord-task-center
+name: discord-dynasty
 description: Handles Discord task-center forum: create task posts, archive tasks by tag, and respect model tags. Supports six-ministries style channel template (司礼监+六部). Use when user says 新建任务、开个任务、归档任务、建六部管理频道, or when asked to create a task from todo/calendar. Requires Discord forum integration.
 ---
 
@@ -63,7 +63,7 @@ description: Handles Discord task-center forum: create task posts, archive tasks
 1. **读取模板**：从本 skill 的 `templates/six-ministries.json` 读取配置（若用户明确要精简版，则用 `templates/six-ministries-minimal.json`）。模板结构见 [reference.md](reference.md) 第 10 节。
 2. **创建顺序**：**先司礼监 (main)，再六部**（吏→户→礼→兵→刑→工）。每个类别下：先调用 `channelCreate` 创建**类别**（Discord type=4，name 为 category.name），取得返回的频道 ID 作为 `parent_id`；再对该类别下每个 channel 调用 `channelCreate`，传入 `parent_id`、`name`、`type`（0=文本、5=公告、15=论坛），以及 `topic`、`available_tags`（仅论坛需传）。
 3. **使用 discord 工具**：使用 `channelCreate`（需开启 `discord.actions.channels: true`）。若工具一次只能建一个频道，则按上述顺序循环调用，并在回复中汇总新建的类别名与频道链接/ID。
-4. **回复用户**：确认已按六部模板创建完成，并说明「司礼监置顶，其下为六部；工部内含任务中心论坛」。若工具不支持 `parent_id` 或 `available_tags`，则完成能创建的部分后，提示用户在 Discord 后台手动创建类别/子频道或补全标签。**若无法读取模板文件**，请提示用户检查 skill 是否完整安装或提供正确的模板路径（如 `discord-task-center/templates/six-ministries.json`）。
+4. **回复用户**：确认已按六部模板创建完成，并说明「司礼监置顶，其下为六部；工部内含任务中心论坛」。若工具不支持 `parent_id` 或 `available_tags`，则完成能创建的部分后，提示用户在 Discord 后台手动创建类别/子频道或补全标签。**若无法读取模板文件**，请提示用户检查 skill 是否完整安装或提供正确的模板路径（如 `discord-dynasty/templates/six-ministries.json`）。
 
 **与「建一个任务管理频道」的区分**：后者只建**一个**任务中心论坛；本处建**整站**司礼监 + 六部结构（含任务中心在内）。
 
@@ -80,4 +80,4 @@ description: Handles Discord task-center forum: create task posts, archive tasks
 - **归档任务**：使用 `discord` 工具的 **channelEdit**（目标为当前 thread 的 channelId），更新 **applied_tags**：在现有标签中加入「归档」、移除「进行中」。
 - **建任务中心频道**：使用 **channelCreate**，`type: 15`（GUILD_FORUM），并设 `available_tags`（若工具支持）；否则需在 Discord 后台或通过其他方式预置标签。详见 [reference.md](reference.md) 的「与 ClawHub Discord skill 结合」一节。
 
-若当前 `discord` 工具未暴露论坛帖的 `applied_tags`（创建时或 channelEdit），你在执行新建/归档时尽量完成发帖与改标题，并回复用户说明「标签需在 Discord 客户端手动勾选」或建议管理员扩展工具以支持 applied_tags。详细 API 与扩展点见 [reference.md](reference.md)。
+若当前 `discord` 工具未暴露论坛帖的 `applied_tags`（创建时或 channelEdit），你在执行新建/归档时尽量完成发帖与改标题，并回复用户说明「标签需在 Discord 客户端手动勾选」或建议管理员扩展工具以支持 applied_tags。详细 API 与扩展点见 [reference.md](reference.md)。配置与故障排查详见项目内 [OpenClaw配置与Discord参考.md](../OpenClaw配置与Discord参考.md)。
