@@ -117,34 +117,64 @@ def search_twitter(
         output_list = data.get("output", [])
         
         for item in output_list:
-            if isinstance(item, dict):
-                # 策略 1: 直接包含 author 和 id 的工具返回
-                if item.get("author") and item.get("id"):
-                    tweet_data = format_tweet(item)
-                    if tweet_data:
-                        tweets.append(tweet_data)
-                
-                # 策略 2: 从 message content 中解析
-                elif item.get("type") == "message":
-                    content_list = item.get("content", [])
-                    for c in content_list:
-                        if c.get("type") == "output_text":
-                            text = c.get("text", "")
-                            # 尝试找到 JSON 数组
-                            try:
-                                # 查找方括号包裹的内容
-                                start = text.find("[")
-                                end = text.rfind("]")
-                                if start != -1 and end != -1:
-                                    parsed = json.loads(text[start:end+1])
-                                    if isinstance(parsed, list):
-                                        for t in parsed:
-                                            if isinstance(t, dict):
-                                                tweet_data = format_tweet(t)
-                                                if tweet_data:
-                                                    tweets.append(tweet_data)
-                            except json.JSONDecodeError:
-                                pass
+            if not isinstance(item, dict):
+                continue
+            
+            # 策略 1: 直接包含 author 和 id 的工具返回
+            if item.get("author") and item.get("id"):
+                tweet_data = format_tweet(item)
+                if tweet_data:
+                    tweets.append(tweet_data)
+            
+            # 策略 2: 从 message content 中解析 (格式化文本)
+            elif item.get("type") == "message":
+                content_list = item.get("content", [])
+                for c in content_list:
+                    if c.get("type") == "output_text":
+                        text = c.get("text", "")
+                        # 尝试找到 JSON 数组
+                        try:
+                            start = text.find("[")
+                            end = text.rfind("]")
+                            if start != -1 and end != -1:
+                                parsed = json.loads(text[start:end+1])
+                                if isinstance(parsed, list):
+                                    for t in parsed:
+                                        if isinstance(t, dict):
+                                            tweet_data = format_tweet(t)
+                                            if tweet_data:
+                                                tweets.append(tweet_data)
+                        except json.JSONDecodeError:
+                            pass
+                        # 策略 3: 从格式化文本中提取推文链接和内容
+                        # 格式: [[1]](https://x.com/i/status/...) ...
+                        import re
+                        # 匹配推文链接模式
+                        url_pattern = r'https://x\.com/i/status/(\d+)'
+                        urls = re.findall(url_pattern, text)
+                        
+                        # 尝试提取用户名和内容（简化版）
+                        # 查找 @username 模式
+                        user_pattern = r'@(\w+)'
+                        users = re.findall(user_pattern, text)
+                        
+                        # 如果找到 URLs 但没有解析出结构化数据，创建简化条目
+                        if urls and len(urls) > len(tweets):
+                            # 从文本中提取每条推文的信息
+                            # 格式: 1. **@username** (date): "content"
+                            tweet_pattern = r'\d+\.\s+\*\*@(\w+)\*\*\s*\([^)]+\):\s*"([^"]+)"'
+                            matches = re.findall(tweet_pattern, text)
+                            
+                            for i, (username, content) in enumerate(matches):
+                                if len(tweets) < max_results:
+                                    tweets.append({
+                                        "author": f"@{username}",
+                                        "content": content[:500],
+                                        "timestamp": "",
+                                        "likes": 0,
+                                        "retweets": 0,
+                                        "url": f"https://x.com/i/status/{urls[i]}" if i < len(urls) else ""
+                                    })
         
         result["tweets"] = tweets[:max_results]
         

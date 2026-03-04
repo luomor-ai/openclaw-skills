@@ -172,8 +172,24 @@ def test_connection(api_key, proxy):
     """测试连接"""
     print("\n🧪 测试连接到 Grok API...")
     
+    # 检查 uv 是否可用
+    if not check_uv():
+        print("\n❌ uv 未安装，无法运行测试")
+        print("   请先安装 uv: curl -LsSf https://astral.sh/uv/install.sh | sh")
+        return False
+    
     script_dir = Path(__file__).parent
     search_script = script_dir / "search_twitter.py"
+    
+    # 检查 pyproject.toml 是否存在
+    pyproject = script_dir.parent / "pyproject.toml"
+    if not pyproject.exists():
+        print(f"\n⚠️  缺少 {pyproject}，尝试安装依赖...")
+        try:
+            subprocess.run(["uv", "sync"], cwd=str(script_dir.parent), check=True)
+        except Exception as e:
+            print(f"❌ 依赖安装失败: {e}")
+            return False
     
     cmd = [
         "uv", "run", str(search_script),
@@ -276,20 +292,31 @@ def save_config(api_key, proxy_choice):
             if config_path.exists():
                 with open(config_path, 'r') as f:
                     content = f.read()
-                    # 处理 JSON5 注释
+                    # 处理 JSON5 注释: // 和 /* */
                     content = re.sub(r'//.*$', '', content, flags=re.MULTILINE)
+                    content = re.sub(r'/\*.*?\*/', '', content, flags=re.DOTALL)
                     try:
                         existing = json.loads(content)
                     except:
                         existing = {}
             
-            # 合并配置
+            # 合并配置 (深度合并而非覆盖)
             if "skills" not in existing:
                 existing["skills"] = {}
             if "entries" not in existing["skills"]:
                 existing["skills"]["entries"] = {}
             
-            existing["skills"]["entries"]["grok-twitter-search"] = config["skills"]["entries"]["grok-twitter-search"]
+            # 保留现有配置，只更新 grok-twitter-search
+            existing_skill = existing["skills"]["entries"].get("grok-twitter-search", {})
+            new_skill = config["skills"]["entries"]["grok-twitter-search"]
+            
+            # 合并 env
+            if "env" in existing_skill and "env" in new_skill:
+                existing_skill["env"].update(new_skill["env"])
+            
+            # 更新其他字段
+            existing_skill.update(new_skill)
+            existing["skills"]["entries"]["grok-twitter-search"] = existing_skill
             
             # 写回 (使用 JSON5 格式保留注释友好性)
             with open(config_path, 'w') as f:
