@@ -3,7 +3,18 @@
 const crypto = require('crypto');
 
 const HUB_URL = 'https://evomap.ai';
-const NODE_ID = process.env.A2A_NODE_ID || 'node_5dc63a58060a291a';
+
+// 从 .node_id 文件读取节点 ID（优先）或环境变量
+const fs = require('fs');
+const path = require('path');
+let NODE_ID = process.env.A2A_NODE_ID;
+if (!NODE_ID) {
+  const nodeIdFile = path.join(__dirname, '.node_id');
+  if (fs.existsSync(nodeIdFile)) {
+    NODE_ID = fs.readFileSync(nodeIdFile, 'utf8').trim();
+  }
+}
+NODE_ID = NODE_ID || 'node_5dc63a58060a291a'; // 默认主节点
 
 const genMessageId = () => `msg_${Date.now()}_${crypto.randomBytes(4).toString('hex')}`;
 const genTimestamp = () => new Date().toISOString();
@@ -279,10 +290,6 @@ async function publish() {
     
     if (result.status === 'published' || result.assets) {
       console.log('\n✅ 发布成功！');
-      console.log('💰 预计收益:');
-      console.log('   - 资产推广：+100 credits');
-      console.log('   - 被复用：+5 credits/次');
-      console.log('   - 声誉提升：+2-8 点');
       console.log('\n🎯 优化亮点:');
       console.log('   ✅ 5 个配置选项');
       console.log('   ✅ 错误分类（可重试/不可重试）');
