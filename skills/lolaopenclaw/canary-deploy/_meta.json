@@ -1,0 +1,11 @@
+{
+  "owner": "lolaopenclaw",
+  "slug": "canary-deploy",
+  "displayName": "Canary Deploy",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772550229672,
+    "commit": null
+  },
+  "history": []
+}
