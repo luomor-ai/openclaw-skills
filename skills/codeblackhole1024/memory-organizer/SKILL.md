@@ -17,6 +17,32 @@ Tool for organizing and compressing memory files.
 2. **Analyze content** - Identify important info (user preferences, project config, todos)
 3. **Compress & organize** - Summarize lengthy content, keep core info
 4. **Clean up** - Delete outdated or unnecessary content
+5. **Security** - Path validation to prevent directory traversal
+
+## Installation
+
+This skill is pre-installed in OpenClaw workspace. To use directly:
+
+```bash
+# Link to local bin (optional)
+ln -sf ~/.openclaw/workspace-main/skills/memory-organizer/memory-organizer.js ~/.local/bin/memory-organizer
+
+# Or run directly
+node ~/.openclaw/workspace-main/skills/memory-organizer/memory-organizer.js <command>
+```
+
+## Workspace Configuration
+
+Default workspace: `~/.openclaw/workspace-main`
+
+Custom workspace:
+```bash
+# Via command line
+memory-organizer scan --workspace /path/to/workspace
+
+# Via environment variable
+OPENCLAW_WORKSPACE=/path/to/workspace memory-organizer scan
+```
 
 ## Use Cases
 
@@ -80,13 +106,19 @@ memory-organizer clean
 
 The organizer automatically classifies memories into:
 
-- **用户偏好 (User Preferences)** - name, timezone, preferences
-- **项目配置 (Project Config)** - agents, cron jobs, workspaces
-- **技能 (Skills)** - installed skills, tools
-- **赚钱点子 (Money Ideas)** - side hustle ideas, projects
-- **待办事项 (Todos)** - tasks, plans, next steps
-- **技术记录 (Tech Notes)** - code, commands, solutions
-- **日常 (Daily)** - daily logs, routine
+- **User Preferences** - name, timezone, preferences
+- **Project Config** - agents, cron jobs, workspaces
+- **Skills** - installed skills, tools
+- **Money Ideas** - side hustle ideas, projects
+- **Todos** - tasks, plans, next steps
+- **Tech Notes** - code, commands, solutions
+- **Daily** - daily logs, routine
+
+## Security
+
+- **Path validation**: All file operations are validated to prevent directory traversal attacks
+- **Filename restrictions**: Only `.md` files allowed, no path components (`..`, `/`, `\`)
+- **Workspace isolation**: Operations scoped to memory directory only
 
 ## Best Practices
 

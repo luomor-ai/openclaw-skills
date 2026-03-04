@@ -1,53 +1,94 @@
 #!/usr/bin/env node
 
 /**
- * Memory Organizer - 记忆整理压缩工具 v2.0
- * 功能：
- * 1. 扫描记忆文件
- * 2. 分析内容重要性
- * 3. 根据 Topic 分类
- * 4. 压缩/丢弃冗余内容
+ * Memory Organizer - Organize and compress memory files
+ * Features:
+ * 1. Scan memory files
+ * 2. Analyze content importance
+ * 3. Classify by topic
+ * 4. Compress/discard redundant content
+ * 
+ * Security: Validates paths to prevent directory traversal
  */
 
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 
-const WORKSPACE = '/home/node/.openclaw/workspace-main';
+// Get workspace from env or argument, with validation
+function getWorkspace() {
+  const envWorkspace = process.env.OPENCLAW_WORKSPACE;
+  if (envWorkspace) {
+    return path.resolve(envWorkspace);
+  }
+  
+  // Default to home workspace
+  const home = os.homedir();
+  return path.join(home, '.openclaw', 'workspace-main');
+}
+
+// Validate that a file path is within the allowed directory
+function isPathSafe(filePath, baseDir) {
+  const resolved = path.resolve(filePath);
+  const baseResolved = path.resolve(baseDir);
+  return resolved.startsWith(baseResolved + path.sep) || resolved === baseResolved;
+}
+
+// Validate filename to prevent path traversal
+function isFilenameSafe(filename) {
+  // Reject any path components, only allow simple filenames
+  if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
+    return false;
+  }
+  // Reject hidden files (except .md)
+  if (filename.startsWith('.') && !filename.startsWith('..')) {
+    return false;
+  }
+  // Only allow .md files
+  if (!filename.endsWith('.md')) {
+    return false;
+  }
+  return true;
+}
+
+const WORKSPACE = getWorkspace();
 const MEMORY_DIR = path.join(WORKSPACE, 'memory');
 const MAIN_MEMORY = path.join(WORKSPACE, 'MEMORY.md');
 
-// Topic 关键词映射
+// Topic keyword mapping
 const TOPIC_KEYWORDS = {
-  '用户偏好': ['用户', '偏好', 'preference', '称呼', '名字', '时区', 'timezone'],
-  '项目配置': ['项目', '配置', 'config', 'agent', '工作空间', 'workspace', 'cron', '定时'],
-  '技能': ['skill', '工具', 'tool', '安装', 'install', '配置'],
-  '赚钱点子': ['赚钱', '副业', 'money', '收入', '点子', '项目'],
-  '待办事项': ['待办', 'todo', '任务', 'task', '下一步', '计划'],
-  '技术记录': ['代码', 'command', '命令', '技术', '调试', '问题', '解决'],
-  '日常': ['日记', '日志', '记录', '今天', '昨天', '日常']
+  'User Preferences': ['用户', '偏好', 'preference', '称呼', '名字', '时区', 'timezone', 'name', 'pronoun'],
+  'Project Config': ['项目', '配置', 'config', 'agent', '工作空间', 'workspace', 'cron', '定时', 'bot', 'skill'],
+  'Skills': ['skill', '工具', 'tool', '安装', 'install', 'command'],
+  'Money Ideas': ['赚钱', '副业', 'money', '收入', '点子', '项目', 'income'],
+  'Todos': ['待办', 'todo', '任务', 'task', '下一步', '计划', 'next'],
+  'Tech Notes': ['代码', 'command', '命令', '技术', '调试', '问题', '解决', 'code', 'fix'],
+  'Daily': ['日记', '日志', '记录', '今天', '昨天', '日常', 'daily', 'log']
 };
 
-// 要保留的关键词
+// Keywords to keep
 const IMPORTANT_KEYWORDS = [
-  '用户', '偏好', '配置', '项目', '待办', '任务', 'Agent', '重要', '关键'
+  '用户', '偏好', '配置', '项目', '待办', '任务', 'Agent', '重要', '关键',
+  'user', 'preference', 'config', 'project', 'todo', 'task', 'important', 'key'
 ];
 
-// 要丢弃的冗余关键词
+// Keywords to discard
 const DISCARD_KEYWORDS = [
-  '测试', 'test', '调试', '临时', 'temp', '日志', '详情', '具体过程'
+  '测试', 'test', '调试', '临时', 'temp', '日志', '详情', '具体过程',
+  'debug', 'temporary', 'details', 'process'
 ];
 
 /**
- * 扫描记忆目录
+ * Scan memory directory
  */
 function scanMemories() {
   if (!fs.existsSync(MEMORY_DIR)) {
-    console.log('❌ memory 目录不存在');
+    console.log('❌ Memory directory does not exist');
     return [];
   }
 
   const files = fs.readdirSync(MEMORY_DIR)
-    .filter(f => f.endsWith('.md') && !f.endsWith('.bak'))
+    .filter(f => f.endsWith('.md') && !f.endsWith('.bak') && !f.endsWith('.discarded'))
     .map(f => {
       const filePath = path.join(MEMORY_DIR, f);
       const stats = fs.statSync(filePath);
@@ -60,30 +101,31 @@ function scanMemories() {
       };
     });
 
-  console.log('\n📁 记忆文件列表：\n');
+  console.log('\n📁 Memory files:\n');
+  console.log(`  Workspace: ${WORKSPACE}`);
+  console.log(`  Memory dir: ${MEMORY_DIR}\n`);
+  
   let totalChars = 0;
   files.forEach(f => {
-    console.log(`  ${f.name}: ${f.chars} 字符, ${f.lines} 行`);
+    console.log(`  ${f.name}: ${f.chars} chars, ${f.lines} lines`);
     totalChars += f.chars;
   });
-  console.log(`\n总计: ${files.length} 个文件, ${totalChars} 字符`);
+  console.log(`\nTotal: ${files.length} files, ${totalChars} chars`);
 
   return files;
 }
 
 /**
- * 分析记忆内容的主题
+ * Analyze memory content topic
  */
 function analyzeTopic(content) {
   const scores = {};
   
-  // 初始化分数
   Object.keys(TOPIC_KEYWORDS).forEach(topic => {
     scores[topic] = 0;
   });
-  scores['未分类'] = 0;
+  scores['Uncategorized'] = 0;
 
-  // 统计每个 topic 的匹配次数
   Object.entries(TOPIC_KEYWORDS).forEach(([topic, keywords]) => {
     keywords.forEach(kw => {
       const regex = new RegExp(kw, 'gi');
@@ -94,8 +136,7 @@ function analyzeTopic(content) {
     });
   });
 
-  // 找出最高分的 topic
-  let maxTopic = '未分类';
+  let maxTopic = 'Uncategorized';
   let maxScore = 0;
   
   Object.entries(scores).forEach(([topic, score]) => {
@@ -109,20 +150,20 @@ function analyzeTopic(content) {
 }
 
 /**
- * 分类所有记忆文件
+ * Classify all memory files
  */
 function classifyMemories() {
   if (!fs.existsSync(MEMORY_DIR)) {
-    console.log('❌ memory 目录不存在');
+    console.log('❌ Memory directory does not exist');
     return;
   }
 
   const files = fs.readdirSync(MEMORY_DIR)
-    .filter(f => f.endsWith('.md') && !f.endsWith('.bak'));
+    .filter(f => f.endsWith('.md') && !f.endsWith('.bak') && !f.endsWith('.discarded'));
 
   const categories = {};
 
-  console.log('\n🗂️ 记忆分类：\n');
+  console.log('\n🗂️ Memory classification:\n');
 
   files.forEach(f => {
     const content = fs.readFileSync(path.join(MEMORY_DIR, f), 'utf-8');
@@ -138,11 +179,10 @@ function classifyMemories() {
     });
   });
 
-  // 打印分类结果
   Object.entries(categories).forEach(([topic, items]) => {
-    console.log(`\n📌 ${topic} (${items.length} 个)`);
+    console.log(`\n📌 ${topic} (${items.length})`);
     items.forEach(item => {
-      console.log(`   - ${item.file} (${item.chars} 字符)`);
+      console.log(`   - ${item.file} (${item.chars} chars)`);
     });
   });
 
@@ -150,7 +190,7 @@ function classifyMemories() {
 }
 
 /**
- * 找出冗余的记忆（相同 topic 的多个文件）
+ * Find redundant memories
  */
 function findRedundant() {
   const categories = classifyMemories();
@@ -158,10 +198,7 @@ function findRedundant() {
 
   Object.entries(categories).forEach(([topic, items]) => {
     if (items.length > 1) {
-      // 按时间排序（旧的在前）
       items.sort((a, b) => a.file.localeCompare(b.file));
-      
-      // 除了最新的，其他的都可以丢弃
       redundant.push({
         topic,
         keep: items[items.length - 1].file,
@@ -171,55 +208,66 @@ function findRedundant() {
   });
 
   if (redundant.length === 0) {
-    console.log('\n✅ 没有发现冗余记忆');
+    console.log('\n✅ No redundant memories found');
     return [];
   }
 
-  console.log('\n⚠️ 发现冗余记忆：\n');
+  console.log('\n⚠️ Redundant memories found:\n');
   redundant.forEach(r => {
     console.log(`📌 ${r.topic}:`);
-    console.log(`   保留: ${r.keep}`);
-    console.log(`   可丢弃: ${r.discard.join(', ')}`);
+    console.log(`   Keep: ${r.keep}`);
+    console.log(`   Discard: ${r.discard.join(', ')}`);
   });
 
   return redundant;
 }
 
 /**
- * 丢弃指定的记忆文件
+ * Discard memory file (with safety check)
  */
 function discardMemory(filename, force = false) {
+  // Security: validate filename
+  if (!isFilenameSafe(filename)) {
+    console.log(`❌ Invalid filename: ${filename}`);
+    return false;
+  }
+
   const filePath = path.join(MEMORY_DIR, filename);
   
+  // Security: validate path is within memory directory
+  if (!isPathSafe(filePath, MEMORY_DIR)) {
+    console.log(`❌ Path outside memory directory: ${filename}`);
+    return false;
+  }
+  
   if (!fs.existsSync(filePath)) {
-    console.log(`❌ 文件不存在: ${filename}`);
+    console.log(`❌ File does not exist: ${filename}`);
     return false;
   }
 
   if (!force) {
-    console.log(`⚠️ 确定要丢弃 ${filename} 吗？`);
-    console.log('   使用 --force 强制丢弃');
+    console.log(`⚠️ Confirm discard ${filename}?`);
+    console.log('   Use --force to force discard');
     return false;
   }
 
-  // 备份再删除
   const backupPath = filePath + '.discarded';
   fs.renameSync(filePath, backupPath);
   
-  console.log(`🗑️ 已丢弃: ${filename}`);
-  console.log(`   备份: ${filename}.discarded`);
+  console.log(`🗑️ Discarded: ${filename}`);
+  console.log(`   Backup: ${filename}.discarded`);
   
   return true;
 }
 
 /**
- * 批量丢弃冗余记忆
+ * Batch discard redundant memories
  */
 function discardRedundant(force = false) {
   const redundant = findRedundant();
   
   if (redundant.length === 0) {
-    console.log('✅ 没有需要丢弃的记忆');
+    console.log('✅ No memories to discard');
     return;
   }
 
@@ -232,16 +280,29 @@ function discardRedundant(force = false) {
     });
   });
 
-  console.log(`\n✅ 共丢弃 ${discarded} 个冗余文件`);
+  console.log(`\n✅ Discarded ${discarded} files`);
 }
 
 /**
- * 压缩记忆文件
+ * Compress memory file
  */
 function compressMemory(filename, options = {}) {
+  // Security: validate filename
+  if (!isFilenameSafe(filename)) {
+    console.log(`❌ Invalid filename: ${filename}`);
+    return false;
+  }
+
   const filePath = path.join(MEMORY_DIR, filename);
+  
+  // Security: validate path
+  if (!isPathSafe(filePath, MEMORY_DIR)) {
+    console.log(`❌ Path outside memory directory`);
+    return false;
+  }
+  
   if (!fs.existsSync(filePath)) {
-    console.log(`❌ 文件不存在: ${filename}`);
+    console.log(`❌ File does not exist: ${filename}`);
     return false;
   }
 
@@ -250,17 +311,14 @@ function compressMemory(filename, options = {}) {
 
   let compressed;
   if (options.aggressive) {
-    // 激进压缩：只保留标题
     compressed = lines.filter(l => l.startsWith('#'));
   } else if (options.keepTitles) {
-    // 只保留标题和列表项
     compressed = lines.filter(l => 
       l.startsWith('#') || 
       l.startsWith('- ') || 
       l.startsWith('* ')
     );
   } else {
-    // 默认：保留标题和关键内容
     compressed = lines.filter(l => {
       const lower = l.toLowerCase();
       return l.startsWith('#') || 
@@ -272,31 +330,41 @@ function compressMemory(filename, options = {}) {
 
   const result = compressed.join('\n');
   
-  // 备份原文件
   fs.writeFileSync(filePath + '.bak', content);
   fs.writeFileSync(filePath, result);
 
-  console.log(`✅ 压缩完成: ${filename}`);
-  console.log(`   原始: ${content.length} -> 压缩后: ${result.length} 字符`);
+  console.log(`✅ Compressed: ${filename}`);
+  console.log(`   Original: ${content.length} -> Compressed: ${result.length} chars`);
 
   return true;
 }
 
 /**
- * 合并到主记忆
+ * Merge to main memory
  */
 function mergeToMain(sourceFile) {
+  // Security: validate filename
+  if (!isFilenameSafe(sourceFile)) {
+    console.log(`❌ Invalid filename: ${sourceFile}`);
+    return false;
+  }
+
   const sourcePath = path.join(MEMORY_DIR, sourceFile);
   
+  // Security: validate path
+  if (!isPathSafe(sourcePath, MEMORY_DIR)) {
+    console.log(`❌ Path outside memory directory`);
+    return false;
+  }
+  
   if (!fs.existsSync(sourcePath)) {
-    console.log(`❌ 源文件不存在: ${sourceFile}`);
+    console.log(`❌ Source file does not exist: ${sourceFile}`);
     return false;
   }
 
   const sourceContent = fs.readFileSync(sourcePath, 'utf-8');
   const { topic } = analyzeTopic(sourceContent);
   
-  // 提取标题和关键内容
   const importantLines = sourceContent.split('\n').filter(l => 
     l.startsWith('#') || l.startsWith('- ') || l.startsWith('* ')
   );
@@ -309,17 +377,30 @@ function mergeToMain(sourceFile) {
   const merged = mainContent + '\n\n---\n\n## ' + topic + ': ' + sourceFile + '\n\n' + importantLines.join('\n');
   fs.writeFileSync(MAIN_MEMORY, merged);
   
-  console.log(`✅ 已合并到 MEMORY.md [${topic}]: ${sourceFile}`);
+  console.log(`✅ Merged to MEMORY.md [${topic}]: ${sourceFile}`);
   return true;
 }
 
 /**
- * 查看记忆内容
+ * View memory content
  */
 function viewMemory(filename) {
+  // Security: validate filename
+  if (!isFilenameSafe(filename)) {
+    console.log(`❌ Invalid filename: ${filename}`);
+    return;
+  }
+
   const filePath = path.join(MEMORY_DIR, filename);
+  
+  // Security: validate path
+  if (!isPathSafe(filePath, MEMORY_DIR)) {
+    console.log(`❌ Path outside memory directory`);
+    return;
+  }
+  
   if (!fs.existsSync(filePath)) {
-    console.log(`❌ 文件不存在: ${filename}`);
+    console.log(`❌ File does not exist: ${filename}`);
     return;
   }
   
@@ -332,7 +413,7 @@ function viewMemory(filename) {
 }
 
 /**
- * 清理备份和丢弃文件
+ * Cleanup backups and discarded files
  */
 function cleanup() {
   if (!fs.existsSync(MEMORY_DIR)) return;
@@ -346,19 +427,28 @@ function cleanup() {
       .forEach(f => {
         fs.unlinkSync(path.join(MEMORY_DIR, f));
         count++;
-        console.log(`🗑️ 删除: ${f}`);
+        console.log(`🗑️ Deleted: ${f}`);
       });
   });
 
-  console.log(`\n✅ 共清理 ${count} 个文件`);
+  console.log(`\n✅ Cleaned ${count} files`);
 }
 
-// 主程序
+// Main
 const args = process.argv.slice(2);
 const command = args[0];
 
-console.log('🧠 Memory Organizer v2.0');
+console.log('🧠 Memory Organizer v2.1');
 console.log('=======================\n');
+
+// Handle workspace override
+if (args.includes('--workspace')) {
+  const idx = args.indexOf('--workspace');
+  if (args[idx + 1]) {
+    process.env.OPENCLAW_WORKSPACE = args[idx + 1];
+    console.log(`Workspace: ${getWorkspace()}\n`);
+  }
+}
 
 switch (command) {
   case 'scan':
@@ -381,8 +471,8 @@ switch (command) {
     } else if (args[1]) {
       discardMemory(args[1], force);
     } else {
-      console.log('用法: memory-organizer discard <文件名>');
-      console.log('     memory-organizer discard redundant [--force]');
+      console.log('Usage: memory-organizer discard <filename>');
+      console.log('       memory-organizer discard redundant [--force]');
     }
     break;
 
@@ -395,7 +485,7 @@ switch (command) {
     if (fileToCompress) {
       compressMemory(fileToCompress, options);
     } else {
-      console.log('用法: memory-organizer compress <文件名> [--titles] [--aggressive]');
+      console.log('Usage: memory-organizer compress <filename> [--titles] [--aggressive]');
     }
     break;
 
@@ -404,7 +494,7 @@ switch (command) {
     if (fileToMerge) {
       mergeToMain(fileToMerge);
     } else {
-      console.log('用法: memory-organizer merge <文件名>');
+      console.log('Usage: memory-organizer merge <filename>');
     }
     break;
 
@@ -413,7 +503,7 @@ switch (command) {
     if (fileToView) {
       viewMemory(fileToView);
     } else {
-      console.log('用法: memory-organizer view <文件名>');
+      console.log('Usage: memory-organizer view <filename>');
     }
     break;
 
@@ -424,28 +514,34 @@ switch (command) {
   case 'help':
   default:
     console.log(`
-🧠 Memory Organizer v2.0 - 记忆整理工具
+🧠 Memory Organizer v2.1 - Memory Organization Tool
 
-用法:
-  memory-organizer scan              扫描所有记忆文件
-  memory-organizer classify         按 Topic 分类记忆
-  memory-organizer redundant        查找冗余记忆
-  memory-organizer discard <文件>   丢弃指定记忆
-  memory-organizer discard redundant [--force]  批量丢弃冗余记忆
-  memory-organizer compress <文件>   压缩指定文件
-  memory-organizer compress <文件> --titles  只保留标题
-  memory-organizer compress <文件> --aggressive  激进压缩
-  memory-organizer merge <文件>     合并到 MEMORY.md
-  memory-organizer view <文件>      查看记忆内容
-  memory-organizer clean            清理备份/丢弃文件
+Usage:
+  memory-organizer scan                   Scan all memory files
+  memory-organizer classify              Classify by topic
+  memory-organizer redundant             Find redundant memories
+  memory-organizer discard <filename>    Discard memory file
+  memory-organizer discard redundant [--force]  Discard redundant files
+  memory-organizer compress <filename>   Compress file
+  memory-organizer compress <filename> --titles  Keep titles only
+  memory-organizer compress <filename> --aggressive  Aggressive compression
+  memory-organizer merge <filename>      Merge to MEMORY.md
+  memory-organizer view <filename>       View memory content
+  memory-organizer clean                 Clean backups/discarded files
+  memory-organizer --workspace <path>    Use custom workspace
 
-分类 Topic:
-  - 用户偏好
-  - 项目配置
-  - 技能
-  - 赚钱点子
-  - 待办事项
-  - 技术记录
-  - 日常
+Security:
+  - Validates all file paths to prevent directory traversal
+  - Only allows .md files in memory directory
+  - Workspace can be customized via --workspace or OPENCLAW_WORKSPACE env
+
+Topics:
+  - User Preferences
+  - Project Config
+  - Skills
+  - Money Ideas
+  - Todos
+  - Tech Notes
+  - Daily
 `);
 }

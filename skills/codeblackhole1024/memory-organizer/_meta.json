@@ -3,9 +3,15 @@
   "slug": "memory-organizer",
   "displayName": "Memory Organizer",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1772522602983,
-    "commit": "https://github.com/openclaw/skills/commit/2b4c60f43d0e26bab58c35c41c539e5b4b98e670"
+    "version": "1.1.0",
+    "publishedAt": 1772589839020,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1772522602983,
+      "commit": "https://github.com/openclaw/skills/commit/2b4c60f43d0e26bab58c35c41c539e5b4b98e670"
+    }
+  ]
 }
