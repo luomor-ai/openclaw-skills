@@ -1,0 +1,11 @@
+{
+  "owner": "takeovernat",
+  "slug": "sessions-dashboard",
+  "displayName": "Live Sessions Dashboard",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1772564709900,
+    "commit": null
+  },
+  "history": []
+}
