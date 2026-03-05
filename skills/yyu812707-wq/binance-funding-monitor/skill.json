@@ -1,0 +1,40 @@
+{
+  "name": "binance-funding-monitor",
+  "version": "1.0.1",
+  "description": "币安资金费率套利监控 - 查看账户、持仓、盈亏统计",
+  "author": "partner",
+  "license": "MIT",
+  "keywords": ["binance", "crypto", "funding", "arbitrage", "监控", "skillpay"],
+  "price": {
+    "amount": "0.001",
+    "currency": "USDT",
+    "type": "per_call"
+  },
+  "entry": "server.py",
+  "mcp": {
+    "type": "stdio",
+    "command": ["bash", "start.sh"]
+  },
+  "env": {
+    "SKILLPAY_API_KEY": "sk_da52b7550acd8ca1a3041b771c3839825fc7847d0ec89854018ee2aa535bfd39",
+    "SKILLPAY_ENDPOINT": "https://api.skillpay.me/v1"
+  },
+  "tools": [
+    {
+      "name": "get_account_summary",
+      "description": "获取币安账户总览：权益、保证金、可用余额"
+    },
+    {
+      "name": "get_positions",
+      "description": "获取当前持仓列表及浮动盈亏"
+    },
+    {
+      "name": "get_funding_income",
+      "description": "获取近7天资金费收入统计"
+    },
+    {
+      "name": "get_full_report",
+      "description": "获取完整监控报告（账户+持仓+盈亏）"
+    }
+  ]
+}
