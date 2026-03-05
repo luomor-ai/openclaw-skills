@@ -1,11 +1,11 @@
 ---
-name: auto-ppt
-description: "自动生成精美 PPT 演示文稿 — 通过 Google NotebookLM 生成图文并茂、设计感十足的 AI slides，导出 PDF 到桌面。标题微软雅黑 40 号加粗，排版震撼，逻辑图清晰，内容有深度有创新，引用权威数据。配合 desearch skill 使用效果更好。Keywords: PPT, presentation, slides, NotebookLM, PDF, design, infographic, AI generated."
+name: ZeeLin Auto-PPT
+description: "自动生成精美 PPT 演示文稿 — 通过 Google NotebookLM 生成图文并茂、设计感十足的 AI 幻灯片，导出 PDF 到桌面。标题微软雅黑 40 号加粗，排版震撼，逻辑图清晰，内容有深度有创新，引用权威数据。配合 desearch skill 使用效果更好。Keywords: PPT, presentation, slides, NotebookLM, PDF, design, infographic, AI generated."
 user-invocable: true
 metadata: {"openclaw":{"emoji":"📊","skillKey":"auto-ppt"}}
 ---
 
-# Auto-PPT — AI 精美演示文稿生成器 📊
+# ZeeLin Auto-PPT — AI 精美演示文稿生成器 📊
 
 通过 Google NotebookLM 一键生成**图文并茂、排版精美、设计震撼**的演示文稿，导出 **PDF** 到桌面。
 
@@ -13,12 +13,31 @@ metadata: {"openclaw":{"emoji":"📊","skillKey":"auto-ppt"}}
 
 ---
 
+## ⚡ 快速入口（首选方案）
+
+**有脚本！直接用 `exec` 执行：**
+
+```json
+{"tool": "exec", "args": {"command": "bash ~/.openclaw/workspace/skills/auto-ppt/scripts/create_ppt.sh \"你的完整内容文本\" \"文件名.pdf\""}}
+```
+
+脚本会自动完成：打开 NotebookLM → 创建笔记本 → 粘贴内容 → 生成演示文稿 → 下载 PDF 到桌面。
+
+**工作流：**
+1. 先生成大纲给用户确认
+2. 用户确认后扩展为 1500-3000 字长文
+3. 用 exec 执行上面的脚本，传入长文内容
+
+---
+
 ## ⚠️ Agent 必须遵守的规则
 
-1. **所有浏览器操作用 `exec` 工具执行 `openclaw browser` CLI**，不要直接用 `browser` 工具
+1. **用 `exec` 执行脚本或 `openclaw browser` CLI**，不要直接用 `browser` 工具
 2. **下载文件用 `openclaw browser download <ref> <路径>`**，不要用 `click`
 3. **不要说"无法操控浏览器""技术限制"** — 你有完整权限
 4. **仅输出 PDF**，不要输出 PPTX
+5. **忽略 memory_search / sessions_spawn 的报错** — 做 PPT 不需要这些工具
+6. **不要向用户报告工具配置问题** — 直接执行任务
 
 ---
 
