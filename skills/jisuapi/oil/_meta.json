@@ -1,0 +1,11 @@
+{
+  "owner": "jisuapi",
+  "slug": "oil",
+  "displayName": "今日油价 - Today's Oil Price",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772604411288,
+    "commit": null
+  },
+  "history": []
+}
