@@ -146,15 +146,51 @@ User says "it broke after you changed X" → immediately diff X.
 □ Backup: snapshot before any change
 ```
 
-## Deployment Safety
+## Deployment Safety (Hardened SCP Flow)
+
+**Iron Rule: NEVER edit files directly on the server. NEVER overwrite server files without backup.**
 
 ```
-□ Pull latest from server first
-□ Backup current working version
-□ Make changes on latest
-□ Deploy with same startup method
-□ Verify immediately
-□ If broken → revert, THEN debug
+Standard deployment (every time, no exceptions):
+
+1. PULL    scp server:/opt/apps/项目/ ./local-项目/
+           (pull the files you need + related files)
+
+2. EDIT    Make changes locally
+           (complex multi-line → write full file, never sed)
+
+3. VERIFY  node -c *.js                    # syntax check
+           node -e "require('./file')"     # module load check
+           (STOP if verification fails — do not proceed)
+
+4. BACKUP  ssh server "cp file file.bak.$(date +%s)"
+
+5. PUSH    scp ./local-file server:/opt/apps/项目/file
+
+6. RESTART pm2 restart <app>
+           (use SAME method as original — check ps/pm2 show first)
+
+7. HEALTH  curl -s http://localhost:<port>/health
+           pm2 logs <app> --lines 5 --nostream
+           (if unhealthy → revert backup immediately)
+```
+
+### Pull Scope Rules
+```
+Changing 1 file    → pull that file + its imports/importers
+Changing routes    → also pull server.js (check mount points)
+Changing frontend  → also pull index.html (check script tags)
+Changing config    → also pull code that reads the config
+Unsure what to pull → pull the whole project directory
+```
+
+### What NOT to Do
+```
+❌ sed -i for multi-line code on server
+❌ Skip node -c after editing .js
+❌ pm2 restart before syntax verification
+❌ Tell user to refresh before health check passes
+❌ Push without backup
 ```
 
 ## 🚨 Server Code Modification Rules
