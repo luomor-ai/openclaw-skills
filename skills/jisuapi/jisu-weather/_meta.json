@@ -1,0 +1,11 @@
+{
+  "owner": "jisuapi",
+  "slug": "jisu-weather",
+  "displayName": "全国天气预报 - Weather Forecast",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772612038866,
+    "commit": null
+  },
+  "history": []
+}
