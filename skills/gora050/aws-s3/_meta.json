@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "aws-s3",
+  "displayName": "Aws S3",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772708560750,
+    "commit": null
+  },
+  "history": []
+}
