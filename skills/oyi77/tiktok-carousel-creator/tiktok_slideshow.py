@@ -50,10 +50,13 @@ if not PostBridgeClient:
 
 # Configuration
 PEXELS_API_KEY = os.environ.get("PEXELS_API_KEY")
-POST_BRIDGE_API_KEY = os.environ.get("POST_BRIDGE_API_KEY", "pb_live_Kyc2gafDF7Qc8c2ALELtEC")
+POST_BRIDGE_API_KEY = os.environ.get("POST_BRIDGE_API_KEY", "pb_live_BBLz9mjZkkL8q41tb2pwxq")
 
 # ImgBB API Key (optional - get free at https://api.imgbb.com/)
 IMGBB_API_KEY = os.environ.get("IMGBB_API_KEY")
+
+# Hosting provider (imgbb, googledrive)
+HOST_PROVIDER = os.environ.get("HOST_PROVIDER", "imgbb")
 
 # Directories
 BASE_DIR = Path.home() / ".tiktok-slideshow"
@@ -372,14 +375,71 @@ def create_slideshow(
                 temp_img.unlink()
 
 
-def upload_to_tiktok(project_id: str, caption: str = "", auto_host: bool = True) -> bool:
+def upload_images_to_hosting(slides: List[str], provider: str = "imgbb", folder_id: str = "", account: str = "") -> List[str]:
+    """
+    Upload all slides to specified hosting provider.
+
+    Args:
+        slides: List of slide file paths
+        provider: Hosting provider (imgbb, googledrive)
+        folder_id: Optional folder ID for Google Drive
+        account: Optional Google account email for gog CLI
+
+    Returns:
+        List of public URLs
+    """
+    media_urls = []
+
+    if provider == "imgbb":
+        print(f"\n🖼️  Uploading {len(slides)} slides to ImgBB hosting...")
+
+        for i, slide in enumerate(slides, 1):
+            slide_path = Path(slide)
+            if slide_path.exists():
+                img_url = upload_to_imgbb(slide_path)
+                if img_url:
+                    media_urls.append(img_url)
+                    print(f"  Slide {i}: ✅ {img_url[:50]}...")
+                else:
+                    print(f"  Slide {i}: ❌ Upload failed")
+            else:
+                print(f"  Slide {i}: ❌ File not found: {slide}")
+
+    elif provider == "googledrive":
+        account_info = f" (account: {account})" if account else ""
+        print(f"\n☁️  Uploading {len(slides)} slides to Google Drive{account_info}...")
+
+        for i, slide in enumerate(slides, 1):
+            slide_path = Path(slide)
+            if slide_path.exists():
+                img_url = upload_to_googledrive(slide_path, folder_id, account)
+                if img_url:
+                    media_urls.append(img_url)
+                    print(f"  Slide {i}: ✅ {img_url[:60]}...")
+                else:
+                    print(f"  Slide {i}: ❌ Upload failed")
+            else:
+                print(f"  Slide {i}: ❌ File not found: {slide}")
+
+    else:
+        print(f"⚠️  Unknown provider: {provider}")
+        print("Using local file paths - images need to be hosted manually")
+        media_urls = [f"file://{p}" for p in slides]
+
+    return media_urls
+
+
+def upload_to_tiktok(project_id: str, caption: str = "", auto_host: bool = True, host_provider: str = "imgbb", folder_id: str = "", account: str = "") -> bool:
     """
     Upload slideshow to TikTok via PostBridge.
 
     Args:
         project_id: Project ID from create_slideshow
         caption: Optional caption for the post
-        auto_host: Auto-upload images to ImgBB hosting (default: True)
+        auto_host: Auto-upload images to hosting (default: True)
+        host_provider: Hosting provider (imgbb, googledrive)
+        folder_id: Optional folder ID for Google Drive
+        account: Optional Google account email for gog CLI
 
     Returns:
         True if successful, False otherwise
@@ -406,29 +466,14 @@ def upload_to_tiktok(project_id: str, caption: str = "", auto_host: bool = True)
 
     print(f"\n📤 Uploading project: {project_id}")
 
-    # Step 1: Host images on ImgBB (if enabled)
+    # Step 1: Host images
     media_urls = []
 
     if auto_host:
-        print(f"\n🖼️  Uploading {len(slides)} slides to ImgBB hosting...")
-
-        for i, slide in enumerate(slides, 1):
-            slide_path = Path(slide)
-            if slide_path.exists():
-                img_url = upload_to_imgbb(slide_path)
-                if img_url:
-                    media_urls.append(img_url)
-                    print(f"  Slide {i}: ✅ {img_url[:50]}...")
-                else:
-                    print(f"  Slide {i}: ❌ Upload failed")
-            else:
-                print(f"  Slide {i}: ❌ File not found: {slide}")
+        media_urls = upload_images_to_hosting(slides, host_provider, folder_id, account)
     else:
-        # Use local file paths (will need manual hosting)
+        print(f"\n⚠️ Skipping hosting - manual upload required")
         media_urls = [f"file://{p}" for p in slides]
-        print(f"\n⚠️ Using local file paths - images need to be hosted manually")
-        for i, slide in enumerate(slides, 1):
-            print(f"  Slide {i}: {slide}")
 
     if not media_urls:
         print("❌ No images uploaded to hosting")
@@ -485,6 +530,7 @@ Learn more: https://www.tip.md/oyi77
     metadata["uploaded_at"] = datetime.now().isoformat()
     metadata["post_id"] = result.get('id')
     metadata["media_urls"] = media_urls
+    metadata["host_provider"] = host_provider
 
     with open(project_file, 'w') as f:
         json.dump(metadata, f, indent=2)
@@ -492,6 +538,78 @@ Learn more: https://www.tip.md/oyi77
     print(f"\n📝 Updated project metadata with upload info")
 
     return True
+
+
+def upload_to_googledrive(image_path: Path, folder_id: str = "", account: str = "") -> Optional[str]:
+    """
+    Upload image to Google Drive via gog CLI.
+
+    Args:
+        image_path: Path to image file
+        folder_id: Optional destination folder ID
+        account: Optional Google account email
+
+    Returns:
+        Public shareable URL of uploaded file, or None if failed
+    """
+    try:
+        # Upload file to Google Drive
+        args = ["gog", "drive", "upload", str(image_path), "--json", "--name", image_path.name]
+
+        if account:
+            args.extend(["--account", account])
+
+        if folder_id:
+            args.extend(["--parent", folder_id])
+
+        result = subprocess.run(args, capture_output=True, text=True, timeout=60)
+
+        if result.returncode != 0:
+            print(f"❌ Google Drive upload failed: {result.stderr}")
+            return None
+
+        # Parse JSON response
+        try:
+            data = json.loads(result.stdout)
+            file_id = data.get("id")
+
+            if not file_id:
+                print(f"❌ No file ID in response: {result.stdout}")
+                return None
+
+            # Get shareable link
+            share_args = ["gog", "drive", "share", file_id, "--json", "--force"]
+            share_result = subprocess.run(share_args, capture_output=True, text=True, timeout=30)
+
+            if share_result.returncode != 0:
+                print(f"⚠️  Could not get share link: {share_result.stderr}")
+                # Try to construct URL manually (Drive preview URL)
+                preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
+                print(f"✅ Uploaded to Drive (manual link): {image_path.name}")
+                return preview_url
+
+            share_data = json.loads(share_result.stdout)
+            share_url = share_data.get("webViewLink", share_data.get("webContentLink"))
+
+            if share_url:
+                print(f"✅ Uploaded to Google Drive: {image_path.name}")
+                return share_url
+            else:
+                # Fallback to preview URL
+                preview_url = f"https://drive.google.com/file/d/{file_id}/preview"
+                print(f"✅ Uploaded to Drive: {image_path.name}")
+                return preview_url
+
+        except json.JSONDecodeError as e:
+            print(f"❌ Failed to parse JSON response: {e}")
+            return None
+
+    except subprocess.TimeoutExpired:
+        print(f"❌ Google Drive upload timeout")
+        return None
+    except Exception as e:
+        print(f"❌ Google Drive upload failed: {e}")
+        return None
 
 
 def upload_to_imgbb(image_path: Path) -> Optional[str]:
@@ -575,19 +693,29 @@ def main():
         print("="*40)
         print("\nCommands:")
         print("  create <topic> <hook> [num_slides]")
-        print("  upload <project_id> [--no-host]")
+        print("  host <project_id> [--provider imgbb|googledrive] [--folder FOLDER_ID] [--account EMAIL]")
+        print("  upload <project_id> [--no-host] [--provider imgbb|googledrive] [--folder FOLDER_ID] [--account EMAIL]")
         print("  list")
-        print("  host <project_id>")
         print("\nExamples:")
         print("  python tiktok_slideshow.py create 'morning routine' 'Your routine is broken' 5")
+        print("  python tiktok_slideshow.py host morning_routine_20260306_123456")
+        print("  python tiktok_slideshow.py host morning_routine_20260306_123456 --provider googledrive")
+        print("  python tiktok_slideshow.py host morning_routine_20260306_123456 --account you@gmail.com")
         print("  python tiktok_slideshow.py upload morning_routine_20260306_123456")
         print("  python tiktok_slideshow.py upload morning_routine_20260306_123456 --no-host")
-        print("  python tiktok_slideshow.py host morning_routine_20260306_123456")
+        print("  python tiktok_slideshow.py upload morning_routine_20260306_123456 --provider googledrive --account you@gmail.com")
         print("  python tiktok_slideshow.py list")
+        print("\nHosting Providers:")
+        print("  imgbb        - Free image hosting (default)")
+        print("  googledrive  - Google Drive (requires gog CLI setup)")
         print("\nEnvironment Variables:")
-        print("  PEXELS_API_KEY - Required for image search")
-        print("  IMGBB_API_KEY - Required for image hosting (get free at https://api.imgbb.com/)")
-        print("  POST_BRIDGE_API_KEY - Required for TikTok upload")
+        print("  PEXELS_API_KEY        - Required for image search")
+        print("  IMGBB_API_KEY         - Required for ImgBB hosting (https://api.imgbb.com/)")
+        print("  POST_BRIDGE_API_KEY   - Required for TikTok upload")
+        print("\nGoogle Drive Setup:")
+        print("  gog auth add              # Add Google account")
+        print("  gog auth status           # Check accounts")
+        print("  python ... --account you@gmail.com  # Use specific account")
         sys.exit(1)
 
     command = sys.argv[1]
@@ -606,17 +734,41 @@ def main():
 
             print("\nNext steps:")
             print(f"  1. Review slides in: {RENDERED_DIR}/")
-            print(f"  2. Upload to TikTok:")
-            print(f"     python tiktok_slideshow.py upload {project_id}")
-            print(f"\n  Or host images only:")
+            print(f"  2. Host images:")
             print(f"     python tiktok_slideshow.py host {project_id}")
+            print(f"  3. Upload to TikTok:")
+            print(f"     python tiktok_slideshow.py upload {project_id}")
 
         elif command == "host":
             if len(sys.argv) < 3:
-                print("❌ Usage: host <project_id>")
+                print("❌ Usage: host <project_id> [--provider imgbb|googledrive] [--folder FOLDER_ID] [--account EMAIL]")
                 sys.exit(1)
 
             project_id = sys.argv[2]
+
+            # Parse flags
+            provider = "imgbb"
+            folder_id = ""
+            account = ""
+
+            if "--provider" in sys.argv:
+                idx = sys.argv.index("--provider")
+                if idx + 1 < len(sys.argv):
+                    provider = sys.argv[idx + 1]
+                    if provider not in ["imgbb", "googledrive"]:
+                        print(f"❌ Invalid provider: {provider}")
+                        print("   Use: imgbb or googledrive")
+                        sys.exit(1)
+
+            if "--folder" in sys.argv:
+                idx = sys.argv.index("--folder")
+                if idx + 1 < len(sys.argv):
+                    folder_id = sys.argv[idx + 1]
+
+            if "--account" in sys.argv:
+                idx = sys.argv.index("--account")
+                if idx + 1 < len(sys.argv):
+                    account = sys.argv[idx + 1]
 
             # Load project metadata
             project_file = PROJECTS_DIR / f"{project_id}.json"
@@ -628,22 +780,13 @@ def main():
                 metadata = json.load(f)
 
             slides = metadata.get("slides", [])
-            print(f"\n🖼️  Uploading {len(slides)} slides to ImgBB hosting...")
+            account_info = f" (account: {account})" if account else ""
+            print(f"\n📤 Uploading {len(slides)} slides to {provider}{account_info}...")
 
-            media_urls = []
-            for i, slide in enumerate(slides, 1):
-                slide_path = Path(slide)
-                if slide_path.exists():
-                    img_url = upload_to_imgbb(slide_path)
-                    if img_url:
-                        media_urls.append(img_url)
-                    else:
-                        print(f"  Slide {i}: ❌ Upload failed")
-                else:
-                    print(f"  Slide {i}: ❌ File not found: {slide}")
+            media_urls = upload_images_to_hosting(slides, provider, folder_id, account)
 
             if media_urls:
-                print(f"\n✅ Uploaded {len(media_urls)} slides to ImgBB!")
+                print(f"\n✅ Uploaded {len(media_urls)} slides to {provider}!")
                 print("\nMedia URLs:")
                 for i, url in enumerate(media_urls, 1):
                     print(f"  {i}. {url}")
@@ -660,15 +803,37 @@ def main():
 
         elif command == "upload":
             if len(sys.argv) < 3:
-                print("❌ Usage: upload <project_id> [--no-host]")
+                print("❌ Usage: upload <project_id> [--no-host] [--provider imgbb|googledrive] [--folder FOLDER_ID] [--account EMAIL]")
                 sys.exit(1)
 
             project_id = sys.argv[2]
 
-            # Check for --no-host flag
+            # Parse flags
             auto_host = "--no-host" not in sys.argv
+            provider = "imgbb"  # default
+            folder_id = ""
+            account = ""
 
-            success = upload_to_tiktok(project_id, auto_host=auto_host)
+            if "--provider" in sys.argv:
+                idx = sys.argv.index("--provider")
+                if idx + 1 < len(sys.argv):
+                    provider = sys.argv[idx + 1]
+                    if provider not in ["imgbb", "googledrive"]:
+                        print(f"❌ Invalid provider: {provider}")
+                        print("   Use: imgbb or googledrive")
+                        sys.exit(1)
+
+            if "--folder" in sys.argv:
+                idx = sys.argv.index("--folder")
+                if idx + 1 < len(sys.argv):
+                    folder_id = sys.argv[idx + 1]
+
+            if "--account" in sys.argv:
+                idx = sys.argv.index("--account")
+                if idx + 1 < len(sys.argv):
+                    account = sys.argv[idx + 1]
+
+            success = upload_to_tiktok(project_id, auto_host=auto_host, host_provider=provider, folder_id=folder_id, account=account)
 
             if success:
                 print("\n✅ Upload process completed!")
