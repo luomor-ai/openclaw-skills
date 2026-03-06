@@ -2,7 +2,7 @@
 # 发布前：将 DAILY_TANG_POEM_API_URL 的 default 改为你的 Vercel 地址
 
 name: daily-tang-poem
-version: 1.0.1
+version: 1.1.1
 author: romanluo00007-tech
 description: 每日唐诗：一句诗+讲解，晚上验收，支持艾宾浩斯复习和诗人缘分
 

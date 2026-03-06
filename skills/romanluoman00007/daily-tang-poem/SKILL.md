@@ -47,44 +47,36 @@ description: >
 
 ## 三、验收模式
 
-**流程**：
-1. 拉取今日诗（同上 API）
-2. **提示**：给一个**不透露原句**的提示，如诗歌的亮点、特色、或白话释义（如「今日那句写的是李白月下独酌、与影共舞的意象」），然后请用户背出原句。禁止在提示中出现要背的那句诗本身。
-3. 用户输入后，用 `recite_lines_normalized`（或 `contents_normalized`）与用户输入标准化后比对
-4. **标准化**：去掉标点、空白、换行
-5. **容错**：1–2 字错、常见别字（的/得）可视为通过
-6. 通过 →「✅ 背得很好！今日任务完成。」并调用 `POST {URL}/api/pass` 记录（body: `{user_id, date, poem_id}`，user_id 从 `DAILY_TANG_POEM_USER_ID` 读取；若未配置则跳过记录）
-7. 未过 → 温和指出，给出正确句，鼓励明天再试
+**提示一律由后端提供，禁止在 skill 中编造或写出诗句。**
 
-**未看过今日诗**：若用户未先看今日诗就说验收，回复：「今天还没有推送过今日唐诗哦。先对我说「今日唐诗」看看今天是哪一首，晚上再验收吧。」
+**流程**：
+1. **取验收提示**：调用 `GET {URL}/api/verification-hint?date=YYYY-MM-DD`（不传则当天）。返回 `{ date, poem_id, recite_hint }`。**只向用户展示返回的 `recite_hint` 作为提示**，不得修改、不得自行编造、不得在提示中出现要背的那句诗本身。
+2. 请用户背出原句。用户输入后，**调用后端判题**：`POST {URL}/api/validate-recite`，body：`{"user_input": "用户背的句子", "date": "返回的 date"}`（或 `"poem_id": 返回的 poem_id`）。鉴权同其他 API。
+3. 根据返回的 `passed` 与 `expected`：
+   - **通过** →「✅ 背得很好！今日任务完成。」并调用 `POST {URL}/api/pass` 记录（body: `{user_id, date, poem_id}`，user_id 从 `DAILY_TANG_POEM_USER_ID` 读取；若未配置则跳过记录）。
+   - **未过** → 温和指出，用返回的 `expected` 给出正确句，鼓励明天再试。
+
+**未看过今日诗**：若用户未先看今日诗就说验收，可先调 verification-hint 拿到 recite_hint，再回复：「今天还没有推送过今日唐诗哦。先对我说「今日唐诗」看看今天是哪一首，晚上再验收吧。」或直接回复该句。
 
 ---
 
 ## 四、复习模式
 
-**前置**：复习基于用户**真实验收通过**的句子。验收通过后需调用 `POST {URL}/api/pass` 记录（见下）。用户需配置 `DAILY_TANG_POEM_USER_ID`，可填：终端运行 `uuidgen` 得到的字符串、Telegram chat id、或自定义如 `my-phone`。
+**复习题目仅来自用户已验收通过的记录**，由后端根据 `user_id` 从存储中取出，**不得自行编造题目或使用其他来源**。验收通过后必须调用 `POST {URL}/api/pass` 记录，否则复习池中不会出现该句。用户需配置 `DAILY_TANG_POEM_USER_ID`。
 
-**流程**：
-1. `GET {URL}/api/review?user_id={DAILY_TANG_POEM_USER_ID}&count=5` → 得到用户已背过的 `items`
-2. 若返回 `items` 为空或 `message` 提示无数据，回复用户：「还没有通过验收的句子，先背几天再来复习吧～」
-3. 逐题出题、判题、收尾总结。
+**流程**（全部由后端出题与判题，你只负责展示与调用 API）：
+1. **拉取题目**：`GET {URL}/api/review/questions?user_id={DAILY_TANG_POEM_USER_ID}&count=5`（可选 `&seed=YYYY-MM-DD`，默认当天）。返回 `{ seed, count, questions: [ { index, type, prompt, hint } ], message? }`。
+2. 若 `questions` 为空或存在 `message`，回复用户：「还没有通过验收的句子，先背几天再来复习吧～」
+3. **逐题出题**：按顺序展示每题的 `prompt`（可结合 `hint` 提示作者/诗名）。用户作答后，**调用判题**：`POST {URL}/api/review/check`，body：`{"user_id": "...", "seed": "与拉取题目时返回的 seed 一致", "question_index": 当前题序号, "user_answer": "用户回答"}`。
+4. 根据返回的 `correct` 与 `expected`：答对 ✅ 进入下一题，答错则展示 `expected` 再下一题。全部结束后：「本轮复习完成，答对 X/Y 题。」
 
-**记录通过**：用户验收通过时，调用 `POST {URL}/api/pass`，body：`{"user_id": "从 DAILY_TANG_POEM_USER_ID 读取", "date": "当日日期 YYYY-MM-DD", "poem_id": 当日诗 API 返回的 id}`。若未配置 user_id 或 API 返回错误，静默跳过即可。
+**题型**（后端已实现，你只需按 `type` 与 `prompt` 展示）：填空、默写、选作者、选诗名、排序。
 
-**题型**（每次混合使用，不必五种全上）：
-- **填空**：如「我歌月____，我舞影____。」用户填词，去掉标点后与 `recite_line` 比对
-- **默写**：直接背整句，同验收
-- **选择题**：给诗句，选作者或诗名；干扰项从 `items` 的 `author`/`title` 中取
-- **作者/诗名**：给诗句，问作者或诗名，用户说名字即可
-- **排序**：打乱词语让用户排（如「月 我 歌 徘徊」→「我歌月徘徊」），按正确顺序比对
+**边界**：返回的题目数可能少于 5，有多少出多少。
 
-**出题**：一题一题出，答对 ✅ 下一题，答错先给正确答案再下一题。全部结束后：「本轮复习完成，答对 X/5 题。」
+**未配置 user_id**：若 API 返回 `user_id required`，提示用户配置 `DAILY_TANG_POEM_USER_ID`（如终端运行 `uuidgen`，写入技能 config）。
 
-**边界**：若返回的 `items` 少于 5 个（如刚开始用），有多少出多少，结尾同样报「答对 X/Y 题」。
-
-**未配置 user_id**：若 API 返回 `user_id required` 或类似错误，提示用户：「复习需要先配置用户 ID。终端运行 `uuidgen` 得到一串字符，在 `~/.openclaw/openclaw.json` 的 `skills.entries["daily-tang-poem"].config` 中添加 `DAILY_TANG_POEM_USER_ID`，重启后再说「复习」。」
-
-**存储未配置**：若 API 返回 `Storage not configured` 或 503，提示：「复习功能需要服务端配置存储，暂时不可用。今日诗和验收仍可正常使用。」
+**存储未配置**：若 API 返回 `Storage not configured` 或 503，提示复习暂不可用，今日诗和验收仍可用。
 
 ---
 
@@ -129,7 +121,11 @@ description: >
 
 | 端点 | 参数 | 返回 |
 |------|------|------|
-| `GET /` | `date`（可选，YYYY-MM-DD，默认今天） | `id`, `title`, `author`, `type`, `contents`, `contents_normalized`, `recite_lines`, `recite_lines_normalized` |
-| `GET /api/review` | `user_id`（必填）, `count`=5（1–10） | `{items: [...], total}` 或 `{items:[], message}` |
+| `GET /` | `date`（可选，YYYY-MM-DD，默认今天） | `id`, `title`, `author`, `type`, `contents`, `recite_lines`, `recite_hint` 等 |
+| `GET /api/verification-hint` | `date`（可选） | `{date, poem_id, recite_hint}`（仅验收用，不包含诗句内容） |
+| `POST /api/validate-recite` | body: `{user_input, date? \| poem_id?}` | `{passed, expected, poem_id, date}` |
+| `GET /api/review/questions` | `user_id`（必填）, `count`=5（1–10）, `seed`（可选） | `{seed, count, questions: [{index, type, prompt, hint}]}` 或 `message` |
+| `POST /api/review/check` | body: `{user_id, seed, question_index, user_answer}` | `{correct, expected}` |
+| `GET /api/review` | `user_id`（必填）, `count`=5（1–10） | `{items: [...], total}` 或 `{items:[], message}`（旧版，复习建议用 questions） |
 | `POST /api/pass` | body: `{user_id, date, poem_id}` | `{ok:true}` |
 | `GET /api/poet-affinity` | `days`=30（1–365） | `{days, poets: [{author, count, poems: [{date, title, id}]}]}` |
