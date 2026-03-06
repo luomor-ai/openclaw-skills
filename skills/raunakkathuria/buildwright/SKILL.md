@@ -5,7 +5,7 @@ license: MIT
 compatibility: Requires git and gh (GitHub CLI). GITHUB_TOKEN with repo scope needed for push/PR. Optional tools for security scans (semgrep, gitleaks, trufflehog). Works with Claude Code, OpenCode, OpenClaw, and Cursor.
 metadata:
   homepage: https://github.com/raunakkathuria/buildwright
-  version: "0.0.2"
+  version: "0.0.3"
   author: raunakkathuria
   tags:
     - development
@@ -97,7 +97,7 @@ Full pipeline for new features. Auto-detects greenfield vs existing projects.
 /bw-new-feature "Add OAuth2 login"
 ```
 
-Flow: Research → Spec → Staff Engineer validates → Human approves → TDD build → Verify → Security scan → Code review → PR
+Flow: Detect (greenfield or existing?) → Research → Spec → Staff Engineer validates → Human approves → TDD build → Verify → Security scan → Code review → PR
 
 **Artifacts produced:**
 - `docs/specs/[feature]/research.md` — what the agent found in your codebase
@@ -146,6 +146,18 @@ Quality pipeline for existing work: verify → security → review → PR.
 ### /bw-verify
 
 Quick checks only: typecheck → lint → test → build.
+
+---
+
+### /bw-analyse
+
+Analyse an existing codebase and write structured docs to `.buildwright/codebase/`. Updates `tech.md` with the discovered stack and commands. Run this first on any brownfield project to give every subsequent session real context.
+
+```
+/bw-analyse
+```
+
+Produces: `STACK.md`, `ARCHITECTURE.md`, `CONVENTIONS.md`, `CONCERNS.md` under `.buildwright/codebase/`.
 
 ---
 
