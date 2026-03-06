@@ -9,17 +9,16 @@ metadata:
     requires:
       bins: ["adb"]
 changelog:
-  - version: 1.0.0
+  - version: 1.0.5
     title: Initial Release
     changes:
-      - Initial integration with OpenClaw API
-      - Multi-device control and task automation
-      - Secure execution via AI commands
+      - Change SKILL.md
 ---
 
 # DuoPlus CloudPhone Agent
+Control Android cloud phones remotely through ADB broadcast commands. The target device must be running **StandardSoftwareService** (a system-level automation service).
 
-Control Android cloud phones remotely through ADB broadcast commands. The target device must be running `StandardSoftwareService` (a system-level automation service).
+For more information about our product and services, visit [DuoPlus Official Website](https://www.duoplus.net/).
 
 ## Connection
 
@@ -34,6 +33,25 @@ adb connect <IP>:<PORT>
 ```
 
 All subsequent commands use `-s <DEVICE_ID>` to target a specific device.
+
+## Environment Check
+
+This skill only works on DuoPlus cloud phones with StandardSoftwareService version >= 2.0.0. Before using any commands, verify the device is compatible:
+
+```bash
+# Check if device is a supported DuoPlus cloud phone
+scripts/check_env.sh <DEVICE_ID>
+
+# Or without device ID (uses default connected device)
+scripts/check_env.sh
+```
+
+The script checks `/data/misc/dplus/version` on the device. If the file doesn't exist or the version is below 2.0.0, the device is not supported.
+
+You can also check manually:
+```bash
+adb -s <DEVICE_ID> shell cat /data/misc/dplus/version
+```
 
 ## How Commands Work
 
@@ -191,12 +209,13 @@ scripts/send_command.sh 192.168.1.100:5555 '{"action_name":"CLICK_ELEMENT","para
 ## Typical Workflow
 
 ```
-1. get_ui_state          → Observe current screen (get UI elements + screenshot)
-2. Execute action        → e.g. CLICK_ELEMENT, INPUT_CONTENT, SLIDE_PAGE
-3. sleep 1-3s            → Wait for the action to take effect
-4. get_ui_state          → Verify the result, decide next step
+0. check_env.sh <DEVICE>  → Verify device is a supported DuoPlus cloud phone (v2.0.0+)
+1. get_ui_state            → Observe current screen (get UI elements + screenshot)
+2. Execute action          → e.g. CLICK_ELEMENT, INPUT_CONTENT, SLIDE_PAGE
+3. sleep 1-3s              → Wait for the action to take effect
+4. get_ui_state            → Verify the result, decide next step
 5. Repeat 2-4 until done
-6. END_TASK              → Mark task complete
+6. END_TASK                → Mark task complete
 ```
 
 ## Best Practices

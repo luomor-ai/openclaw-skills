@@ -3,9 +3,15 @@
   "slug": "duoplus-agent",
   "displayName": "Duoplus Agent",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1772763088743,
-    "commit": "https://github.com/openclaw/skills/commit/ef570f7f2b8353f7496f984964e03c926868992d"
+    "version": "1.0.6",
+    "publishedAt": 1772764297021,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1772763088743,
+      "commit": "https://github.com/openclaw/skills/commit/ef570f7f2b8353f7496f984964e03c926868992d"
+    }
+  ]
 }
