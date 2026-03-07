@@ -1,6 +1,14 @@
 ---
 name: re-master
 description: Manage off-plan real estate investments, payment milestones, group buy allocations, and ROI simulations. Use when a user needs to: (1) Track property installments (Dubai 60/40, 70/30 plans), (2) Calculate proportional ownership between investors (Binkl/Dad/Friends), (3) Manage a cash buffer pool for admin payments, (4) Generate unique sharing links for investors, (5) Simulate ROI or payment gap scenarios.
+metadata:
+  {
+    "openclaw": {
+      "requires": {
+        "bins": ["python3"]
+      }
+    }
+  }
 ---
 
 # Real Estate Master (Off-Plan Tracker) 🏙️
@@ -30,8 +38,11 @@ The "Admin Cash Pool" strategy:
 
 Run `python3 scripts/re_sim.py <config.json>` to generate a full funding forecast.
 
-### 4. Investor Communication
-Generate unique sharing URLs for each participant (e.g., `/inv2`, `/inv3`) that only show their specific data and the overall project progress.
+### 4. Sharing URLs (Developer Note)
+The `re-master` skill provides data for per-investor views. To generate URLs:
+-   **Local:** Use the `dash/<token>` routes if using the original Deal Tracker server.
+-   **Static:** Use the simulation output to generate static reports for participants.
+This skill does not run a web server; it provides the logic to power one.
 
 ## References
 
