@@ -1,6 +1,6 @@
 ---
 name: post-bridge-social-manager
-version: 1.0.6
+version: 1.0.7
 title: Social Media Assistant (via post-bridge.com)
 description: Turn your OpenClaw into an autonomous social media manager using Post Bridge API. Use when scheduling, posting, or managing content across TikTok, Instagram Reels, YouTube Shorts, Twitter/X, LinkedIn, Pinterest, Facebook, Threads, or Bluesky. Covers media upload, post creation, scheduling, platform-specific configs, draft mode, and post result tracking.
 license: MIT
@@ -74,22 +74,64 @@ Body: {
 }
 ```
 
-### 4. Check Results
+**Additional create options:**
+
+- `media_urls`: Array of publicly accessible URLs (used instead of `media` if no media IDs). Example: `["https://example.com/video.mp4"]`
+- `is_draft`: If `true`, creates the post but does not process it until updated with a scheduled date or posted instantly later.
+- `processing_enabled`: If `false`, skips video processing. Defaults to `true`.
+- `use_queue`: Automatically schedule to your next available queue slot (configured in the Post Bridge dashboard). Cannot be used with `scheduled_at`. Pass `true` to use your saved timezone, or `{ "timezone": "America/New_York" }` to override.
+
+**`use_queue` example:**
+```json
+{
+  "caption": "Queued post!",
+  "media": ["<media_id>"],
+  "social_accounts": [44029],
+  "use_queue": true
+}
+```
+This finds the next open slot in your queue schedule and sets `scheduled_at` automatically. You must have a queue schedule configured in the dashboard first.
+
+### 4. Update or Delete Scheduled Posts
+```
+PATCH /v1/posts/<post_id>
+```
+Update a scheduled post (caption, schedule time, etc.). Only works on posts with `scheduled` status.
+
+```
+DELETE /v1/posts/<post_id>
+```
+Delete a scheduled post. Only works on posts with `scheduled` status.
+
+### 5. Check Results
 ```
 GET /v1/posts/<post_id>
 ```
 Returns status: `processing`, `scheduled`, `posted`, `failed`.
 
-### 5. Analytics (TikTok)
 ```
-GET /v1/analytics?platform=tiktok
+GET /v1/post-results
 ```
-Retrieve performance data (views, likes, shares, etc.) for TikTok posts. Supports filtering by `timeframe` (7d, 30d, 90d, all) and `post_result_id`.
+List all post results across platforms (paginated with `offset` and `limit`).
+
+### 6. Analytics
+```
+GET /v1/analytics
+```
+Retrieve performance data (views, likes, shares, comments, etc.) for posts.
+
+Query parameters:
+- `platform` — filter by platform (e.g. `tiktok`, `youtube`, `instagram`)
+- `post_result_id[]` — filter by specific post result IDs (multiple values = OR logic)
+- `timeframe` — `7d`, `30d`, `90d`, or `all` (default: `all`)
+- `offset` / `limit` — pagination
+
+Returns: `view_count`, `like_count`, `comment_count`, `share_count`, `cover_image_url`, `share_url`, `duration`, and more per record.
 
 ```
 POST /v1/analytics/sync
 ```
-Manually trigger a sync of TikTok analytics. This is rate-limited—wait between calls.
+Manually trigger a sync of analytics from platforms. Optionally pass `?platform=tiktok` to sync a specific platform only. Rate-limited to once every 5 minutes.
 
 ## Platform Configurations
 
@@ -139,16 +181,17 @@ All platforms support `caption` and `media` overrides for per-platform customiza
    ffmpeg -i video.mp4 -ss 00:00:04 -frames:v 1 frame.jpg -y
    ```
 3. Write caption based on video content + hashtags
-4. Upload → create post → schedule or post instantly
+4. Upload → create post → schedule or post instantly (or use `use_queue` to auto-schedule)
 5. Move posted videos to a `posted/` subfolder to avoid duplicates
 6. Set a cron to check post status 5 mins after scheduled time
-7. Track performance by browsing platform pages or checking post results
+7. Track performance with `GET /v1/analytics` or by browsing platform pages
 
 ## Tips
 
 - Post to multiple platforms simultaneously by including multiple account IDs
 - Stagger posts throughout the day (e.g. 9am + 3pm) for better reach
 - Use `scheduled_at` to pre-schedule batches — Post Bridge handles the timing
+- Use `use_queue` to auto-fill your queue schedule without calculating times yourself
 - TikTok draft mode lets you add trending sounds manually before publishing
 - Keep hashtags to 4-5 per post for best engagement
 - Monitor what works and iterate on captions/formats
