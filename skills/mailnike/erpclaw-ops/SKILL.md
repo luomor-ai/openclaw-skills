@@ -82,20 +82,20 @@ For all actions: `python3 {baseDir}/scripts/db_query.py --action <action> [flags
 ```
 --action add-project --name "Website Redesign" --company-id <id>
 --action add-task --project-id <id> --name "Design mockups" --assigned-to <employee-id> --priority high
---action add-timesheet --employee-id <id> --items '[{"project_id":"<id>","task_id":"<id>","hours":8,"billing_rate":"150.00","from_time":"2026-03-15T09:00","to_time":"2026-03-15T17:00"}]'
+--action add-timesheet --employee-id <id> --company-id <id> --start-date 2026-03-15 --end-date 2026-03-15 --items '[{"project_id":"<id>","task_id":"<id>","hours":8,"billing_rate":"150.00","date":"2026-03-15"}]'
 ```
 
 ### Assets -- Register and Depreciate
 ```
 --action add-asset-category --name "Office Equipment" --company-id <id> --depreciation-method straight_line --useful-life-years 5
---action add-asset --name "MacBook Pro" --asset-category-id <id> --company-id <id> --gross-purchase-amount 2500.00 --purchase-date 2026-01-15
+--action add-asset --name "MacBook Pro" --asset-category-id <id> --company-id <id> --gross-value 2500.00 --purchase-date 2026-01-15
 --action generate-depreciation-schedule --asset-id <id>
 ```
 
 ### Quality -- Inspect and Track Defects
 ```
---action add-inspection-template --name "Raw Material Check" --company-id <id> --items '[{"parameter_name":"Tensile Strength","parameter_type":"numeric","min_value":"200","max_value":"500","unit_of_measure":"MPa"}]'
---action add-quality-inspection --template-id <id> --reference-type item --reference-id <id> --company-id <id>
+--action add-inspection-template --name "Raw Material Check" --company-id <id> --inspection-type incoming --parameters '[{"parameter_name":"Tensile Strength","parameter_type":"numeric","min_value":"200","max_value":"500","unit_of_measure":"MPa"}]'
+--action add-quality-inspection --template-id <id> --reference-type item --reference-id <id> --company-id <id> --item-id <id> --inspection-type incoming --inspection-date 2026-03-15
 ```
 
 ### Support -- Log Issues with SLA Tracking
