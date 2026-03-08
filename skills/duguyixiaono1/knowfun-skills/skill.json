@@ -3,8 +3,8 @@
   "kind": "AgentSkill",
   "metadata": {
     "name": "knowfun",
-    "version": "1.0.2",
-    "description": "Generate educational content using Knowfun.io API - create courses, posters, games, and films with AI",
+    "version": "1.0.11",
+    "description": "Knowfun educational content generator - Create courses, posters, games, and films using Knowfun.io AI API. Perfect for educators, content creators, and learners who want to generate engaging educational materials with AI",
     "author": "Knowfun.io Team",
     "license": "MIT",
     "homepage": "https://knowfun.io",

@@ -1,11 +1,17 @@
 {
   "owner": "duguyixiaono1",
   "slug": "knowfun-skills",
-  "displayName": "Knowfun",
+  "displayName": "KnowFun Skills",
   "latest": {
-    "version": "1.0.10",
-    "publishedAt": 1772642035644,
-    "commit": "https://github.com/openclaw/skills/commit/033c6efb44409eac2545210184c2927693d2455b"
+    "version": "1.0.11",
+    "publishedAt": 1772992147646,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.10",
+      "publishedAt": 1772642035644,
+      "commit": "https://github.com/openclaw/skills/commit/033c6efb44409eac2545210184c2927693d2455b"
+    }
+  ]
 }
