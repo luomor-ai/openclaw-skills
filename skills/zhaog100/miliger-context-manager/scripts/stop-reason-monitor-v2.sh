@@ -9,7 +9,12 @@ export PATH="/root/.nvm/versions/node/v22.22.0/bin:/root/.local/bin:/usr/local/b
 
 LOG_FILE="$HOME/.openclaw/workspace/logs/stop-reason-monitor.log"
 FEISHU_TARGET="user:ou_64e8948aedd09549e512218c96702830"
-OPENCLAW_LOG="/tmp/openclaw/openclaw-$(date +%Y-%m-%d).log"
+# 检查最近3天的日志（跨天错误检测）
+OPENCLAW_LOGS=()
+for i in 0 1 2; do
+    log_date=$(date -d "$i days ago" +%Y-%m-%d 2>/dev/null || date -v-${i}d +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)
+    OPENCLAW_LOGS+=("/tmp/openclaw/openclaw-${log_date}.log")
+done
 COOLDOWN_FILE="/tmp/openclaw/stop-reason-cooldown"
 COOLDOWN_SECONDS=3600
 
@@ -61,14 +66,19 @@ send_qq_notification() {
 monitor_stop_reason() {
     log "🔍 检查OpenClaw日志中的stop_reason错误..."
     
-    # 检查OpenClaw日志文件是否存在
-    if [ ! -f "$OPENCLAW_LOG" ]; then
-        log "⚠️ OpenClaw日志文件不存在: $OPENCLAW_LOG"
-        return 0
-    fi
-    
-    # 搜索最近10分钟的"model_context_window_exceeded"错误
-    local recent_errors=$(tail -1000 "$OPENCLAW_LOG" | grep -i "model_context_window_exceeded" | tail -1)
+    # 检查最近3天的日志（跨天错误检测）
+    local recent_errors=""
+    for log_file in "${OPENCLAW_LOGS[@]}"; do
+        if [ -f "$log_file" ]; then
+            log "📄 检查日志：$log_file"
+            recent_errors=$(tail -1000 "$log_file" | grep -i "model_context_window_exceeded" | tail -1)
+            if [ -n "$recent_errors" ]; then
+                break
+            fi
+        else
+            log "⚠️ 日志文件不存在：$log_file"
+        fi
+    done
     
     if [ -n "$recent_errors" ]; then
         log "🚨 发现stop_reason错误：model_context_window_exceeded"

@@ -3,11 +3,16 @@
   "slug": "miliger-context-manager",
   "displayName": "Miliger Context Manager",
   "latest": {
-    "version": "2.2.2",
-    "publishedAt": 1772803315970,
-    "commit": "https://github.com/openclaw/skills/commit/7fce44f07f2758e462b7f1c4ebd64c1d5a1ae3cd"
+    "version": "7.0.0",
+    "publishedAt": 1772871506559,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.2.2",
+      "publishedAt": 1772803315970,
+      "commit": "https://github.com/openclaw/skills/commit/7fce44f07f2758e462b7f1c4ebd64c1d5a1ae3cd"
+    },
     {
       "version": "2.0.0",
       "publishedAt": 1772636190029,
