@@ -158,7 +158,7 @@ export function isValidIssueRepoSlug(value: string): boolean {
 }
 
 export function resolveIssueRepo(configValue: unknown, envValue: unknown): string {
-  const defaultRepo = "elvatis/openclaw-self-healing-homeofe";
+  const defaultRepo = "elvatis/openclaw-self-healing-elvatis";
   const candidates = [configValue, envValue, defaultRepo];
   for (const candidate of candidates) {
     if (typeof candidate !== "string") continue;
@@ -350,7 +350,14 @@ export function patchSessionModel(sessionsFile: string, sessionKey: string, mode
     if (!data[sessionKey]) return false;
     const prev = data[sessionKey].model;
     data[sessionKey].model = model;
-    fs.writeFileSync(sessionsFile, JSON.stringify(data, null, 0));
+    // atomic write: write to tmp file then rename
+    const tmpFile = `${sessionsFile}.tmp.${Date.now()}`;
+    try {
+      fs.writeFileSync(tmpFile, JSON.stringify(data, null, 0), { encoding: "utf-8", mode: 0o600 });
+      fs.renameSync(tmpFile, sessionsFile);
+    } finally {
+      try { if (fs.existsSync(tmpFile)) fs.unlinkSync(tmpFile); } catch (e) { /* ignore */ }
+    }
     logger?.warn?.(`[self-heal] patched session model: ${sessionKey} ${prev} -> ${model}`);
     return true;
   } catch (e: any) {
@@ -361,15 +368,18 @@ export function patchSessionModel(sessionsFile: string, sessionKey: string, mode
 
 async function runCmd(api: any, cmd: string, timeoutMs = 15000): Promise<{ ok: boolean; stdout: string; stderr: string; code?: number }> {
   try {
-    const res = await api.runtime.system.runCommandWithTimeout({
-      command: ["bash", "-lc", cmd],
-      timeoutMs,
-    });
+    // runCommandWithTimeout(argv: string[], options) — two separate args, not one object.
+    // SpawnResult uses `code`; accept `exitCode` too for mock compatibility.
+    const res = await api.runtime.system.runCommandWithTimeout(
+      ["bash", "-lc", cmd],
+      { timeoutMs },
+    );
+    const exitCode = res.code ?? (res as any).exitCode ?? null;
     return {
-      ok: res.exitCode === 0,
+      ok: exitCode === 0,
       stdout: String(res.stdout ?? ""),
       stderr: String(res.stderr ?? ""),
-      code: res.exitCode,
+      code: exitCode ?? undefined,
     };
   } catch (e: any) {
     return { ok: false, stdout: "", stderr: e?.message ?? String(e) };
@@ -608,7 +618,11 @@ export default function register(api: any) {
         if (config.whatsappRestartEnabled) {
           const st = await runCmd(api, "openclaw channels status --json", 15000);
           if (st.ok) {
-            const parsed = safeJsonParse<any>(st.stdout);
+            // openclaw CLI prints plugin startup lines (e.g. "[plugins] [self-heal] enabled...")
+            // to stdout before the JSON payload. Extract the first JSON object to avoid
+            // safeJsonParse returning undefined and falsely treating WA as disconnected.
+            const jsonMatch = st.stdout.match(/\{[\s\S]*\}/);
+            const parsed = jsonMatch ? safeJsonParse<any>(jsonMatch[0]) : undefined;
             const wa = parsed?.channels?.whatsapp;
             const connected = wa?.status === "connected" || wa?.connected === true;
 
@@ -641,12 +655,18 @@ export default function register(api: any) {
                   if (!v.ok) {
                     api.logger?.error?.(`[self-heal] NOT restarting gateway: openclaw.json invalid: ${v.error}`);
                   } else {
+                    // CRITICAL: persist lastRestartAt + reset streak BEFORE calling gateway restart.
+                    // openclaw gateway restart kills this process via systemd. Any state updates
+                    // placed AFTER runCmd will never execute, leaving lastRestartAt=0 and
+                    // bypassing the whatsappMinRestartIntervalSec rate-limit guard on the next boot.
+                    // This was the root cause of the infinite restart loop.
+                    state.whatsapp!.lastRestartAt = nowSec();
+                    state.whatsapp!.disconnectStreak = 0;
+                    saveState(config.stateFile, state);
                     backupConfig("pre-gateway-restart");
                     await runCmd(api, "openclaw gateway restart", 60000);
                     // If we are still alive after restart, attempt cleanup.
                     await cleanupPendingBackups("post-gateway-restart");
-                    state.whatsapp!.lastRestartAt = nowSec();
-                    state.whatsapp!.disconnectStreak = 0;
                   }
                 }
                 api.emit?.("self-heal:whatsapp-restart", {
@@ -662,7 +682,8 @@ export default function register(api: any) {
         if (config.disableFailingCrons) {
           const res = await runCmd(api, "openclaw cron list --json", 15000);
           if (res.ok) {
-            const parsed = safeJsonParse<any>(res.stdout);
+            const cronJsonMatch = res.stdout.match(/\{[\s\S]*\}/);
+            const parsed = cronJsonMatch ? safeJsonParse<any>(cronJsonMatch[0]) : undefined;
             const jobs: any[] = parsed?.jobs ?? [];
             for (const job of jobs) {
               const id = job.id;
@@ -748,17 +769,71 @@ export default function register(api: any) {
 
         // --- Plugin error rollback (disable plugin) ---
         if (config.disableFailingPlugins) {
-          const res = await runCmd(api, "openclaw plugins list", 15000);
+          const res = await runCmd(api, "openclaw plugins list --json", 15000);
           if (res.ok) {
-            // Heuristic: look for lines containing 'error' or 'crash'
-            const lines = res.stdout.split("\n");
-            for (const ln of lines) {
-              if (!ln.toLowerCase().includes("error")) continue;
-              // No robust parsing available in plain output. Use a conservative approach:
-              // if we see our own plugin listed with error, do not disable others.
+            type PluginEntry = { id: string; name?: string; enabled?: boolean; status?: string; version?: string; error?: string };
+            const pluginJsonMatch = res.stdout.match(/\{[\s\S]*\}/);
+            const parsed = pluginJsonMatch ? safeJsonParse<{ plugins: PluginEntry[] }>(pluginJsonMatch[0]) : undefined;
+            const plugins: PluginEntry[] = parsed?.plugins ?? [];
+            const selfId = "openclaw-self-healing-elvatis";
+
+            for (const plugin of plugins) {
+              const id = plugin.id;
+              if (!id || id === selfId) continue; // never disable ourselves
+
+              const isFailing = plugin.status === "error" || plugin.status === "crash";
+              if (!isFailing) continue;
+
+              const lastDisableAt = state.plugins!.lastDisableAt![id] ?? 0;
+              if (nowSec() - lastDisableAt < config.pluginDisableCooldownSec) {
+                api.logger?.info?.(`[self-heal] plugin ${id} still in disable cooldown, skipping`);
+                continue;
+              }
+
+              const name = plugin.name ?? id;
+              const failReason = plugin.error ? `status=${plugin.status} error=${plugin.error}` : `status=${plugin.status}`;
+
+              if (config.dryRun) {
+                api.logger?.info?.(`[self-heal] [dry-run] would disable plugin ${name} (${id}), reason=${failReason}`);
+                state.plugins!.lastDisableAt![id] = nowSec();
+              } else {
+                const v = isConfigValid();
+                if (!v.ok) {
+                  api.logger?.error?.(`[self-heal] NOT disabling plugin: openclaw.json invalid: ${v.error}`);
+                  continue;
+                }
+                api.logger?.warn?.(`[self-heal] Disabling failing plugin ${name} (${id}), reason=${failReason}`);
+                backupConfig("pre-plugin-disable");
+                await runCmd(api, `openclaw plugins disable ${shellQuote(id)}`, 15000);
+                await cleanupPendingBackups("post-plugin-disable");
+                state.plugins!.lastDisableAt![id] = nowSec();
+
+                const body = [
+                  `Plugin was detected as failing and disabled by openclaw-self-healing.`,
+                  ``,
+                  `Plugin ID: ${id}`,
+                  `Plugin Name: ${name}`,
+                  `Version: ${plugin.version ?? "unknown"}`,
+                  `Status: ${plugin.status}`,
+                  ...(plugin.error ? [`Error: ${plugin.error}`] : []),
+                ].join("\n");
+                const issueCommand = buildGhIssueCreateCommand({
+                  repo: config.issueRepo,
+                  title: `Plugin disabled: ${name}`,
+                  body,
+                  labels: ["security"],
+                });
+                await runCmd(api, issueCommand, 20000);
+              }
+
+              api.emit?.("self-heal:plugin-disabled", {
+                pluginId: id,
+                pluginName: name,
+                reason: failReason,
+                dryRun: config.dryRun,
+              });
             }
           }
-          // TODO: when openclaw provides plugins list --json, parse and disable any status=error.
         }
 
         // --- Active model recovery probing ---

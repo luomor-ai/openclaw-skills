@@ -1,27 +1,43 @@
 ﻿# openclaw-self-healing-elvatis
 
+**Current version: `0.2.10`**
+
 OpenClaw plugin that improves resilience by automatically fixing reversible failures.
 
-## What it can heal (v0.2)
+## What it heals
 
-Implemented now:
+- **Model outage** — Detect rate limit / quota / auth-scope failures, put model into cooldown, patch pinned session to a safe fallback
+- **WhatsApp disconnect** — If WhatsApp appears disconnected repeatedly: restart the gateway (streak threshold + minimum restart interval guard)
+- **Cron failures** — If a cron job fails repeatedly: disable it + create a GitHub issue
+- **Plugin crashes** — If a plugin reports `status=error` or `status=crash`: auto-disable + GitHub issue
 
-- Model outage healing
-  - Detect rate limit / quota / auth-scope failures
-  - Put the affected model into cooldown
-  - Patch pinned session model overrides to a safe fallback (prevents endless `API rate limit reached` loops)
+## Changelog
 
-- WhatsApp disconnect healing
-  - If WhatsApp appears disconnected repeatedly: restart the gateway
-  - Guardrails: streak threshold + minimum restart interval
+### v0.2.10 — 2026-03-08
+Docs fix: README and STATUS.md version headers were stuck at 0.2.8 after v0.2.9 bump; SKILL.md missing version footer; add universal release-rule to CONVENTIONS.md.
 
-- Cron failure healing (optional)
-  - If a cron job fails repeatedly: disable it
-  - Create a GitHub issue with last error context (rate limited)
+### v0.2.9 — 2026-03-07
+**Fix: Plugin health monitoring JSON parsing**
+Extract JSON from stdout before parsing — channels subprocess output includes
+non-JSON log lines (e.g. `[INFO] ...`) before the JSON payload, causing parse
+failures in plugin health checks.
 
-Not implemented yet (next):
-- Plugin install error rollback (disable plugin) based on structured plugin status
-  - Waiting for `openclaw plugins list --json` or an equivalent stable API
+### v0.2.8 — 2026-03-07
+**Fix: Infinite gateway restart loop**
+`lastRestartAt` and `disconnectStreak` are now saved to disk **before** calling
+`openclaw gateway restart`. Previously they were saved after, but systemd kills
+the process during restart — state was never persisted, the rate-limit guard was
+bypassed on every boot, causing an infinite restart loop when used alongside
+any plugin that triggers a config-driven gateway restart (e.g. `openclaw-cli-bridge-elvatis`).
+
+### v0.2.7 — 2026-03-07
+Fix `runCommandWithTimeout` call signature + field name.
+
+### v0.2.6 — 2026-03-02
+Status snapshot file, startup config validation, integration tests.
+
+### v0.2.5 and earlier
+Model failover, WhatsApp reconnect, cron failure, dry-run mode, active recovery probing, config hot-reload.
 
 ## Install
 
@@ -57,7 +73,7 @@ openclaw gateway restart
             "patchSessionPins": true,
             "disableFailingPlugins": false,
             "disableFailingCrons": false,
-            "issueRepo": "elvatis/openclaw-self-healing-homeofe"
+            "issueRepo": "elvatis/openclaw-self-healing-elvatis"
           }
         }
       }
@@ -66,7 +82,7 @@ openclaw gateway restart
 }
 ```
 
-`autoFix.issueRepo` must use `owner/repo` format. Invalid values are ignored and the plugin falls back to `GITHUB_REPOSITORY` (if valid) or `elvatis/openclaw-self-healing-homeofe`.
+`autoFix.issueRepo` must use `owner/repo` format. Invalid values are ignored and the plugin falls back to `GITHUB_REPOSITORY` (if valid) or `elvatis/openclaw-self-healing-elvatis`.
 
 ### Config validation
 
@@ -94,14 +110,28 @@ The file is written atomically (write to `.tmp` then rename) to prevent partial 
   "health": "healthy | degraded | healing",
   "activeModel": "anthropic/claude-opus-4-6",
   "models": [
-    { "id": "...", "status": "available | cooldown", "cooldownRemainingSec": 1234 }
+    {
+      "id": "anthropic/claude-opus-4-6",
+      "status": "available | cooldown",
+      "cooldownReason": "rate limit (only when in cooldown)",
+      "cooldownRemainingSec": 1234,
+      "nextAvailableAt": 1700001234,
+      "lastProbeAt": 1700000900
+    }
   ],
-  "whatsapp": { "status": "connected | disconnected | unknown", "disconnectStreak": 0 },
+  "whatsapp": {
+    "status": "connected | disconnected | unknown",
+    "disconnectStreak": 0,
+    "lastRestartAt": null,
+    "lastSeenConnectedAt": 1700000000
+  },
   "cron": { "trackedJobs": 2, "failingJobs": [] },
   "config": { "dryRun": false, "probeEnabled": true, "cooldownMinutes": 300, "modelOrder": ["..."] },
   "generatedAt": 1700000000
 }
 ```
+
+Fields `cooldownReason`, `cooldownRemainingSec`, `nextAvailableAt`, and `lastProbeAt` on model entries are only present when the model is in cooldown.
 
 ## Notes
 

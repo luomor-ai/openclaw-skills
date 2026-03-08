@@ -79,7 +79,13 @@ async function runOneTick(api: ReturnType<typeof mockApi>) {
 
 /** Build a command-matching predicate for runCommandWithTimeout call args. */
 function cmdContains(call: any[], fragment: string): boolean {
-  const cmd = call[0]?.command?.join(" ") ?? "";
+  // Handles both call signatures:
+  //   old (broken): runCommandWithTimeout({ command: string[], timeoutMs })
+  //   new (correct): runCommandWithTimeout(string[], { timeoutMs })
+  const argv: string[] | undefined = Array.isArray(call[0])
+    ? call[0]
+    : call[0]?.command;
+  const cmd = (argv ?? []).join(" ");
   return cmd.includes(fragment);
 }
 
@@ -195,7 +201,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("channels status")) {
           return {
             exitCode: 0,
@@ -319,7 +325,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         commandLog.push(cmd);
         if (cmd.includes("channels status")) {
           return {
@@ -459,7 +465,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("cron list")) {
           return {
             exitCode: 0,
@@ -527,7 +533,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("cron list")) {
           return {
             exitCode: 0,
@@ -660,7 +666,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("model probe")) {
           return { exitCode: 0, stdout: "ok", stderr: "" };
         }
@@ -700,7 +706,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("model probe")) {
           return { exitCode: 1, stdout: "", stderr: "still limited" };
         }
@@ -739,7 +745,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("model probe")) {
           return { exitCode: 0, stdout: "ok", stderr: "" };
         }
@@ -1181,7 +1187,7 @@ describe("monitor service - integration tick flows", () => {
         },
       });
       api.runtime.system.runCommandWithTimeout.mockImplementation(async (opts: any) => {
-        const cmd = opts?.command?.join(" ") ?? "";
+        const cmd = (Array.isArray(opts) ? opts : opts?.command)?.join(" ") ?? "";
         if (cmd.includes("channels status")) {
           return {
             exitCode: 0,
@@ -1267,7 +1273,7 @@ describe("monitor service - integration tick flows", () => {
       // that no healing-specific commands were issued
       const healingCalls = api.runtime.system.runCommandWithTimeout.mock.calls.filter(
         (c: any[]) => {
-          const cmd = c[0]?.command?.join(" ") ?? "";
+          const cmd = (Array.isArray(c[0]) ? c[0] : c[0]?.command)?.join(" ") ?? "";
           return cmd.includes("channels status") || cmd.includes("cron list") || cmd.includes("model probe");
         }
       );
