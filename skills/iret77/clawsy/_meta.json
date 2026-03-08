@@ -3,11 +3,16 @@
   "slug": "clawsy",
   "displayName": "Clawsy",
   "latest": {
-    "version": "0.7.2",
-    "publishedAt": 1772647749007,
-    "commit": "https://github.com/openclaw/skills/commit/bf996ff569762cd96077ad8d23fc3f7f73dabfaf"
+    "version": "0.9.17",
+    "publishedAt": 1772892941639,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.7.2",
+      "publishedAt": 1772647749007,
+      "commit": "https://github.com/openclaw/skills/commit/bf996ff569762cd96077ad8d23fc3f7f73dabfaf"
+    },
     {
       "version": "0.4.63",
       "publishedAt": 1772228344205,
