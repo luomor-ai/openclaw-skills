@@ -1,13 +1,18 @@
 {
   "owner": "ericsantos",
   "slug": "messaging",
-  "displayName": "Messaging",
+  "displayName": "Skill",
   "latest": {
-    "version": "0.7.0",
-    "publishedAt": 1772740979487,
-    "commit": "https://github.com/openclaw/skills/commit/9955253ce02ff6e7c0f6843f93ca104ced642f9a"
+    "version": "0.8.0",
+    "publishedAt": 1772846709669,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.7.0",
+      "publishedAt": 1772740979487,
+      "commit": "https://github.com/openclaw/skills/commit/9955253ce02ff6e7c0f6843f93ca104ced642f9a"
+    },
     {
       "version": "0.4.0",
       "publishedAt": 1772410378123,
