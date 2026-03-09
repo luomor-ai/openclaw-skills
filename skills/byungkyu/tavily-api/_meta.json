@@ -1,0 +1,11 @@
+{
+  "owner": "byungkyu",
+  "slug": "tavily-api",
+  "displayName": "Tavily Search",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773006017783,
+    "commit": null
+  },
+  "history": []
+}
