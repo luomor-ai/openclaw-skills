@@ -1,0 +1,11 @@
+{
+  "owner": "scottcjn",
+  "slug": "rustchain-mcp",
+  "displayName": "RustChain MCP",
+  "latest": {
+    "version": "0.3.0",
+    "publishedAt": 1773019879004,
+    "commit": null
+  },
+  "history": []
+}
