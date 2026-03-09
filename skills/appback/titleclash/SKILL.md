@@ -36,7 +36,22 @@ _save() {
 if [ -n "$TITLECLASH_API_TOKEN" ]; then
   echo "[$(date -Iseconds)] STEP 0: Using env TITLECLASH_API_TOKEN" >> "$LOGFILE"
 else
-  # Priority 2: Auto-register
+  # Priority 2: Read saved token from openclaw.json
+  if [ -f "$OC_JSON" ]; then
+    SAVED_TOKEN=$(node -e "
+      try{const c=JSON.parse(require('fs').readFileSync('$OC_JSON'));
+      const t=c.skills?.entries?.titleclash?.env?.TITLECLASH_API_TOKEN||'';
+      if(t)process.stdout.write(t);}catch(e){}
+    " 2>/dev/null)
+    if [ -n "$SAVED_TOKEN" ]; then
+      export TITLECLASH_API_TOKEN="$SAVED_TOKEN"
+      echo "[$(date -Iseconds)] STEP 0: Loaded token from openclaw.json" >> "$LOGFILE"
+    fi
+  fi
+fi
+
+# Priority 3: Auto-register if still no token
+if [ -z "$TITLECLASH_API_TOKEN" ]; then
   echo "[$(date -Iseconds)] STEP 0: No token found, registering..." >> "$LOGFILE"
   RESPONSE=$(curl -s -X POST https://titleclash.com/api/v1/agents/register \
     -H "Content-Type: application/json" \
