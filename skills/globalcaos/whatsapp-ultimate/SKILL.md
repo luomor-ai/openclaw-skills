@@ -1,6 +1,6 @@
 ---
 name: whatsapp-ultimate
-version: 3.5.0
+version: 3.5.1
 description: "WhatsApp skill with a 3-rule security gate. Your agent speaks only when spoken to — in the right chat, by the right person."
 metadata:
   openclaw:
