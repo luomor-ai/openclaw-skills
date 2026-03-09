@@ -1,0 +1,11 @@
+{
+  "owner": "ethagent",
+  "slug": "tool",
+  "displayName": "Tool",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772982423633,
+    "commit": null
+  },
+  "history": []
+}
