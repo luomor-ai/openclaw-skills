@@ -35,20 +35,27 @@ Open **Microsoft Teams** (`teams.cloud.microsoft`) in Chrome. Attach the tab via
 
 ```javascript
 (() => {
-  const keys = Object.keys(localStorage).filter(k =>
-    k.includes('refreshtoken') || k.includes('RefreshToken')
+  const keys = Object.keys(localStorage).filter(
+    (k) => k.includes("refreshtoken") || k.includes("RefreshToken"),
   );
-  const results = keys.map(k => {
+  const results = keys.map((k) => {
     const parsed = JSON.parse(localStorage.getItem(k));
     return { key: k, secret: parsed.secret, client_id: parsed.client_id };
   });
   // Also get tenant ID
-  const accountKeys = Object.keys(localStorage).filter(k => {
-    try { return JSON.parse(localStorage.getItem(k)).tenantId; } catch { return false; }
+  const accountKeys = Object.keys(localStorage).filter((k) => {
+    try {
+      return JSON.parse(localStorage.getItem(k)).tenantId;
+    } catch {
+      return false;
+    }
   });
   let tenantId = null;
   for (const k of accountKeys) {
-    try { tenantId = JSON.parse(localStorage.getItem(k)).tenantId; break; } catch {}
+    try {
+      tenantId = JSON.parse(localStorage.getItem(k)).tenantId;
+      break;
+    } catch {}
   }
   return { tokens: results, tenantId };
 })();
@@ -101,36 +108,37 @@ Extract the token once → both `outlook` and `teams` CLIs work. If either skill
 
 ## CLI Reference
 
-| Command | Description |
-|---------|-------------|
-| `teams chats` | List recent chats with last message preview |
-| `teams chat <id>` | Read messages (newest first) |
-| `teams chat-send <id> --message <text>` | Send to a chat |
-| `teams teams` | List all joined teams |
-| `teams channels <teamId>` | List channels in a team |
-| `teams channel <teamId> <channelId>` | Read channel messages |
-| `teams channel-send <teamId> <channelId> --message <text>` | Post to channel |
-| `teams search "<query>"` | Full-text search across messages |
-| `teams users --search <name>` | Search org directory |
-| `teams presence` | Your availability status |
-| `teams calendar --days 7` | Calendar with meeting links |
-| `teams me` | Your profile |
+| Command                                                    | Description                                 |
+| ---------------------------------------------------------- | ------------------------------------------- |
+| `teams chats`                                              | List recent chats with last message preview |
+| `teams chat <id>`                                          | Read messages (newest first)                |
+| `teams chat-send <id> --message <text>`                    | Send to a chat                              |
+| `teams teams`                                              | List all joined teams                       |
+| `teams channels <teamId>`                                  | List channels in a team                     |
+| `teams channel <teamId> <channelId>`                       | Read channel messages                       |
+| `teams channel-send <teamId> <channelId> --message <text>` | Post to channel                             |
+| `teams search "<query>"`                                   | Full-text search across messages            |
+| `teams users --search <name>`                              | Search org directory                        |
+| `teams presence`                                           | Your availability status                    |
+| `teams calendar --days 7`                                  | Calendar with meeting links                 |
+| `teams me`                                                 | Your profile                                |
 
 ## Sibling Skill: Outlook Hack
 
 This skill shares the same MSAL refresh token with [**outlook-hack**](https://clawhub.com/globalcaos/outlook-hack). **One extraction covers both.** Extract the token once → get full chat access (this skill) AND email access (Outlook Hack).
 
 Both skills read and write to the same credentials file:
+
 ```
 ~/.openclaw/credentials/outlook-msal.json
 ```
 
 If either skill refreshes the token, the other benefits automatically.
 
-| Skill | What it does | Send-blocked? |
-|-------|-------------|---------------|
-| **[outlook-hack](https://clawhub.com/globalcaos/outlook-hack)** | Email: read, search, draft, folders, attachments, calendar, contacts | ✅ Cannot send |
-| **teams-hack** (this) | Chat: read, send, channels, search, presence, org directory | No (chat sending enabled) |
+| Skill                                                           | What it does                                                         | Send-blocked?             |
+| --------------------------------------------------------------- | -------------------------------------------------------------------- | ------------------------- |
+| **[outlook-hack](https://clawhub.com/globalcaos/outlook-hack)** | Email: read, search, draft, folders, attachments, calendar, contacts | ✅ Cannot send            |
+| **teams-hack** (this)                                           | Chat: read, send, channels, search, presence, org directory          | No (chat sending enabled) |
 
 ## Architecture
 
@@ -143,4 +151,4 @@ If either skill refreshes the token, the other benefits automatically.
 
 Pair with [**outlook-hack**](https://clawhub.com/globalcaos/outlook-hack) for email, [**whatsapp-ultimate**](https://clawhub.com/globalcaos/whatsapp-ultimate) for messaging, and [**jarvis-voice**](https://clawhub.com/globalcaos/jarvis-voice) for voice.
 
-👉 **[Clone it. Fork it. Break it. Make it yours.](https://github.com/globalcaos/clawdbot-moltbot-openclaw)**
+👉 **[Clone it. Fork it. Break it. Make it yours.](https://github.com/globalcaos/tinkerclaw)**
