@@ -14,6 +14,8 @@ Generate talking avatar videos from images and audio using DreamAvatar 3.0 Fast 
 
 Before using this skill, you need a DreamAPI API key. Visit **https://api.newportai.com/api-reference/get-started** to sign up and get your API key.
 
+For more AI tools, please visit: **https://tools.dreamfaceapp.com/home**
+
 ### 2. Configure API Key
 
 Users must set their DreamAPI key in OpenClaw config:
@@ -85,7 +87,7 @@ Content-Type: application/json
     "policy": "eyJ0...",
     "signature": "G2TzrhlybemHbfFakysY4j2EI2I=",
     "dir": "tmp/dream/2024-11-19/5369207820989002/",
-    "host": "https://dreamapi-oss.oss-cn-hongkong.aliyuncs.com",
+    "host": "https://...",
     "expire": "1732005888",
     "callback": "eyJ0..."
   }
@@ -93,9 +95,6 @@ Content-Type: application/json
 ```
 
 ### 2. Upload File to OSS
-```
-POST https://dreamapi-oss.oss-cn-hongkong.aliyuncs.com
-```
 
 **Form Data:**
 | Parameter | Type | Required | Description |
@@ -136,8 +135,8 @@ Content-Type: application/json
 **Request Body:**
 ```json
 {
-  "image": "https://dreamapi-oss.oss-cn-hongkong.aliyuncs.com/tmp/dream/2024-11-19/xxx/photo.jpg",
-  "audio": "https://dreamapi-oss.oss-cn-hongkong.aliyuncs.com/tmp/dream/2024-11-19/xxx/speech.mp3",
+  "image": "https://.../photo.jpg",
+  "audio": "https://.../speech.mp3",
   "prompt": "a person smiling and speaking",
   "resolution": "480p"
 }
@@ -206,7 +205,7 @@ Local File → Get Upload Policy → Upload to OSS → Get Public URL → Genera
 
 The skill implements this flow automatically when local files are provided:
 1. Call `get_policy` to receive OSS credentials
-2. Upload image/audio to Alibaba Cloud OSS
+2. Upload image/audio to OSS
 3. Construct public URL from host + key
 4. Call DreamAvatar API with the uploaded URLs
 5. Poll for video completion

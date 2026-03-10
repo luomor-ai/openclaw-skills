@@ -3,11 +3,16 @@
   "slug": "dream-avatar",
   "displayName": "Dream Avatar",
   "latest": {
-    "version": "1.2.0",
-    "publishedAt": 1772985078180,
-    "commit": "https://github.com/openclaw/skills/commit/9a4235d72b0a7c6e3a6bbb4603a54f12dc2f452e"
+    "version": "1.2.1",
+    "publishedAt": 1773122126946,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.2.0",
+      "publishedAt": 1772985078180,
+      "commit": "https://github.com/openclaw/skills/commit/9a4235d72b0a7c6e3a6bbb4603a54f12dc2f452e"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1772629093792,
