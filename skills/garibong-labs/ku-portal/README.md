@@ -2,7 +2,14 @@
 
 고려대학교 KUPID 포털, 도서관, Canvas LMS 정보를 OpenClaw에서 조회하는 스킬.
 
-> 원본: [SonAIengine/ku-portal-mcp](https://github.com/SonAIengine/ku-portal-mcp)를 OpenClaw 스킬로 래핑.
+> 원본: [SonAIengine/ku-portal-mcp](https://github.com/SonAIengine/ku-portal-mcp) 패키지를 Python 라이브러리로 사용하는 OpenClaw CLI 래퍼.
+
+## 아키텍처 (ku-portal-mcp와의 관계)
+
+- **ku-portal-mcp** (upstream): MCP 서버 프로젝트이자 PyPI 패키지.
+- **ku-portal 스킬** (이 저장소): `ku_query.py`가 ku-portal-mcp의 내부 모듈(`auth`, `courses`, `library` 등)을 **Python 라이브러리로 직접 import**하여 사용. MCP 프로토콜은 사용하지 않음.
+- upstream 패키지 업데이트(`pip install --upgrade ku-portal-mcp`)로 신기능이 반영됨.
+- fork 저장소 ([garibong-labs/ku-portal-mcp](https://github.com/garibong-labs/ku-portal-mcp))는 upstream 추적/참조용.
 
 ## 기능
 
@@ -22,13 +29,22 @@
 # 1. 스킬 설치
 clawhub install garibong-labs/ku-portal
 
-# 2. Python venv 생성 + 패키지 설치
-cd ~/.openclaw/workspace/skills/ku-portal
-python3 -m venv .venv
-source .venv/bin/activate
-pip install ku-portal-mcp
+# 2. 자동 설치 (venv 생성 + 패키지 설치 + 안내)
+bash scripts/setup.sh
+```
 
-# 3. 자격 증명 설정 (로그인 기능 사용 시)
+또는 수동 설치:
+
+```bash
+# 스킬 디렉터리로 이동
+cd <skill-dir>
+
+# Python venv 생성 + 패키지 설치
+python3 -m venv .venv
+. .venv/bin/activate
+python3 -m pip install ku-portal-mcp
+
+# 자격 증명 설정 (로그인 기능 사용 시)
 mkdir -p ~/.config/ku-portal
 cat > ~/.config/ku-portal/credentials.json << 'EOF'
 {"id": "your-kupid-id", "pw": "your-kupid-password"}
@@ -36,11 +52,19 @@ EOF
 chmod 600 ~/.config/ku-portal/credentials.json
 ```
 
+OpenClaw 스킬 문서 안에서는 `{baseDir}`를 사용할 수 있습니다.
+
+```bash
+. {baseDir}/.venv/bin/activate
+python3 {baseDir}/ku_query.py lms courses
+```
+
 ## 사용법
 
 ```bash
-# venv 활성화 후 실행
-source ~/.openclaw/workspace/skills/ku-portal/.venv/bin/activate
+# 먼저 스킬 디렉터리로 이동
+cd <skill-dir>
+. .venv/bin/activate
 
 # 도서관 좌석 (로그인 불필요)
 python3 ku_query.py library
@@ -75,11 +99,14 @@ python3 ku_query.py lms dashboard
 python3 ku_query.py lms grades <course_id>
 ```
 
-## 보안
+## 로컬 파일 접근 / 보안
 
-- 자격 증명은 `~/.config/ku-portal/credentials.json`에 저장 (chmod 600)
-- 워크스페이스 밖이라 git 추적 안 됨
-- 세션 캐시: `~/.cache/ku-portal-mcp/session.json` (30분 TTL)
+- 자격 증명 읽기: `~/.config/ku-portal/credentials.json` (chmod 600 권장)
+- 포털 세션 캐시: `~/.cache/ku-portal-mcp/session.json` (30분 TTL)
+- LMS 세션 캐시: `~/.cache/ku-portal-mcp/lms_session.json` (약 25분 TTL)
+- 서버 로그: `~/.cache/ku-portal-mcp/server.log`
+- ICS 내보내기: `~/Downloads/ku_timetable.ics` (`timetable --ics` 사용 시 생성)
+- 자격 증명은 스킬 디렉터리 밖이라 git/ClawHub 번들에 포함되지 않음
 
 ## 라이선스
 

@@ -7,7 +7,26 @@ import os
 import sys
 from pathlib import Path
 
+SKILL_DIR = Path(__file__).resolve().parent
+VENV_DIR = SKILL_DIR / ".venv"
 CREDS_FILE = Path.home() / ".config" / "ku-portal" / "credentials.json"
+
+
+def _check_deps():
+    """ku-portal-mcp 패키지 존재 여부 확인. 없으면 안내 후 종료."""
+    try:
+        import ku_portal_mcp  # noqa: F401
+    except ImportError:
+        print("❌ ku-portal-mcp 패키지가 설치되어 있지 않습니다.")
+        print()
+        if VENV_DIR.exists():
+            print("가상환경은 있지만 패키지가 없습니다. 아래 명령으로 설치하세요:")
+            print(f"  source {VENV_DIR}/bin/activate")
+            print(f"  pip install ku-portal-mcp")
+        else:
+            print("자동 설치 스크립트를 실행하세요:")
+            print(f"  bash {SKILL_DIR}/scripts/setup.sh")
+        sys.exit(1)
 
 def load_credentials():
     """Load KUPID credentials from config file."""
@@ -495,8 +514,11 @@ async def cmd_menu(args):
                     results[current_date].append([current_rest, meals])
 
     data = results.get(target_date, [])
+    # 별칭 매핑 (애기능 = 자연계)
+    ALIAS = {"애기능": "자연계"}
     if restaurant_filter:
-        data = [(r, m) for r, m in data if restaurant_filter in r]
+        rf = ALIAS.get(restaurant_filter, restaurant_filter)
+        data = [(r, m) for r, m in data if rf in r]
 
     if not data:
         print(f"🍽️ {target_date} 메뉴 정보가 없어요.")
@@ -529,6 +551,8 @@ COMMANDS = {
 
 
 def main():
+    _check_deps()
+
     if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
         print("사용법: ku_query.py <command> [options]")
         print()
@@ -543,6 +567,7 @@ def main():
         print("  syllabus    강의계획서")
         print("  mycourses   내 수강과목")
         print("  lms         LMS (courses|assignments|modules|todo|dashboard|grades|submissions|quizzes)")
+        print("  menu        학식 메뉴 조회 (로그인 불필요) [--date YYYY-MM-DD] [--restaurant 식당명]")
         return
 
     cmd = sys.argv[1]
