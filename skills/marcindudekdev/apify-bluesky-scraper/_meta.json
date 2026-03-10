@@ -1,0 +1,11 @@
+{
+  "owner": "marcindudekdev",
+  "slug": "apify-bluesky-scraper",
+  "displayName": "Apify Bluesky Scraper",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1772873157027,
+    "commit": null
+  },
+  "history": []
+}
