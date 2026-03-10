@@ -1,6 +1,7 @@
 ---
+license: MIT
 name: ews-email
-version: 1.1.0
+version: 1.2.0
 description: "CLI to manage enterprise Outlook emails via Exchange Web Services (EWS). Use ews-mail.py to list, read, reply, forward, search, send, move, delete emails and download attachments."
 metadata:
   openclaw:
@@ -15,20 +16,57 @@ metadata:
 
 A CLI for enterprise Exchange (EWS) email. Use when the user asks about email, inbox, messages, or mail.
 
-## Setup (first time only)
+## Setup
 
-Set these environment variables in `~/.openclaw/config.yaml`:
+### 1. 环境变量
 
-- `EWS_SERVER` — Exchange server hostname
-- `EWS_EMAIL` — Your email address
+在 `~/.openclaw/config.yaml` 中配置：
 
-Then run the setup command to securely store your password in the system keyring:
+```yaml
+env:
+  EWS_SERVER: "your-exchange-server.com"
+  EWS_EMAIL: "you@company.com"
+```
+
+### 2. 存储密码
+
+#### macOS（自动使用 Keychain，无需额外配置）
 
 ```bash
+pip3 install keyring exchangelib
 python3 ~/.openclaw/skills/ews-email/scripts/ews-mail.py setup
 ```
 
-The password is stored in macOS Keychain / Windows Credential Manager / Linux Secret Service. It never appears in any config file.
+#### Linux 云服务器（无桌面环境）
+
+脚本会自动检测 Linux 无桌面环境，切换到 EncryptedKeyring 后端（AES 加密文件存储）。
+
+```bash
+# 安装依赖
+pip3 install keyring exchangelib keyrings.alt
+
+# 设置 master password 环境变量（用于加解密 EWS 密码）
+# 在 ~/.openclaw/config.yaml 中添加：
+#   env:
+#     KEYRING_CRYPTFILE_PASSWORD: "你自己定义的一个强密码"
+#
+# 或在 systemd service / 启动脚本中 export：
+export KEYRING_CRYPTFILE_PASSWORD="你自己定义的一个强密码"
+
+# 存储 EWS 密码（会用 AES 加密写入本地文件）
+python3 ~/.openclaw/skills/ews-email/scripts/ews-mail.py setup
+
+# 验证
+python3 ~/.openclaw/skills/ews-email/scripts/ews-mail.py folder-list
+```
+
+重启后只要 `KEYRING_CRYPTFILE_PASSWORD` 环境变量还在，密码就能正常解密读取，无需重新输入。
+
+### 3. 验证安装
+
+```bash
+python3 ~/.openclaw/skills/ews-email/scripts/ews-mail.py folder-list
+```
 
 ## SECURITY RULES
 

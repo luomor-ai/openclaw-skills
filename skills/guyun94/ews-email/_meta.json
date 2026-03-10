@@ -3,11 +3,16 @@
   "slug": "ews-email",
   "displayName": "Ews Email",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1772693817138,
-    "commit": "https://github.com/openclaw/skills/commit/628e1d5e11812392d36bf199f8159159094c1772"
+    "version": "1.2.0",
+    "publishedAt": 1773038581495,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1772693817138,
+      "commit": "https://github.com/openclaw/skills/commit/628e1d5e11812392d36bf199f8159159094c1772"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772505682623,

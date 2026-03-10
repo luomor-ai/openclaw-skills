@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """EWS Mail CLI - himalaya-compatible interface over Exchange Web Services."""
-import sys, json, argparse, os, getpass
+import sys, json, argparse, os, getpass, platform
 from exchangelib import (
     Credentials, Account, Configuration, DELEGATE,
     Message, Mailbox, FileAttachment
@@ -13,10 +13,35 @@ KEYRING_SERVICE = "openclaw-ews-email"
 SERVER = os.environ.get("EWS_SERVER", "")
 EMAIL = os.environ.get("EWS_EMAIL", "")
 
+def _init_keyring():
+    """Initialize keyring backend. On headless Linux, use EncryptedKeyring with
+    master password from KEYRING_CRYPTFILE_PASSWORD env var."""
+    import keyring
+    if platform.system() == "Linux":
+        try:
+            # Test if default backend works (e.g. GNOME Keyring with D-Bus)
+            keyring.get_password("__probe__", "__probe__")
+        except Exception:
+            # Default backend unavailable — switch to EncryptedKeyring
+            try:
+                from keyrings.alt.file import EncryptedKeyring
+            except ImportError:
+                print("Error: keyrings.alt not installed. Run: pip3 install keyrings.alt", file=sys.stderr)
+                sys.exit(1)
+            master_pw = os.environ.get("KEYRING_CRYPTFILE_PASSWORD")
+            if not master_pw:
+                print("Error: On headless Linux, set KEYRING_CRYPTFILE_PASSWORD env var as the master password.", file=sys.stderr)
+                print("This master password encrypts/decrypts your stored EWS password (AES).", file=sys.stderr)
+                sys.exit(1)
+            kr = EncryptedKeyring()
+            kr.keyring_key = master_pw
+            keyring.set_keyring(kr)
+    return keyring
+
 def get_password():
     """Get password from system keyring. Never from env vars or config files."""
     try:
-        import keyring
+        kr = _init_keyring()
     except ImportError:
         print("Error: keyring module not installed. Run: pip3 install keyring", file=sys.stderr)
         sys.exit(1)
@@ -24,7 +49,7 @@ def get_password():
     if not email:
         print("Error: EWS_EMAIL environment variable must be set.", file=sys.stderr)
         sys.exit(1)
-    password = keyring.get_password(KEYRING_SERVICE, email)
+    password = kr.get_password(KEYRING_SERVICE, email)
     if not password:
         print(f"Error: No password found in keyring for {email}.", file=sys.stderr)
         print(f"Run: python3 {__file__} setup", file=sys.stderr)
@@ -90,7 +115,7 @@ def find_message(account, msg_id):
 def cmd_setup(args):
     """Interactive setup: store EWS password in system keyring."""
     try:
-        import keyring
+        kr = _init_keyring()
     except ImportError:
         print("Error: keyring module not installed. Run: pip3 install keyring", file=sys.stderr)
         sys.exit(1)
@@ -105,7 +130,7 @@ def cmd_setup(args):
         print("Password cannot be empty.", file=sys.stderr)
         sys.exit(1)
 
-    keyring.set_password(KEYRING_SERVICE, email, password)
+    kr.set_password(KEYRING_SERVICE, email, password)
     print(f"Password saved to system keyring (service: {KEYRING_SERVICE}, account: {email})")
     print("You can now use ews-email commands. Password will never appear in config files.")
 
