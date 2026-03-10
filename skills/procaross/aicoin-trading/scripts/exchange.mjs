@@ -113,6 +113,24 @@ async function getExchange(id, marketType, skipAuth = false) {
   return new Ex(opts);
 }
 
+// createOrder with OKX net-mode posSide fallback
+async function placeOrder(ex, symbol, type, side, amount, price, params, exchange, marketType) {
+  const p = { ...(params || {}) };
+  if (exchange === 'okx' && marketType && marketType !== 'spot' && !p.posSide) {
+    p.posSide = p.reduceOnly ? (side === 'buy' ? 'short' : 'long') : (side === 'buy' ? 'long' : 'short');
+  }
+  try {
+    return await ex.createOrder(symbol, type, side, amount, price, p);
+  } catch (e) {
+    // OKX net mode doesn't accept posSide — retry without it
+    if (String(e).includes('posSide') || String(e).includes('51000')) {
+      delete p.posSide;
+      return await ex.createOrder(symbol, type, side, amount, price, p);
+    }
+    throw e;
+  }
+}
+
 cli({
   exchanges: async () => ({
     supported: SUPPORTED.map(id => {
@@ -218,7 +236,7 @@ cli({
     const ex = await getExchange(exchange, market_type);
     return ex.fetchOrder(order_id, symbol);
   },
-  create_order: async ({ exchange, symbol, type, side, amount, price, market_type, params, confirmed }) => {
+  create_order: async ({ exchange, symbol, type, side, amount, cost, leverage, price, market_type, params, confirmed }) => {
     const pendingFile = resolve(__dir, '..', '.pending-order.json');
 
     // Internal calls (from auto-trade.mjs) bypass file-based confirmation
@@ -229,15 +247,7 @@ cli({
       if (isInternal) {
         // Internal call: execute directly with provided params
         const ex = await getExchange(exchange, market_type);
-        const orderParams = { ...(params || {}) };
-        if (exchange === 'okx' && market_type && market_type !== 'spot' && !orderParams.posSide) {
-          if (orderParams.reduceOnly) {
-            orderParams.posSide = side === 'buy' ? 'short' : 'long';
-          } else {
-            orderParams.posSide = side === 'buy' ? 'long' : 'short';
-          }
-        }
-        const order = await ex.createOrder(symbol, type, side, amount, price, orderParams);
+        const order = await placeOrder(ex, symbol, type, side, amount, price, params, exchange, market_type);
         if (market_type && market_type !== 'spot') {
           try {
             await ex.loadMarkets();
@@ -262,19 +272,10 @@ cli({
         throw new Error('订单预览已过期（超过5分钟），请重新创建订单预览。');
       }
 
-      try { unlinkSync(pendingFile); } catch {}
-
       // Execute with stored params (prevents model from tampering between preview and confirm)
       const ex = await getExchange(pending.exchange, pending.market_type);
-      const orderParams = { ...(pending.params || {}) };
-      if (pending.exchange === 'okx' && pending.market_type && pending.market_type !== 'spot' && !orderParams.posSide) {
-        if (orderParams.reduceOnly) {
-          orderParams.posSide = pending.side === 'buy' ? 'short' : 'long';
-        } else {
-          orderParams.posSide = pending.side === 'buy' ? 'long' : 'short';
-        }
-      }
-      const order = await ex.createOrder(pending.symbol, pending.type, pending.side, pending.amount, pending.price, orderParams);
+      const order = await placeOrder(ex, pending.symbol, pending.type, pending.side, pending.amount, pending.price, pending.params, pending.exchange, pending.market_type);
+      try { unlinkSync(pendingFile); } catch {}
       if (pending.market_type && pending.market_type !== 'spot') {
         try {
           await ex.loadMarkets();
@@ -293,6 +294,28 @@ cli({
     const ex = await getExchange(exchange, market_type);
     await ex.loadMarkets();
     const mkt = ex.markets[symbol];
+
+    // cost param: user says "用XU做多" → calculate amount from USDT margin budget
+    if (cost && mkt?.contractSize && market_type && market_type !== 'spot') {
+      const tick = await ex.fetchTicker(symbol);
+      const curP = tick.last;
+      // Use leverage from param, or fetch from position
+      let lev = leverage ? Number(leverage) : 1;
+      if (!leverage) {
+        try {
+          const positions = await ex.fetchPositions([symbol]);
+          const pos = positions.find(p => p.symbol === symbol);
+          if (pos?.leverage) lev = Number(pos.leverage);
+        } catch {}
+      }
+      amount = Math.max(1, Math.round(Number(cost) * lev / (mkt.contractSize * curP)));
+    }
+
+    // Auto-convert: non-integer amount on contract = user gave base currency (e.g. 0.01 BTC → 1 contract)
+    if (!cost && mkt?.contractSize && !Number.isInteger(Number(amount))) {
+      amount = Math.max(1, Math.round(Number(amount) / mkt.contractSize));
+    }
+
     const pendingOrder = { exchange, symbol, type, side, amount, price, market_type, params, timestamp: Date.now() };
     writeFileSync(pendingFile, JSON.stringify(pendingOrder));
 
@@ -325,28 +348,67 @@ cli({
 
     // Leverage & margin info for futures
     if (mktType !== 'spot') {
+      let lev = leverage ? Number(leverage) : null;
+      let mgnMode = null;
       try {
         const positions = await ex.fetchPositions([symbol]);
         const pos = positions.find(p => p.symbol === symbol);
         if (pos) {
-          if (pos.leverage) orderInfo['杠杆'] = `${pos.leverage}x`;
-          if (pos.marginMode || pos.marginType) orderInfo['保证金模式'] = pos.marginMode || pos.marginType;
-          if (curPrice && pos.leverage) {
-            const lev = Number(pos.leverage);
-            const notional = mkt?.contractSize ? amount * mkt.contractSize * curPrice : amount * curPrice;
-            orderInfo['预估保证金'] = `${(notional / lev).toFixed(2)} USDT`;
-          }
+          if (!lev && pos.leverage) lev = Number(pos.leverage);
+          mgnMode = pos.marginMode || pos.marginType;
         }
       } catch {}
+      if (lev) {
+        orderInfo['杠杆'] = `${lev}x`;
+        if (curPrice) {
+          const notional = mkt?.contractSize ? amount * mkt.contractSize * curPrice : amount * curPrice;
+          orderInfo['预估保证金'] = `${(notional / lev).toFixed(2)} USDT`;
+        }
+      }
+      if (mgnMode) orderInfo['保证金模式'] = mgnMode;
     }
 
     return {
       _preview: true,
       status: '⚠️ 订单未下达',
-      风险提示: '加密货币交易具有高风险，可能导致本金全部损失。合约交易使用杠杆会放大收益和亏损。不要投入无法承受损失的资金。本工具不构成投资建议。',
+      风险提示: '⚠️ 交易风险声明：加密货币交易具有高风险，可能导致本金全部损失。合约使用杠杆会放大收益和亏损。本工具仅提供交易执行功能，不构成投资建议。继续下单即表示你已知悉并接受以上风险。',
+      用户须知: '下单前请确认：(1) 你已了解该交易的风险 (2) 投入的资金在可承受范围内 (3) 你已设置合适的止损',
       订单详情: orderInfo,
-      操作指引: '请将以上所有信息（包括风险提示）展示给用户。用户回复"确认"或"yes"后，以 confirmed=true 重新调用 create_order。',
+      操作指引: '请确认以上订单信息无误。回复「确认」或「yes」执行下单，回复「取消」放弃。',
     };
+  },
+  close_position: async ({ exchange, symbol, market_type, confirmed }) => {
+    const mt = market_type || 'swap';
+    const ex = await getExchange(exchange, mt);
+    const positions = await ex.fetchPositions(symbol ? [symbol] : undefined);
+    const open = positions.filter(p => Math.abs(Number(p.contracts || 0)) > 0);
+    if (!open.length) return { message: '当前没有持仓需要平仓。', positions: [] };
+    // Preview
+    if (confirmed !== 'true' && confirmed !== true) {
+      return {
+        _preview: true,
+        status: '⚠️ 平仓预览 — 订单未下达',
+        待平仓位: open.map(p => ({
+          交易对: p.symbol, 方向: p.side === 'long' ? '多' : '空',
+          张数: Math.abs(Number(p.contracts)), 开仓价: p.entryPrice,
+          未实现盈亏: p.unrealizedPnl, 杠杆: p.leverage,
+        })),
+        操作指引: '请确认平掉以上仓位。回复「确认」执行，回复「取消」放弃。',
+      };
+    }
+    // Execute
+    const results = [];
+    for (const pos of open) {
+      const closeSide = pos.side === 'long' ? 'sell' : 'buy';
+      const amount = Math.abs(Number(pos.contracts));
+      try {
+        const order = await placeOrder(ex, pos.symbol, 'market', closeSide, amount, undefined, { reduceOnly: true }, exchange, mt);
+        results.push({ symbol: pos.symbol, side: pos.side, amount, status: '已平仓', orderId: order.id });
+      } catch (e) {
+        results.push({ symbol: pos.symbol, side: pos.side, amount, status: '失败', error: e.message });
+      }
+    }
+    return { 平仓结果: results };
   },
   funding_rate: async ({ exchange, symbol, market_type }) => {
     const ex = await getExchange(exchange, market_type || 'swap', true);

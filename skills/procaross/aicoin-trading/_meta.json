@@ -3,11 +3,16 @@
   "slug": "aicoin-trading",
   "displayName": "Aicoin Trading",
   "latest": {
-    "version": "3.4.2",
-    "publishedAt": 1773037590243,
-    "commit": "https://github.com/openclaw/skills/commit/f7d509eacd9223e900d12f67d9e9ca425e33f502"
+    "version": "3.7.2",
+    "publishedAt": 1773160940377,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.4.2",
+      "publishedAt": 1773037590243,
+      "commit": "https://github.com/openclaw/skills/commit/f7d509eacd9223e900d12f67d9e9ca425e33f502"
+    },
     {
       "version": "3.4.1",
       "publishedAt": 1773037497113,
