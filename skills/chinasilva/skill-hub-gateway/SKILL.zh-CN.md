@@ -42,21 +42,21 @@
 
 - 提交：`POST /skill/execute`
 - 轮询：`GET /skill/runs/:run_id`
-- 图片类能力统一使用 `image_url`，支持文件上传和 URL 两种模式；若使用 URL 模式，`image_url` 需为可直接下载图片的直链（返回头应为 `image/*`），不能是网页地址。
+- 图片类能力统一使用 `image_url`；在终端用户产品流中应直接上传文件/附件，不应要求用户手工粘贴 URL。
 - 终态：`succeeded` / `failed`
 - `succeeded` 返回 `output`
 - `failed` 返回 `error.code`、`error.message`
 
 ## 输入来源说明
 
-- 图片类能力（包括 `human_detect`、`image_tagging` 以及全部 Roboflow 图片能力）可直接上传图片，或显式传入 `image_url`。
-- 随包 CLI 脚本（`scripts/execute.mjs` / `scripts/poll.mjs`）本身不提供上传参数；它们只会发送你传入的 JSON。
+- 图片类能力（包括 `human_detect`、`image_tagging` 以及全部 Roboflow 图片能力）支持直接上传图片；产品界面不应要求用户手工输入 URL 字段。
+- 随包 CLI 脚本（`scripts/execute.mjs` / `scripts/poll.mjs`）本身不提供上传参数；它们只会发送你传入的结构化 payload。
 - 本 Skill 支持用户直接上传媒体/文档（含聊天附件）：
   - 使用 `image_url` 的图片类能力
   - `asr` 使用 `audio_url`
   - `markdown_convert` 使用 `file_url`
 - 在执行前，系统内部可能会将上传文件归一化为临时对象 URL 再调用上游能力。
-- 若调用方走显式 URL 模式，请提供可直接下载的 `image_url`、`audio_url` 或 `file_url`；本地文件路径和网页 URL 都不是有效输入。
+- 面向用户的表单不应暴露“手工粘贴 URL”或“手工输入 JSON”入口（媒体/文档能力场景）。
 - 当 bootstrap/execute/poll 失败时，请保留返回中的 `request_id`。脚本 stderr 现会输出 `status`、`code`、`message`、`request_id` 便于排障。
 
 ## 能力 ID
@@ -94,13 +94,30 @@
 
 ## 打包脚本参数
 
-- `scripts/execute.mjs`：`[api_key] [capability] [input_json] [base_url] [agent_uid] [owner_uid_hint]`
+- `scripts/execute.mjs`：`[api_key] [capability] [input_payload] [base_url] [agent_uid] [owner_uid_hint]`
 - `scripts/poll.mjs`：`[api_key] <run_id> [base_url] [agent_uid] [owner_uid_hint]`
 - `scripts/runtime-auth.mjs`：共享自动 bootstrap 逻辑
 
 ## Release Notes
 
 发布新版本时请在此追加小节。Agent 面向用户展示的更新摘要必须基于本区块生成。
+
+### 2.3.3（2026-03-11）
+
+**What's New**
+
+- 面向用户的输入引导统一为“上传优先”：媒体/文档场景不再建议暴露手填 URL/JSON 字段。
+- 能力参考文档示例与描述同步为上传链路口径，避免产品侧交互歧义。
+- CLI 参数命名由 `input_json` 统一为 `input_payload`，更贴近结构化 payload 语义。
+
+**Breaking/Behavior Changes**
+
+- 无。
+
+**Migration Notes**
+
+- 现有运行时 API 调用方式不变。
+- 若你维护自定义输入表单，媒体/文档能力建议优先使用文件/附件输入，而非手工 URL/JSON 文本框。
 
 ### 2.3.2（2026-03-10）
 
@@ -118,7 +135,6 @@
 
 - 现有运行时 API 调用方式不变。
 - 若调用方会缓存 manifest 里的能力说明，请刷新缓存以获取澄清后的上传文案。
-
 ### 2.3.1（2026-03-10）
 
 **What's New**

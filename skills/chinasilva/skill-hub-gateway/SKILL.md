@@ -1,7 +1,7 @@
 ---
 name: skill-hub-gateway
 description: Unified gateway skill for async execute and poll workflows.
-version: 2.3.2
+version: 2.3.3
 metadata:
   openclaw:
     skillKey: skill-hub-gateway
@@ -56,21 +56,21 @@ Manual override:
 
 - Execute: `POST /skill/execute`
 - Poll: `GET /skill/runs/:run_id`
-- Image-based capabilities use `image_url` and support both file uploads and URL mode. If URL mode is used, `image_url` must be a direct image file URL (response `Content-Type` should be `image/*`), not a webpage URL.
+- Image-based capabilities use `image_url`. In end-user product flows, users should upload files/attachments directly and should not need to paste URLs manually.
 - Terminal states: `succeeded` and `failed`
 - `succeeded` returns `output`
 - `failed` returns `error` (`code`, `message`)
 
 ## Input Source Clarification
 
-- Image-based capabilities, including `human_detect`, `image_tagging`, and all Roboflow image capabilities, accept uploaded images or explicit `image_url`.
-- The bundled CLI scripts (`scripts/execute.mjs` / `scripts/poll.mjs`) do not include upload parameters. They only send the JSON input you provide.
+- Image-based capabilities, including `human_detect`, `image_tagging`, and all Roboflow image capabilities, accept uploaded images. Product UI should not require users to manually input URL fields.
+- The bundled CLI scripts (`scripts/execute.mjs` / `scripts/poll.mjs`) do not include upload parameters. They only send the structured payload you provide.
 - The skill accepts user-uploaded media/documents (including chat attachments) for:
   - image capabilities using `image_url`
   - `asr` using `audio_url`
   - `markdown_convert` using `file_url`
 - Runtime may normalize uploaded files to temporary object URLs internally before provider execution.
-- If your client uses explicit URL mode, use directly downloadable `image_url`, `audio_url`, or `file_url` values. Local filesystem paths and webpage URLs are invalid.
+- For user-facing forms, do not expose manual URL-paste or raw JSON input fields for media/document capabilities.
 - For bootstrap/execute/poll failures, keep `request_id` from response JSON. Script stderr now logs `status`, `code`, `message`, and `request_id` for troubleshooting.
 
 ## Capability IDs
@@ -108,7 +108,7 @@ Manual override:
 
 ## Bundled Files
 
-- `scripts/execute.mjs` (CLI args: `[api_key] [capability] [input_json] [base_url] [agent_uid] [owner_uid_hint]`)
+- `scripts/execute.mjs` (CLI args: `[api_key] [capability] [input_payload] [base_url] [agent_uid] [owner_uid_hint]`)
 - `scripts/poll.mjs` (CLI args: `[api_key] <run_id> [base_url] [agent_uid] [owner_uid_hint]`)
 - `scripts/runtime-auth.mjs` (shared auto-bootstrap helper)
 - `references/capabilities.json`
@@ -118,6 +118,23 @@ Manual override:
 ## Release Notes
 
 When publishing a new version, add a new section here. Agent update summaries must be generated from this block.
+
+### 2.3.3 (2026-03-11)
+
+**What's New**
+
+- Standardized user-facing guidance around upload-based flows: do not expose manual URL/JSON fields for media/document inputs.
+- Updated capability reference examples and wording to match upload-first product UX.
+- Renamed CLI argument label from `input_json` to `input_payload` for consistency with structured payload semantics.
+
+**Breaking/Behavior Changes**
+
+- None.
+
+**Migration Notes**
+
+- Existing runtime API calls remain unchanged.
+- If your integration shows custom input forms, prefer file/attachment inputs instead of manual URL/JSON text fields.
 
 ### 2.3.2 (2026-03-10)
 
@@ -135,7 +152,6 @@ When publishing a new version, add a new section here. Agent update summaries mu
 
 - Existing runtime API calls remain unchanged.
 - If your integration reads capability descriptions from manifest references, refresh cached docs to pick up the clarified upload wording.
-
 ### 2.3.1 (2026-03-10)
 
 **What's New**
