@@ -1,0 +1,11 @@
+{
+  "owner": "qfish",
+  "slug": "tmap-lbs-service",
+  "displayName": "tmap-lbs-service",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1773198664901,
+    "commit": null
+  },
+  "history": []
+}
