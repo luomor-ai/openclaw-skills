@@ -3,9 +3,15 @@
   "slug": "expertpack-export",
   "displayName": "ExpertPack Export",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773172114715,
-    "commit": "https://github.com/openclaw/skills/commit/671e8d762b688c73edbcdbca0499ea5323032a41"
+    "version": "1.0.1",
+    "publishedAt": 1773172410283,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773172114715,
+      "commit": "https://github.com/openclaw/skills/commit/671e8d762b688c73edbcdbca0499ea5323032a41"
+    }
+  ]
 }
