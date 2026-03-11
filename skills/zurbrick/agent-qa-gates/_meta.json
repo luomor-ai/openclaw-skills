@@ -1,0 +1,11 @@
+{
+  "owner": "zurbrick",
+  "slug": "agent-qa-gates",
+  "displayName": "Agent QA Gates",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773193697845,
+    "commit": null
+  },
+  "history": []
+}
