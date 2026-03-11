@@ -1,0 +1,11 @@
+{
+  "owner": "1oid",
+  "slug": "txt-to-epub",
+  "displayName": "txt file convert to epub",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773226919810,
+    "commit": null
+  },
+  "history": []
+}
