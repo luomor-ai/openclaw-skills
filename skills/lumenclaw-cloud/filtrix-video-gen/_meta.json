@@ -1,0 +1,11 @@
+{
+  "owner": "lumenclaw-cloud",
+  "slug": "filtrix-video-gen",
+  "displayName": "Filtrix Video Gen",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773251002211,
+    "commit": null
+  },
+  "history": []
+}
