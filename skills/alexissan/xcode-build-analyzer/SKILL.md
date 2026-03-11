@@ -257,6 +257,103 @@ gunzip -c "$LATEST_LOG" 2>/dev/null | strings \
   | sort -u
 ```
 
+## CLI builds (xcodebuild)
+
+**Important:** `xcodebuild` CLI builds do **not** write to `LogStoreManifest.plist` or generate `.xcactivitylog` files unless you pass `-resultBundlePath`. This means the build history section above will only show Xcode IDE builds.
+
+To detect CLI builds, check the build product timestamps and DerivedData info:
+
+```bash
+for dir in ~/Library/Developer/Xcode/DerivedData/*-*; do
+  [ -d "$dir" ] || continue
+  NAME="$(basename "$dir" | sed 's/-[a-z]*$//')"
+  WORKSPACE="$(plutil -extract WorkspacePath raw "$dir/info.plist" 2>/dev/null || echo "unknown")"
+
+  # Detect if this is a worktree build (workspace path outside main project dir, e.g. /tmp/)
+  SOURCE=""
+  PROJ_DIR="$(dirname "$WORKSPACE")"
+  if [ -d "$PROJ_DIR" ] && git -C "$PROJ_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    BRANCH="$(git -C "$PROJ_DIR" branch --show-current 2>/dev/null)"
+    IS_WORKTREE="$(git -C "$PROJ_DIR" rev-parse --is-inside-work-tree 2>/dev/null)"
+    MAIN_WORKTREE="$(git -C "$PROJ_DIR" worktree list 2>/dev/null | head -1 | awk '{print $1}')"
+    if [ "$PROJ_DIR" != "$MAIN_WORKTREE" ]; then
+      SOURCE=" (worktree: $BRANCH @ $PROJ_DIR)"
+    else
+      SOURCE=" (branch: $BRANCH)"
+    fi
+  fi
+
+  # Check Debug simulator product
+  APP="$(ls -dt "$dir/Build/Products/Debug-iphonesimulator/"*.app 2>/dev/null | head -1)"
+  if [ -n "$APP" ]; then
+    MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$APP" 2>/dev/null)"
+    VERSION=""
+    PLIST="$APP/Info.plist"
+    if [ -f "$PLIST" ]; then
+      SHORT="$(plutil -extract CFBundleShortVersionString raw "$PLIST" 2>/dev/null)"
+      BUILD="$(plutil -extract CFBundleVersion raw "$PLIST" 2>/dev/null)"
+      VERSION=" v${SHORT}(${BUILD})"
+    fi
+    echo "$NAME | Last build: $MTIME |$VERSION | $(basename "$APP")$SOURCE"
+  fi
+
+  # Check Release product
+  APP="$(ls -dt "$dir/Build/Products/Release-iphoneos/"*.app 2>/dev/null | head -1)"
+  if [ -n "$APP" ]; then
+    MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$APP" 2>/dev/null)"
+    echo "$NAME | Last release: $MTIME | $(basename "$APP")$SOURCE"
+  fi
+done
+```
+
+> **Worktrees:** When building from a git worktree, Xcode creates a separate DerivedData entry (different hash) because the workspace path differs. The script above detects worktree builds by checking the git state of the workspace path and shows the branch name and worktree location.
+
+### Combined build history (IDE + CLI)
+
+To get a complete picture of all builds (both Xcode IDE and CLI), run both the LogStoreManifest parser and the build product check. The manifest gives detailed history for IDE builds; the product timestamps give the latest CLI build per configuration.
+
+```bash
+echo "=== IDE Builds (from LogStoreManifest) ==="
+for dir in ~/Library/Developer/Xcode/DerivedData/*-*; do
+  [ -d "$dir" ] || continue
+  MANIFEST="$dir/Logs/Build/LogStoreManifest.plist"
+  [ -f "$MANIFEST" ] || continue
+  NAME="$(basename "$dir" | sed 's/-[a-z]*$//')"
+
+  plutil -convert json -o - "$MANIFEST" 2>/dev/null | python3 -c "
+import json, sys
+from datetime import datetime, timezone, timedelta
+
+data = json.load(sys.stdin)
+EPOCH = datetime(2001, 1, 1, tzinfo=timezone.utc)
+name = '$NAME'
+
+for uid, log in sorted(data.get('logs', {}).items(), key=lambda x: x[1].get('timeStartedRecording', 0), reverse=True):
+    start = log.get('timeStartedRecording', 0)
+    stop = log.get('timeStoppedRecording', 0)
+    obs = log.get('primaryObservable', {})
+    dt = EPOCH + timedelta(seconds=start)
+    duration = stop - start
+    status = {'S': 'OK', 'W': 'Warn', 'E': 'Err'}.get(obs.get('highLevelStatus', '?'), '?')
+    scheme = log.get('schemeIdentifier-schemeName', '?')
+    print(f'  {name:<25s} {dt.strftime(\"%Y-%m-%d %H:%M\")}  {duration:>6.1f}s  {status:<5s} [{scheme}]  (IDE)')
+" 2>/dev/null
+done
+
+echo ""
+echo "=== CLI Builds (from build products) ==="
+for dir in ~/Library/Developer/Xcode/DerivedData/*-*; do
+  [ -d "$dir" ] || continue
+  NAME="$(basename "$dir" | sed 's/-[a-z]*$//')"
+  for APP in "$dir/Build/Products/"*/*.app; do
+    [ -d "$APP" ] || continue
+    MTIME="$(stat -f '%Sm' -t '%Y-%m-%d %H:%M' "$APP" 2>/dev/null)"
+    CONFIG="$(basename "$(dirname "$APP")")"
+    echo "  $NAME  $MTIME  [$CONFIG]  $(basename "$APP")  (CLI)"
+  done 2>/dev/null
+done
+```
+
 ## Notes
 
 - `LogStoreManifest.plist` is the fastest way to get build history — no decompression needed
