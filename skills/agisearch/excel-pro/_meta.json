@@ -1,0 +1,11 @@
+{
+  "owner": "agisearch",
+  "slug": "excel-pro",
+  "displayName": "Excel",
+  "latest": {
+    "version": "2.0.0",
+    "publishedAt": 1773192801705,
+    "commit": null
+  },
+  "history": []
+}
