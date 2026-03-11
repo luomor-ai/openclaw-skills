@@ -1,0 +1,11 @@
+{
+  "owner": "echome123",
+  "slug": "csdn-publish",
+  "displayName": "CSDN 文章发布",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773142493620,
+    "commit": null
+  },
+  "history": []
+}
