@@ -1,16 +1,6 @@
 ---
-name: compaction-proxy
-version: 2.x.x
-license: Commercial
+skill_id: compaction-proxy
+name: 上下文压缩代理
 ---
-
-# 🔒 此技能需要有效授权
-
-本技能属于 **OpenClaw Guardian Suite** 商业套件。
-
-请运行安装脚本激活：
-```bash
-bash ~/.openclaw/workspace/skills/openclaw-guardian/install.sh
-```
-
-激活后，技能内容将自动写入本地并终身有效。
+# 上下文压缩代理
+OpenClaw 上下文压缩代理，减少 token 消耗，优化长对话性能。
