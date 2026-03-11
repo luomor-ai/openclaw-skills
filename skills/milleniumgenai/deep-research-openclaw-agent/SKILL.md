@@ -1,7 +1,7 @@
 ---
 name: "Deep Research for OpenClaw"
 description: "Install and wire a structured OpenClaw deep-research sub-agent with hybrid search, artifact-based runs, claim verification, report linting, and validated finalization."
-version: "0.1.0"
+version: "0.1.1"
 metadata:
   openclaw:
     homepage: "https://github.com/MilleniumGenAI/deep-research-openclaw-agent"
