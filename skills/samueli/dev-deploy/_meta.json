@@ -1,0 +1,11 @@
+{
+  "owner": "samueli",
+  "slug": "dev-deploy",
+  "displayName": "one-click dev and deploy website",
+  "latest": {
+    "version": "1.4.0",
+    "publishedAt": 1773233171638,
+    "commit": null
+  },
+  "history": []
+}
