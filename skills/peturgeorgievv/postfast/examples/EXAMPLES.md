@@ -24,6 +24,7 @@ Ready-to-use request bodies for common social media scheduling scenarios.
 | [threads-carousel.json](threads-carousel.json) | Threads image carousel (up to 10) |
 | [batch-scheduling.json](batch-scheduling.json) | Schedule 5 posts across a week |
 | [telegram-mixed-media.json](telegram-mixed-media.json) | Telegram post with mixed media |
+| [post-analytics.json](post-analytics.json) | Fetch published post metrics (impressions, likes, etc.) |
 
 ## Usage
 

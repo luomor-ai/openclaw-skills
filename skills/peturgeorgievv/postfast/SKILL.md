@@ -143,6 +143,27 @@ curl -X POST https://api.postfa.st/social-posts \
   }'
 ```
 
+### 9. Get post analytics
+
+Fetch published posts with their performance metrics:
+
+```bash
+curl -s -H "pf-api-key: $POSTFAST_API_KEY" \
+  "https://api.postfa.st/social-posts/analytics?startDate=2026-03-01T00:00:00.000Z&endDate=2026-03-31T23:59:59.999Z&platforms=TIKTOK,INSTAGRAM"
+```
+
+**Query parameters:**
+- `startDate` (ISO 8601, required) — start of date range
+- `endDate` (ISO 8601, required) — end of date range
+- `platforms` (string, optional) — comma-separated filter
+- `socialMediaIds` (string, optional) — comma-separated account UUIDs
+
+Returns `{ "data": [{ id, content, socialMediaId, platformPostId, publishedAt, latestMetric }] }`.
+
+`latestMetric` fields: `impressions`, `reach`, `likes`, `comments`, `shares`, `totalInteractions`, `fetchedAt`, `extras`. All numbers are strings (bigint). `latestMetric` is null if metrics haven't been fetched yet. LinkedIn personal accounts are excluded.
+
+Rate limit: 350/hour.
+
 ## Common Patterns
 
 ### Pattern 1: Cross-platform campaign
@@ -302,6 +323,7 @@ Pass these in the `controls` object. See [references/platform-controls.md](refer
 **Per-endpoint:**
 - `POST /social-posts`: 350/day
 - `GET /social-posts`: 200/hour
+- `GET /social-posts/analytics`: 350/hour
 - `POST /social-media/connect-link`: 50/hour
 
 **Platform limits:**
@@ -404,6 +426,9 @@ GET /social-media/:id/pinterest-boards
 
 # YouTube playlists
 GET /social-media/:id/youtube-playlists
+
+# Post analytics (published posts with metrics)
+GET /social-posts/analytics?startDate=...&endDate=...&platforms=...
 
 # Connect link (for clients)
 POST /social-media/connect-link  { expiryDays?, sendEmail?, email? }
