@@ -3,11 +3,16 @@
   "slug": "cascadeflow",
   "displayName": "cascadeflow: Cost + Latency Reduction",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1771930498209,
-    "commit": "https://github.com/openclaw/skills/commit/a4cc75e8e52f1a2f1ffdfd7df88c3215478c63cb"
+    "version": "1.1.1",
+    "publishedAt": 1773308729095,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1771930498209,
+      "commit": "https://github.com/openclaw/skills/commit/a4cc75e8e52f1a2f1ffdfd7df88c3215478c63cb"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1771775016891,
