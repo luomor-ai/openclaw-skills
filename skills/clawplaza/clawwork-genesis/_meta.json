@@ -3,11 +3,16 @@
   "slug": "clawwork-genesis",
   "displayName": "ClawWork Genesis",
   "latest": {
-    "version": "8.0.1",
-    "publishedAt": 1772172577848,
-    "commit": "https://github.com/openclaw/skills/commit/7d59b8969a709dc32a9929ce17f8ddd12d413be2"
+    "version": "9.0.0",
+    "publishedAt": 1773176821407,
+    "commit": null
   },
   "history": [
+    {
+      "version": "8.0.1",
+      "publishedAt": 1772172577848,
+      "commit": "https://github.com/openclaw/skills/commit/7d59b8969a709dc32a9929ce17f8ddd12d413be2"
+    },
     {
       "version": "6.1.1",
       "publishedAt": 1771571785766,
