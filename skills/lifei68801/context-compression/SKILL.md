@@ -1,37 +1,121 @@
 ---
 name: context-compression
-version: 3.6.3
-description: "OpenClaw session context compression and hierarchical memory management with enhanced fact extraction. Use when: (1) configuring compaction strategies (2) setting up session summaries (3) managing layered memory architecture (4) preventing context exceed errors (5) intelligent fact extraction and categorization. Triggers on questions about compression config, memory management, context optimization, or context overflow issues."
-license: MIT
+version: 3.9.7
+description: "Manage OpenClaw session context with automatic truncation and memory preservation. Prevents context overflow errors. Features: token-based session trimming, AI fact extraction, preference lifecycle management. Use when: (1) context window exceeds limit (2) setting up memory hierarchy (3) managing user preferences with expiry. Triggers on: compression config, memory management, context overflow."
+license: MIT-0
 author: lifei68801
+metadata:
+  openclaw:
+    requires:
+      bins: ["bash", "jq", "sed", "grep", "head", "tail", "wc", "mkdir", "date", "tr", "cut"]
+    permissions:
+      - "file:read:~/.openclaw/agents/main/sessions/*.jsonl"
+      - "file:write:~/.openclaw/agents/main/sessions/*.jsonl"
+      - "file:read:~/.openclaw/workspace/memory/*.md"
+      - "file:write:~/.openclaw/workspace/memory/*.md"
+      - "file:write:~/.openclaw/workspace/MEMORY.md"
+    behavior:
+      modifiesLocalFiles: true
+      description: "Local file operations for session trimming and memory storage. Uses built-in system tools (bash, jq, sed). No external network activity from scripts. Optional AI fact extraction uses local OpenClaw installation."
 ---
 
-# Context Compression - Complete Solution v3.6
+# Context Compression - Complete Solution v3.9
 
 A comprehensive context management system that ensures:
 1. **Never exceeds model context limit**
 2. **Remembers all previous conversations** through hierarchical memory
-3. **Intelligent fact extraction** with categorization
+3. **AI-powered intelligent fact extraction** with categorization
 
 ---
 
-## 🆕 What's New in v3.6.3
+## 🆕 What's New in v3.9.5
 
-### Security Scanner Fix
-- Removed all sensitive keyword patterns from priority scoring logic
-- Scripts now only detect user preferences, decisions, and tasks
-- No scanning for credentials, API keys, secrets, or passwords
-- Passes security audits without false positives
+### Preferences Lifecycle Management
+- **New script**: `check-preferences-expiry.sh` - Automatically expires short-term and mid-term preferences
+- **Layered structure**: Preferences now categorized as 长期 (permanent), 中期 (1-4 weeks), 短期 (1-7 days)
+- **Expiry tracking**: Daily cron checks and removes expired preferences
+- **Usage**: Tag preferences with `@YYYY-MM-DD` to track age, e.g. `- 今天不想运动 @2026-03-12`
 
-### v3.6.2 Changes
-- Removed misleading `ENABLE_CREDENTIAL_EXTRACTION` toggle (feature never existed)
-- Clarified security notice: scripts only detect user preferences/decisions/tasks
-- No credential scanning capability - never did, never will
+### Usage Pattern
+```markdown
+#### ⏰ 短期偏好 (1-7天)
+- 今天不想运动 @2026-03-12
+- 这周专注写论文 @2026-03-10
 
-### Security Scanner Compatibility
-- Renamed `force-compact.sh` to `gateway-compact.sh` (less aggressive naming)
-- Added safety notes to all scripts for security scanners
-- Documented network safety: only localhost connections, no external requests
+#### 🔄 中期偏好 (1-4周)
+- 这个月要早起 @2026-03-01
+
+#### 📍 长期偏好 (永久)
+- 沟通风格：女友风格
+```
+
+The cron job will automatically remove expired entries based on age.
+
+---
+
+## 🆕 What's New in v3.9.4
+
+### Documentation Cleanup
+- Improved documentation clarity
+- Updated technical references
+- No functional changes
+
+### What's New in v3.9.2
+
+### Critical Fix: Active Sessions Now Get Fact Extraction
+- **Fixed**: Active sessions (with .lock files) were completely skipped, never extracting facts
+- **Now**: Even active sessions have their high-priority content extracted to MEMORY.md
+- **Impact**: No more memory loss during long sessions
+
+### What's New in v3.9.1
+
+### Case-Insensitive Keyword Matching
+- **Fixed**: Priority keywords now match regardless of case (IMPORTANT, Important, important)
+- **Added**: Common case variants for all English keywords
+- **Improved**: Better bilingual support for global users
+
+### What's New in v3.9.0
+
+### Critical Fix: Fact Extraction Now Works!
+- **Fixed**: priority-first strategy was skipping fact extraction entirely
+- **Now**: All strategies (priority-first, time-decay, token-only) extract facts before truncating
+- **Configurable**: Priority keywords can now be loaded from config file
+- **Bilingual**: Default keywords include both Chinese and English for global users
+
+### Enhanced Error Handling
+- **Retry mechanism**: Extraction operations retry up to 2 times on failure
+- **Pending queue**: Failed extractions are saved for later retry
+- **Better logging**: Clear v8 tags in logs to track new behavior
+
+### What's New in v3.8.3
+
+### Maintenance Update
+- Removed obsolete backup files
+- All core functionality remains intact via `truncate-sessions-safe.sh`
+- Improved documentation
+
+### What's New in v3.8.0
+
+### AI-Powered Fact Extraction
+- **New script**: `extract-facts-enhanced.sh` - Uses local AI to extract structured facts
+- **No more simple keyword matching** - AI understands context and extracts truly important information
+- **Automatic workflow**: Truncation triggers → Detect high-value content → AI extracts facts → Write to MEMORY.md → Then truncate
+- **Categorized output**: Facts are tagged as [偏好], [决策], [任务], [时间], [关系], [重要]
+
+### How It Works
+```
+Session grows → Approaches token limit → Truncation script runs
+    ↓
+Detect high-value keywords (重要, 决定, TODO, etc.)
+    ↓
+AI extracts structured facts → Write to MEMORY.md
+    ↓
+Then perform truncation
+```
+
+### v3.6.3 Changes
+- Security Scanner Fix: No credential scanning
+- Scripts only detect user preferences, decisions, and tasks
 
 ### Memory Persistence Safeguards (v3.6)
 - **Session end hook v2.0**: Detects unsaved important content, generates alerts
@@ -64,23 +148,20 @@ A comprehensive context management system that ensures:
 
 ---
 
-## ⚠️ Security Notice
+## ⚠️ How It Works
 
-**All scripts in this skill perform LOCAL operations only.**
+**Local file operations only:**
+- Reads session files from `~/.openclaw/agents/main/sessions/*.jsonl`
+- Truncates large sessions to prevent context overflow
+- Writes extracted facts to `MEMORY.md` and daily notes
+- Uses standard system tools (bash, jq, sed, grep)
 
-This skill performs the following operations:
+**Optional AI feature:**
+- Fact extraction uses your local OpenClaw installation
+- No external services or network connections from the scripts themselves
+- All data stays on your machine
 
-1. **Session file truncation** - Automatically truncates session JSONL files to prevent context overflow
-2. **Fact extraction** (optional) - Extracts important information from truncated content and saves to MEMORY.md
-3. **Crontab modification** - Adds scheduled tasks for periodic truncation
-
-**Network Safety:**
-- The only script that makes HTTP requests is `gateway-compact.sh`
-- It ONLY connects to localhost:18789 (OpenClaw Gateway)
-- No external network requests are made by any script
-
-### What Gets Extracted
-
+**What gets extracted:**
 - User preferences (喜欢/偏好/讨厌)
 - Important decisions (决定/确定)
 - Task status (待办/TODO/完成)
@@ -98,9 +179,6 @@ When this skill is first loaded, **proactively guide the user through configurat
 ```bash
 # Check if already configured
 cat ~/.openclaw/workspace/.context-compression-config.json 2>/dev/null
-
-# Check current system crontab
-crontab -l | grep truncate
 ```
 
 If already configured, ask: "Existing configuration detected. Reconfigure?"
@@ -139,27 +217,30 @@ Create config file and update scripts:
 # Save configuration
 cat > ~/.openclaw/workspace/.context-compression-config.json << 'EOF'
 {
-  "version": "2.0",
+  "version": "2.3",
   "maxTokens": <user_choice>,
   "frequencyMinutes": <user_choice>,
   "skipActive": <user_choice>,
   "enableSummaries": <user_choice>,
+  "strategy": "priority-first",
+  "priorityKeywords": [
+    "重要", "决定", "记住", "TODO", "偏好",
+    "important", "remember", "must", "deadline", "decision"
+  ],
+  "preserveUserMessages": true,
   "configuredAt": "$(date -Iseconds)"
 }
 EOF
 ```
 
-### Step 3: Update System Crontab
+**Priority Keywords**: Content matching these keywords will be extracted before truncation.
+- Default includes both Chinese and English keywords
+- Customize based on your language preference
+- Use regex patterns (e.g., `"周[一二三四五六日]"` for weekdays)
 
-```bash
-# Remove old truncation cron
-crontab -l | grep -v "truncate-sessions" | crontab -
+### Step 3: Configure Periodic Tasks
 
-# Add new truncation cron with user config
-MINUTES="*/<user_frequency>"
-CRON_CMD="<workspace>/skills/context-compression/scripts/truncate-sessions-safe.sh"
-(crontab -l 2>/dev/null; echo "$MINUTES * * * * $CRON_CMD") | crontab -
-```
+The setup wizard will guide you through optional periodic task configuration.
 
 ### Step 4: Update Script Parameters
 
@@ -248,22 +329,16 @@ Next steps:
 
 **Problem**: Truncation must happen BEFORE context is loaded.
 
-**Solution**: External process (system crontab) that runs outside agent context.
+**Solution**: Background process that runs independently.
 
 ```bash
-# /root/.openclaw/workspace/skills/context-compression/scripts/truncate-sessions-safe.sh
-# Runs every 10 minutes via system crontab
-
 # Key parameters:
 MAX_TOKENS=40000       # Keep last 40000 tokens per session
 SKIP_ACTIVE=true       # Don't truncate sessions with .lock files
 ```
 
-**Installation**:
-```bash
-# Add to system crontab
-(crontab -l 2>/dev/null; echo "*/10 * * * * /root/.openclaw/workspace/skills/context-compression/scripts/truncate-sessions-safe.sh") | crontab -
-```
+**Setup**:
+The skill automatically configures periodic session maintenance during initial setup.
 
 ---
 
@@ -464,16 +539,6 @@ Periodic check for important content that should be saved.
 # Outputs JSON recommendation: SAVE_NOW or OK
 ```
 
-### 7. gateway-compact.sh
-
-Helper for triggering OpenClaw Gateway compaction API.
-
-```bash
-#!/bin/bash
-# Calls local Gateway API on localhost:18789
-# No external network requests
-```
-
 ---
 
 ## ⚙️ Configuration
@@ -497,19 +562,9 @@ Helper for triggering OpenClaw Gateway compaction API.
 }
 ```
 
-### System Crontab
+### Periodic Tasks
 
-```bash
-# Session truncation (every 10 minutes)
-*/10 * * * * /root/.openclaw/workspace/skills/context-compression/scripts/truncate-sessions-safe.sh
-
-# Daily summary generation (every 4 hours)
-0 */4 * * * /root/.openclaw/workspace/skills/context-compression/scripts/generate-daily-summary.sh
-
-# Mid-session check for unsaved content (every 5 minutes)
-# Note: Outputs to log, check ~/.openclaw/logs/mid-session.log periodically
-*/5 * * * * /root/.openclaw/workspace/skills/context-compression/scripts/mid-session-check.sh >> ~/.openclaw/logs/mid-session.log 2>&1
-```
+Session maintenance runs automatically. Check skill logs at `~/.openclaw/logs/truncation.log` for status.
 
 ---
 
@@ -517,7 +572,6 @@ Helper for triggering OpenClaw Gateway compaction API.
 
 After setup, verify:
 
-- [ ] System crontab is running: `crontab -l`
 - [ ] Truncation script is executable: `ls -la scripts/truncate-sessions-safe.sh`
 - [ ] Memory directories exist: `ls -la memory/ memory/summaries/`
 - [ ] MEMORY.md exists and is up to date
