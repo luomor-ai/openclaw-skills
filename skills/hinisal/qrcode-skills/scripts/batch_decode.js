@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 批量解码二维码 (Node.js 版)
+ * 批量解码二维码 - 本地解码 (Node.js 版)
  *
  * 用法:
  *   node scripts/batch_decode.js --input <文件> [--column <列>] [--output-txt <路径>]
@@ -13,9 +13,7 @@ const http = require("http");
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { URL } = require("url");
 
-const API_ENDPOINT = "https://api.2dcode.biz/v1/read-qr-code";
 const FAIL = "未解析到二维码";
 
 // ── 参数解析 ──────────────────────────────────────────────
@@ -34,18 +32,7 @@ function parseArgs(argv) {
 
 // ── HTTP 工具 ──────────────────────────────────────────────
 
-function httpGet(url) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith("https") ? https : http;
-    mod.get(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location)
-        return httpGet(res.headers.location).then(resolve, reject);
-      const chunks = [];
-      res.on("data", (c) => chunks.push(c));
-      res.on("end", () => resolve(Buffer.concat(chunks)));
-    }).on("error", reject);
-  });
-}
+function isUrl(s) { return s.startsWith("http://") || s.startsWith("https://"); }
 
 function downloadToTemp(url) {
   return new Promise((resolve, reject) => {
@@ -65,8 +52,6 @@ function downloadToTemp(url) {
 }
 
 // ── 解码函数 ──────────────────────────────────────────────
-
-function isUrl(s) { return s.startsWith("http://") || s.startsWith("https://"); }
 
 async function tryWechatQr(source) {
   try {
@@ -98,52 +83,9 @@ async function tryWechatQr(source) {
   }
 }
 
-async function decodeApiUrl(imageUrl) {
-  try {
-    const apiUrl = `${API_ENDPOINT}?file_url=${encodeURIComponent(imageUrl)}`;
-    const buf = await httpGet(apiUrl);
-    const data = JSON.parse(buf.toString());
-    if (data.code === 0 && data.data?.contents?.length) return data.data.contents.join("; ");
-    return null;
-  } catch { return null; }
-}
-
-async function decodeApiFile(filePath) {
-  return new Promise((resolve) => {
-    try {
-      const boundary = `----formdata${Date.now()}`;
-      const filename = path.basename(filePath);
-      const fileData = fs.readFileSync(filePath);
-      const header = Buffer.from(`--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="${filename}"\r\nContent-Type: application/octet-stream\r\n\r\n`);
-      const footer = Buffer.from(`\r\n--${boundary}--\r\n`);
-      const body = Buffer.concat([header, fileData, footer]);
-      const url = new URL(API_ENDPOINT);
-      const options = { hostname: url.hostname, path: url.pathname, method: "POST", headers: { "Content-Type": `multipart/form-data; boundary=${boundary}`, "Content-Length": body.length } };
-      const req = https.request(options, (res) => {
-        const chunks = [];
-        res.on("data", (c) => chunks.push(c));
-        res.on("end", () => { try { const d = JSON.parse(Buffer.concat(chunks).toString()); resolve(d.code === 0 && d.data?.contents?.length ? d.data.contents.join("; ") : null); } catch { resolve(null); } });
-      });
-      req.on("error", () => resolve(null));
-      req.write(body); req.end();
-    } catch { resolve(null); }
-  });
-}
-
 async function decodeSingle(source) {
   const local = await tryWechatQr(source);
-  if (local) return local;
-
-  if (isUrl(source)) {
-    const r = await decodeApiUrl(source);
-    return r || FAIL;
-  } else if (fs.existsSync(source)) {
-    const r = await decodeApiFile(source);
-    return r || FAIL;
-  } else {
-    const r = await decodeApiUrl(source);
-    return r || FAIL;
-  }
+  return local || FAIL;
 }
 
 // ── 文件读写 ──────────────────────────────────────────────

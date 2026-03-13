@@ -1,22 +1,17 @@
 #!/usr/bin/env node
 /**
- * QR Code Generator - 生成二维码并保存到本地 (Node.js 版)
+ * QR Code Generator - 本地生成二维码并保存到文件 (Node.js 版)
  *
  * 用法:
  *   node scripts/generate.js --data <文本> --output <路径> [选项]
  *
  * 输出 JSON:
- *   {"url": "...", "file": "..."}
+ *   {"file": "..."}
  *   {"error": "..."}
  */
 
-const https = require("https");
-const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { URL, URLSearchParams } = require("url");
-
-const API_BASE = "https://api.2dcode.biz/v1/create-qr-code";
 
 function parseArgs(argv) {
   const args = { size: "400x400", format: "png", ecc: "M", border: 2 };
@@ -33,30 +28,6 @@ function parseArgs(argv) {
   return args;
 }
 
-function buildUrl(data, size, fmt, ecc, border) {
-  const params = new URLSearchParams({ data, size });
-  if (fmt !== "png") params.set("format", fmt);
-  if (ecc !== "M") params.set("error_correction", ecc);
-  if (border !== 2) params.set("border", String(border));
-  return `${API_BASE}?${params.toString()}`;
-}
-
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith("https") ? https : http;
-    const file = fs.createWriteStream(dest);
-    mod.get(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        file.close();
-        fs.unlinkSync(dest);
-        return download(res.headers.location, dest).then(resolve, reject);
-      }
-      res.pipe(file);
-      file.on("finish", () => { file.close(); resolve(); });
-    }).on("error", (e) => { file.close(); fs.unlinkSync(dest); reject(e); });
-  });
-}
-
 async function main() {
   const args = parseArgs(process.argv);
   if (!args.data || !args.output) {
@@ -64,16 +35,25 @@ async function main() {
     process.exit(1);
   }
 
-  const url = buildUrl(args.data, args.size, args.format, args.ecc, args.border);
+  const QRCode = require("qrcode");
+  const eccMap = { L: "low", M: "medium", Q: "quartile", H: "high" };
+  const opts = { errorCorrectionLevel: eccMap[args.ecc] || "medium", margin: args.border };
+
   const outputPath = path.resolve(args.output);
   const dir = path.dirname(outputPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 
   try {
-    await download(url, outputPath);
-    console.log(JSON.stringify({ url, file: outputPath }));
+    if (args.format === "svg") {
+      const svg = await QRCode.toString(args.data, { ...opts, type: "svg" });
+      fs.writeFileSync(outputPath, svg);
+    } else {
+      const sizeInt = parseInt(args.size.split("x")[0]) || 400;
+      await QRCode.toFile(outputPath, args.data, { ...opts, width: sizeInt });
+    }
+    console.log(JSON.stringify({ file: outputPath }));
   } catch (e) {
-    console.log(JSON.stringify({ error: `下载失败: ${e.message}` }));
+    console.log(JSON.stringify({ error: `生成失败: ${e.message}` }));
     process.exit(1);
   }
 }

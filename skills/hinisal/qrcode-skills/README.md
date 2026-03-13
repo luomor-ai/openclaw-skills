@@ -4,19 +4,21 @@ English | [中文](README.zh-cn.md)
 
 An agent skill for generating and decoding QR codes.
 
-Built on the [CaoLiao QR Code API](https://cli.im/open-api/qrcode-api/quick-start.html) and local libraries. No API key required.
+**Fully local** — no remote API or API key required.
 
-This skill generates static QR codes only (not CaoLiao dynamic codes).
+**Declaration:**
+- **All dependencies are open-source**: Every dependency (Python: zxingcpp, Pillow, openpyxl, qrcode; Node.js: qrcode, qr-scanner-wechat, sharp, xlsx, archiver) is a publicly available open-source project. Source code and licenses can be found on PyPI / npm.
+- **All operations run locally**: Generation and decoding are performed entirely on the user's machine. No remote API calls, no data uploads. The only exception is when decoding a remote image URL; the image is downloaded locally first, then decoded.
+
+For QR code generation URLs (preview without saving files) or better decoding accuracy, use [qrcode-remote-skills](https://github.com/caoliao/qrcode-remote-skills): `npx skills add caoliao/qrcode-remote-skills`.
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| Generate QR code | Encode text/URL into a QR code, return link with preview |
-| Generate & save locally | Download QR code image to a specified path |
-| Decode QR code | Read QR code content from an image URL or local file |
-| Batch generate (URL) | Generate QR code URL list from Excel/CSV/TXT |
-| Batch generate (image) | Generate QR code images locally from Excel/CSV/TXT |
+| Generate QR code | Encode text/URL into a QR code image, saved locally |
+| Decode QR code | Read QR code content from a local image or image URL |
+| Batch generate | Generate QR code images locally from Excel/CSV/TXT |
 | Batch decode | Batch decode QR codes from Excel/CSV/TXT, write results back |
 
 ## Installation
@@ -64,7 +66,7 @@ cd qrcode-skills
 npm install
 ```
 
-Dependencies: `qrcode`, `jsqr`, `jimp`, `xlsx`, `archiver`
+Dependencies: `qrcode`, `qr-scanner-wechat`, `sharp`, `xlsx`, `archiver`
 
 > Both script sets are functionally identical. The agent auto-detects the available runtime.
 
@@ -76,41 +78,29 @@ After installation, simply ask your agent "Generate a QR code for me" to trigger
 
 ### Generate a QR Code
 
-> **You:** Generate a QR code for https://cli.im
+> **You:** Generate a QR code for https://example.com
 
-> **AI:** QR code generated:
->
-> ![QR Code](https://api.2dcode.biz/v1/create-qr-code?data=https%3A%2F%2Fcli.im&size=400x400)
->
-> **QR Code URL:** `https://api.2dcode.biz/v1/create-qr-code?data=https%3A%2F%2Fcli.im&size=400x400`
-
----
-
-### Generate & Save Locally
-
-> **You:** Generate a QR code and save it to the desktop, content is Hello World, SVG format
-
-> **AI:** *(runs script to download image)*
+> **AI:** *(runs local generation script)*
 >
 > QR code generated and saved locally:
 >
-> **QR Code URL:** `https://api.2dcode.biz/v1/create-qr-code?data=Hello%20World&size=400x400&format=svg`
+> **Local file:** `D:\workspace\qrcode.png`
+
+---
+
+### Generate & Save to Specific Path
+
+> **You:** Generate a QR code and save it to the desktop, content is Hello World, SVG format
+
+> **AI:** *(runs local generation script)*
+>
+> QR code generated and saved locally:
+>
 > **Local file:** `C:\Users\xxx\Desktop\qrcode.svg`
 
 ---
 
-### Decode a QR Code (URL)
-
-> **You:** Decode this QR code https://example.com/qr.png
-
-> **AI:** *(runs decode script)*
->
-> QR code decoded (via zxing):
-> - Content: https://cli.im
-
----
-
-### Decode a QR Code (Image)
+### Decode a QR Code (Local File)
 
 > **You:** Decode this QR code *(paste/drag an image)*
 
@@ -121,27 +111,24 @@ After installation, simply ask your agent "Generate a QR code for me" to trigger
 
 ---
 
-### Batch Generate (URL Links)
+### Decode a QR Code (URL)
 
-> **You:** I have a data.xlsx, batch generate QR codes
+> **You:** Decode this QR code https://example.com/qr.png
 
-> **AI:** Would you like QR code URL links or image files saved locally?
-
-> **You:** Links are fine
-
-> **AI:** *(runs script)*
+> **AI:** *(downloads image locally, runs decode script)*
 >
-> Batch generation complete: 50 QR code links saved to `D:\output\urls.txt`
+> QR code decoded (via zxing):
+> - Content: https://cli.im
 
 ---
 
-### Batch Generate (Images)
+### Batch Generate
 
 > **You:** Batch generate QR code images from the link column in products.csv, zip them up
 
 > **AI:** *(runs script)*
 >
-> Batch generation complete (via local): 200 total, 200 succeeded, 0 failed
+> Batch generation complete: 200 total, 200 succeeded, 0 failed
 > Output directory: `D:\output\qrcodes`
 > ZIP file: `D:\output\qrcodes.zip`
 
@@ -170,23 +157,23 @@ After installation, simply ask your agent "Generate a QR code for me" to trigger
 
 ```
 qrcode-skills/
-├── README.md                   # Chinese documentation
-├── README.en.md                # English documentation (this file)
+├── README.md                   # English documentation (this file)
+├── README.zh-cn.md             # Chinese documentation
 ├── SKILL.md                    # Agent skill instructions
-├── reference.md                # CaoLiao API reference
 ├── requirements.txt            # Python dependencies
 ├── package.json                # Node.js dependencies
 └── scripts/
     ├── generate.py / .js       # Single QR code generation & save
-    ├── batch_generate.py / .js # Batch generation (URL links / images)
-    ├── decode.py / .js         # Single decode (local-first + API fallback)
-    └── batch_decode.py / .js   # Batch decode (write-back / TXT output)
+    ├── batch_generate.py / .js # Batch generation (images)
+    ├── decode.py / .js         # Single decode (fully local)
+    └── batch_decode.py / .js   # Batch decode (fully local)
 ```
 
 ## Technical Details
 
 - **Dual runtime**: All scripts are available in both Python and Node.js with identical parameters and output formats
-- **Generation**: Constructs CaoLiao API URLs directly by default (zero latency); downloads images when saving locally; batch image generation uses local libraries (Python: `qrcode` / Node: `qrcode`)
-- **Decoding**: Prefers local library decoding (Python: `zxingcpp` / Node: `jsQR` + `jimp`), falls back to CaoLiao API on failure
+- **Generation**: Uses local libraries (Python: `qrcode` / Node: `qrcode`) to generate QR code images directly
+- **Decoding**: Uses local libraries (Python: `zxingcpp` / Node: `qr-scanner-wechat`) for decoding, no remote dependency
 - **Batch operations**: Supports Excel (.xlsx), CSV, TXT input; auto-detects data columns, prompts user when ambiguous
-- **CaoLiao API**: Free, no authentication required. [Official docs](https://cli.im/open-api/qrcode-api/quick-start.html)
+- **Fully offline**: All generation and decoding operations run locally with no network required (unless decoding input is a remote image URL)
+- **Open-source only**: All dependencies are open-source libraries; no proprietary or closed-source components

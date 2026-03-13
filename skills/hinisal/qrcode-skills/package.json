@@ -1,7 +1,7 @@
 {
   "name": "qrcode-skills",
-  "version": "1.0.0",
-  "description": "QR Code generation & decoding scripts (Node.js fallback)",
+  "version": "2.0.0",
+  "description": "QR Code generation & decoding scripts (fully local)",
   "dependencies": {
     "qrcode": "^1.5.0",
     "qr-scanner-wechat": "^0.1.0",

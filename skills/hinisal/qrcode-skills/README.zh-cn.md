@@ -4,19 +4,21 @@
 
 为 Agent 赋予二维码生成与解码能力的 Skill 合集。
 
-基于[草料二维码开放 API](https://cli.im/open-api/qrcode-api/quick-start.html) 和本地库，无需 API Key。
+**完全本地运行**，无需任何远程 API 或 API Key。
 
-本 skills 不生成草料活码，生成的二维码是静态码。
+**声明：**
+- **依赖均为公开开源库**：所有依赖（Python: zxingcpp、Pillow、openpyxl、qrcode；Node.js: qrcode、qr-scanner-wechat、sharp、xlsx、archiver）均为公开的开源项目，可在 PyPI / npm 上查阅源码与许可证
+- **所有行为本地完成**：生成与解码均在用户本地执行，不调用任何远程 API，不上传任何数据；仅当解码输入为远程图片 URL 时，会下载该图片到本地后再解码
+
+如需二维码生成 URL（无需保存文件即可预览）、更好的解码效果，可使用 [qrcode-remote-skills](https://github.com/caoliao/qrcode-remote-skills)：`npx skills add caoliao/qrcode-remote-skills`。
 
 ## 功能概览
 
 | 功能 | 说明 |
 |------|------|
-| 生成二维码 | 将文本/URL 转为二维码，返回链接并预览 |
-| 生成并保存到本地 | 下载二维码图片到指定路径 |
-| 解码二维码 | 从图片 URL 或本地文件识别二维码内容 |
-| 批量生成（URL） | 从 Excel/CSV/TXT 批量生成二维码链接列表 |
-| 批量生成（图片） | 从 Excel/CSV/TXT 批量生成二维码图片到本地 |
+| 生成二维码 | 将文本/URL 转为二维码图片，保存到本地 |
+| 解码二维码 | 从本地图片或图片 URL 识别二维码内容 |
+| 批量生成 | 从 Excel/CSV/TXT 批量生成二维码图片到本地 |
 | 批量解码 | 从 Excel/CSV/TXT 批量解码二维码，结果回写原文件 |
 
 ## 安装
@@ -64,7 +66,7 @@ cd qrcode-skills
 npm install
 ```
 
-依赖：`qrcode`、`jsqr`、`jimp`、`xlsx`、`archiver`
+依赖：`qrcode`、`qr-scanner-wechat`、`sharp`、`xlsx`、`archiver`
 
 > 两套脚本功能和参数完全一致，Agent 会自动检测环境并选择可用的运行时。
 
@@ -76,41 +78,29 @@ npm install
 
 ### 生成二维码
 
-> **你：** 帮我生成一个二维码，内容是 https://cli.im
+> **你：** 帮我生成一个二维码，内容是 https://example.com
 
-> **AI：** 二维码已生成：
->
-> ![QR Code](https://api.2dcode.biz/v1/create-qr-code?data=https%3A%2F%2Fcli.im&size=400x400)
->
-> **二维码链接：** `https://api.2dcode.biz/v1/create-qr-code?data=https%3A%2F%2Fcli.im&size=400x400`
-
----
-
-### 生成并保存到本地
-
-> **你：** 生成一个二维码保存到桌面，内容是 Hello World，SVG 格式
-
-> **AI：** *(执行脚本下载图片)*
+> **AI：** *(执行本地生成脚本)*
 >
 > 二维码已生成并保存到本地：
 >
-> **二维码链接：** `https://api.2dcode.biz/v1/create-qr-code?data=Hello%20World&size=400x400&format=svg`
+> **本地文件：** `D:\workspace\qrcode.png`
+
+---
+
+### 生成并保存到指定路径
+
+> **你：** 生成一个二维码保存到桌面，内容是 Hello World，SVG 格式
+
+> **AI：** *(执行本地生成脚本)*
+>
+> 二维码已生成并保存到本地：
+>
 > **本地文件：** `C:\Users\xxx\Desktop\qrcode.svg`
 
 ---
 
-### 解码二维码（URL）
-
-> **你：** 帮我识别这个二维码 https://example.com/qr.png
-
-> **AI：** *(执行解码脚本)*
->
-> 二维码解码结果（via zxing）：
-> - 内容：https://cli.im
-
----
-
-### 解码二维码（发送图片）
+### 解码二维码（本地文件）
 
 > **你：** 帮我识别这个二维码 *(粘贴/拖入一张二维码图片)*
 
@@ -121,27 +111,24 @@ npm install
 
 ---
 
-### 批量生成（URL 链接）
+### 解码二维码（URL）
 
-> **你：** 我有一个 data.xlsx，帮我批量生成二维码
+> **你：** 帮我识别这个二维码 https://example.com/qr.png
 
-> **AI：** 请问需要生成二维码 URL 链接，还是生成图片保存到本地？
-
-> **你：** 生成链接就行
-
-> **AI：** *(执行脚本)*
+> **AI：** *(下载图片到本地，执行解码脚本)*
 >
-> 批量生成完成，共 50 个二维码链接，已保存到：`D:\output\urls.txt`
+> 二维码解码结果（via zxing）：
+> - 内容：https://cli.im
 
 ---
 
-### 批量生成（图片）
+### 批量生成
 
 > **你：** 把 products.csv 里的链接列批量生成二维码图片，打包成 zip
 
 > **AI：** *(执行脚本)*
 >
-> 批量生成完成（via local）：共 200 个，成功 200 个，失败 0 个
+> 批量生成完成：共 200 个，成功 200 个，失败 0 个
 > 输出目录：`D:\output\qrcodes`
 > ZIP 文件：`D:\output\qrcodes.zip`
 
@@ -170,22 +157,23 @@ npm install
 
 ```
 qrcode-skills/
-├── README.md                   # 本文件
+├── README.md                   # English documentation
+├── README.zh-cn.md             # 中文文档（本文件）
 ├── SKILL.md                    # Agent Skill 主指令
-├── reference.md                # 草料 API 完整参考文档
 ├── requirements.txt            # Python 依赖
 ├── package.json                # Node.js 依赖
 └── scripts/
     ├── generate.py / .js       # 单个生成并保存到本地
-    ├── batch_generate.py / .js # 批量生成（URL 链接 / 图片）
-    ├── decode.py / .js         # 单个解码（本地优先 + API 回退）
-    └── batch_decode.py / .js   # 批量解码（回写原文件 / 输出 TXT）
+    ├── batch_generate.py / .js # 批量生成图片
+    ├── decode.py / .js         # 单个解码（纯本地）
+    └── batch_decode.py / .js   # 批量解码（纯本地）
 ```
 
 ## 技术说明
 
 - **双运行时**：所有脚本同时提供 Python 和 Node.js 版本，参数和输出格式完全一致
-- **生成**：默认直接拼接草料 API URL 返回（零延迟）；保存本地时下载图片；批量生成图片默认用本地库（Python: `qrcode` / Node: `qrcode`）
-- **解码**：优先本地库解码（Python: `zxingcpp` / Node: `jsQR` + `jimp`），失败时自动回退草料 API
+- **生成**：使用本地库（Python: `qrcode` / Node: `qrcode`）直接生成二维码图片
+- **解码**：使用本地库（Python: `zxingcpp` / Node: `qr-scanner-wechat`）解码，无远程依赖
 - **批量操作**：支持 Excel(.xlsx)、CSV、TXT 输入；自动检测数据列，无法判断时交互询问
-- **草料 API**：免费、无需认证，[官方文档](https://cli.im/open-api/qrcode-api/quick-start.html)
+- **完全离线**：所有生成和解码操作均在本地完成，无需网络连接（除非解码输入为远程图片 URL）
+- **全部开源**：所有依赖均为公开的开源库，无任何闭源或专有组件

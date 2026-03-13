@@ -1,5 +1,5 @@
 """
-批量解码二维码 - 从 Excel/CSV/TXT 读取图片 URL，批量解码并写回结果。
+批量解码二维码 - 从 Excel/CSV/TXT 读取图片路径或 URL，本地批量解码并写回结果。
 
 用法:
   python scripts/batch_decode.py --input <文件> [选项]
@@ -24,25 +24,13 @@ import csv
 import argparse
 import tempfile
 from pathlib import Path
-from urllib.parse import quote
 
-API_ENDPOINT = "https://api.2dcode.biz/v1/read-qr-code"
 FAIL_PLACEHOLDER = "未解析到二维码"
 
 
 def decode_single(image_source: str) -> str:
     """解码单个图片，返回内容文本或失败占位符。"""
     result = _try_zxing(image_source)
-    if result:
-        return result
-
-    if _is_url(image_source):
-        result = _decode_api_url(image_source)
-    elif os.path.isfile(image_source):
-        result = _decode_api_file(image_source)
-    else:
-        result = _decode_api_url(image_source)
-
     return result if result else FAIL_PLACEHOLDER
 
 
@@ -80,55 +68,6 @@ def _try_zxing(source: str) -> str | None:
     finally:
         if tmp_path and os.path.exists(tmp_path):
             os.unlink(tmp_path)
-
-
-def _decode_api_url(image_url: str) -> str | None:
-    import urllib.request
-
-    api_url = f"{API_ENDPOINT}?file_url={quote(image_url, safe='')}"
-    try:
-        with urllib.request.urlopen(api_url) as resp:
-            data = json.loads(resp.read().decode())
-        contents = data.get("data", {}).get("contents", [])
-        if data.get("code") == 0 and contents:
-            return "; ".join(contents)
-        return None
-    except Exception:
-        return None
-
-
-def _decode_api_file(file_path: str) -> str | None:
-    import urllib.request
-    import mimetypes
-    import uuid
-
-    boundary = uuid.uuid4().hex
-    filename = os.path.basename(file_path)
-    mime_type = mimetypes.guess_type(file_path)[0] or "application/octet-stream"
-
-    with open(file_path, "rb") as f:
-        file_data = f.read()
-
-    body = (
-        f"--{boundary}\r\n"
-        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
-        f"Content-Type: {mime_type}\r\n\r\n"
-    ).encode() + file_data + f"\r\n--{boundary}--\r\n".encode()
-
-    req = urllib.request.Request(
-        API_ENDPOINT,
-        data=body,
-        headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-    )
-    try:
-        with urllib.request.urlopen(req) as resp:
-            data = json.loads(resp.read().decode())
-        contents = data.get("data", {}).get("contents", [])
-        if data.get("code") == 0 and contents:
-            return "; ".join(contents)
-        return None
-    except Exception:
-        return None
 
 
 # ── 文件读写 ──────────────────────────────────────────────

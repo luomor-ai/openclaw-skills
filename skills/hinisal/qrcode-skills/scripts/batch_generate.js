@@ -1,40 +1,31 @@
 #!/usr/bin/env node
 /**
- * 批量生成二维码 (Node.js 版)
+ * 批量生成二维码 - 本地生成 (Node.js 版)
  *
  * 用法:
- *   node scripts/batch_generate.js --input <文件> --mode url   [选项]
- *   node scripts/batch_generate.js --input <文件> --mode image --output-dir <目录> [选项]
+ *   node scripts/batch_generate.js --input <文件> --output-dir <目录> [选项]
  *
  * 输出 JSON 格式与 Python 版一致。
  */
 
-const https = require("https");
-const http = require("http");
 const fs = require("fs");
 const path = require("path");
-const { URLSearchParams } = require("url");
-
-const API_BASE = "https://api.2dcode.biz/v1/create-qr-code";
 
 // ── 参数解析 ──────────────────────────────────────────────
 
 function parseArgs(argv) {
   const args = {
-    input: null, mode: null, column: null,
-    outputTxt: null, outputDir: null,
-    zip: false, useApi: false,
+    input: null, column: null,
+    outputDir: null,
+    zip: false,
     size: "400", format: "png", ecc: "M", border: 2,
   };
   for (let i = 2; i < argv.length; i++) {
     switch (argv[i]) {
       case "--input": args.input = argv[++i]; break;
-      case "--mode": args.mode = argv[++i]; break;
       case "--column": args.column = argv[++i]; break;
-      case "--output-txt": args.outputTxt = argv[++i]; break;
       case "--output-dir": args.outputDir = argv[++i]; break;
       case "--zip": args.zip = true; break;
-      case "--use-api": args.useApi = true; break;
       case "--size": args.size = argv[++i]; break;
       case "--format": args.format = argv[++i]; break;
       case "--error-correction": args.ecc = argv[++i]; break;
@@ -111,33 +102,6 @@ function autoDetectCol(headers, keywords) {
   return headers.length === 1 ? 0 : null;
 }
 
-// ── URL 构建 ──────────────────────────────────────────────
-
-function buildApiUrl(data, size, fmt, ecc, border) {
-  const params = new URLSearchParams({ data, size });
-  if (fmt !== "png") params.set("format", fmt);
-  if (ecc !== "M") params.set("error_correction", ecc);
-  if (border !== 2) params.set("border", String(border));
-  return `${API_BASE}?${params.toString()}`;
-}
-
-// ── 下载 ──────────────────────────────────────────────
-
-function download(url, dest) {
-  return new Promise((resolve, reject) => {
-    const mod = url.startsWith("https") ? https : http;
-    const file = fs.createWriteStream(dest);
-    mod.get(url, (res) => {
-      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        file.close(); fs.unlinkSync(dest);
-        return download(res.headers.location, dest).then(resolve, reject);
-      }
-      res.pipe(file);
-      file.on("finish", () => { file.close(); resolve(); });
-    }).on("error", (e) => { file.close(); if (fs.existsSync(dest)) fs.unlinkSync(dest); reject(e); });
-  });
-}
-
 // ── 本地生成 ──────────────────────────────────────────────
 
 async function generateLocal(data, filepath, fmt, ecc, border) {
@@ -157,42 +121,23 @@ function checkLocalAvailable() {
   try { require("qrcode"); return true; } catch { return false; }
 }
 
-// ── 模式执行 ──────────────────────────────────────────────
-
-function runUrlMode(items, args) {
-  const sizeStr = `${args.size}x${args.size}`;
-  const urls = items.map((d) => buildApiUrl(d, sizeStr, args.format, args.ecc, args.border));
-
-  let outputTxt = null;
-  if (args.outputTxt) {
-    outputTxt = path.resolve(args.outputTxt);
-    const dir = path.dirname(outputTxt);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(outputTxt, urls.join("\n"), "utf-8");
-  }
-
-  console.log(JSON.stringify({ mode: "url", total: urls.length, urls, output_txt: outputTxt }));
-}
+// ── 执行 ──────────────────────────────────────────────
 
 async function runImageMode(items, args) {
   if (!args.outputDir) {
-    console.log(JSON.stringify({ error: "image 模式必须指定 --output-dir" }));
+    console.log(JSON.stringify({ error: "必须指定 --output-dir" }));
+    process.exit(1);
+  }
+
+  if (!checkLocalAvailable()) {
+    console.log(JSON.stringify({ error: "本地 qrcode 库未安装，请先执行 npm install" }));
     process.exit(1);
   }
 
   const outputDir = path.resolve(args.outputDir);
   if (!fs.existsSync(outputDir)) fs.mkdirSync(outputDir, { recursive: true });
 
-  const sizeInt = parseInt(args.size.split("x")[0]);
-  const sizeStr = `${sizeInt}x${sizeInt}`;
-  const useLocal = !args.useApi && checkLocalAvailable();
-
-  if (!args.useApi && !useLocal) {
-    console.log(JSON.stringify({ error: "本地 qrcode 库未安装，请先执行 npm install，或使用 --use-api 参数走远程 API" }));
-    process.exit(1);
-  }
-
-  let success = 0, failed = 0, apiFallback = 0;
+  let success = 0, failed = 0;
   const errors = [];
 
   for (let i = 0; i < items.length; i++) {
@@ -200,16 +145,7 @@ async function runImageMode(items, args) {
     const filename = `${i + 1}.${args.format}`;
     const filepath = path.join(outputDir, filename);
     try {
-      if (useLocal) {
-        try {
-          await generateLocal(data, filepath, args.format, args.ecc, args.border);
-        } catch {
-          await download(buildApiUrl(data, sizeStr, args.format, args.ecc, args.border), filepath);
-          apiFallback++;
-        }
-      } else {
-        await download(buildApiUrl(data, sizeStr, args.format, args.ecc, args.border), filepath);
-      }
+      await generateLocal(data, filepath, args.format, args.ecc, args.border);
       success++;
     } catch (e) {
       failed++;
@@ -218,8 +154,7 @@ async function runImageMode(items, args) {
   }
 
   const result = {
-    mode: "image", source: useLocal ? "local" : "api",
-    total: items.length, success, failed, api_fallback: apiFallback,
+    total: items.length, success, failed,
     output_dir: outputDir, zip_file: null, errors,
   };
 
@@ -245,8 +180,8 @@ async function runImageMode(items, args) {
 
 async function main() {
   const args = parseArgs(process.argv);
-  if (!args.input || !args.mode) {
-    console.log(JSON.stringify({ error: "用法: node batch_generate.js --input <文件> --mode url|image [选项]" }));
+  if (!args.input) {
+    console.log(JSON.stringify({ error: "用法: node batch_generate.js --input <文件> --output-dir <目录> [选项]" }));
     process.exit(1);
   }
 
@@ -270,11 +205,7 @@ async function main() {
   if (needCol) { console.log(JSON.stringify(needCol)); process.exit(0); }
   if (!items || !items.length) { console.log(JSON.stringify({ error: "文件中未读取到有效数据" })); process.exit(1); }
 
-  if (args.mode === "url") {
-    runUrlMode(items, args);
-  } else {
-    await runImageMode(items, args);
-  }
+  await runImageMode(items, args);
 }
 
 main();

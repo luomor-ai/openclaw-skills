@@ -1,5 +1,5 @@
 """
-QR Code Generator - 生成二维码并保存到本地。
+QR Code Generator - 本地生成二维码并保存到文件。
 
 用法:
   python scripts/generate.py --data <文本内容> --output <保存路径> [选项]
@@ -11,7 +11,7 @@ QR Code Generator - 生成二维码并保存到本地。
   --border            边框宽度，默认 2
 
 输出 JSON:
-  {"url": "...", "file": "..."}
+  {"file": "..."}
   错误时: {"error": "..."}
 """
 
@@ -19,21 +19,8 @@ import sys
 import json
 import os
 import argparse
-from urllib.parse import quote, urlencode
-import urllib.request
 
-API_BASE = "https://api.2dcode.biz/v1/create-qr-code"
-
-
-def build_url(data: str, size: str, fmt: str, ecc: str, border: int) -> str:
-    params = {"data": data, "size": size}
-    if fmt != "png":
-        params["format"] = fmt
-    if ecc != "M":
-        params["error_correction"] = ecc
-    if border != 2:
-        params["border"] = str(border)
-    return f"{API_BASE}?{urlencode(params, quote_via=quote)}"
+ECC_MAP = {"L": 1, "M": 0, "Q": 3, "H": 2}
 
 
 def main():
@@ -46,18 +33,38 @@ def main():
     parser.add_argument("--border", type=int, default=2)
     args = parser.parse_args()
 
-    url = build_url(args.data, args.size, args.fmt, args.ecc, args.border)
     output_path = os.path.abspath(args.output)
-
     os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
 
     try:
-        urllib.request.urlretrieve(url, output_path)
-    except Exception as e:
-        print(json.dumps({"error": f"下载失败: {e}"}, ensure_ascii=False))
-        sys.exit(1)
+        import qrcode
+        import qrcode.image.svg
 
-    print(json.dumps({"url": url, "file": output_path}, ensure_ascii=False))
+        size_int = int(args.size.split("x")[0])
+
+        qr = qrcode.QRCode(
+            error_correction=ECC_MAP.get(args.ecc, 0),
+            box_size=max(1, size_int // 41),
+            border=args.border,
+        )
+        qr.add_data(args.data)
+        qr.make(fit=True)
+
+        if args.fmt == "svg":
+            img = qr.make_image(image_factory=qrcode.image.svg.SvgPathImage)
+            img.save(output_path)
+        else:
+            img = qr.make_image(fill_color="black", back_color="white")
+            img = img.resize((size_int, size_int))
+            img.save(output_path)
+
+        print(json.dumps({"file": output_path}, ensure_ascii=False))
+    except ImportError:
+        print(json.dumps({"error": "本地 qrcode 库未安装，请先执行 pip install qrcode Pillow"}, ensure_ascii=False))
+        sys.exit(1)
+    except Exception as e:
+        print(json.dumps({"error": f"生成失败: {e}"}, ensure_ascii=False))
+        sys.exit(1)
 
 
 if __name__ == "__main__":
