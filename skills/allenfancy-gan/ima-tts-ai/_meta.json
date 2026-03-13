@@ -1,11 +1,17 @@
 {
   "owner": "allenfancy-gan",
   "slug": "ima-tts-ai",
-  "displayName": "IMA Studio TTS",
+  "displayName": "IMA Studio TTS — seed-tts, DouBao",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773163348573,
-    "commit": "https://github.com/openclaw/skills/commit/eea346d2c5fe442117e6b86c759ae2e8e7192113"
+    "version": "1.0.5",
+    "publishedAt": 1773331724331,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773163348573,
+      "commit": "https://github.com/openclaw/skills/commit/eea346d2c5fe442117e6b86c759ae2e8e7192113"
+    }
+  ]
 }
