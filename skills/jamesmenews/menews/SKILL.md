@@ -1,6 +1,6 @@
 ---
 name: menews
-version: 1.0.6
+version: 1.0.8
 description: AIMPACT × ME News — 获取 AI 与加密行业实时热点与预测市场事件。通过实时快讯、聚合摘要与预测市场数据，帮助用户洞察 AI 与 Crypto 领域的趋势与市场共识。
 author: ME News Team
 homepage: https://me.news
@@ -25,6 +25,15 @@ triggers:
   - 热点
   - 摘要
   - digest
+  - 市场摘要
+  - 市场资讯
+  - 市场动态
+  - market digest
+  - market summary
+  - 热门话题
+  - 热议
+  - trending
+  - hot topics
 ---
 
 # ME News Skill
@@ -33,6 +42,7 @@ triggers:
 
 ## 功能特性
 
+- **📊 市场摘要** - 一键获取 AI 与加密市场全景：当前热门、X热议、市场热点、预测事件、热议token，30分钟缓存，秒级响应
 - **📰 快讯列表** - 获取最新的加密货币行业快讯
 - **🤖 聚合热点** - 智能聚合热点话题、热门代币和 X 平台热议内容
 - **🎯 预测事件** - 查询 Polymarket 预测市场的活跃事件
@@ -48,6 +58,93 @@ triggers:
 安装后直接使用触发词
 
 ## 使用示例
+
+### 获取市场资讯摘要
+
+**用户提问**：
+- "给我看看今天的市场摘要"
+- "最新的市场资讯汇总"
+- "Show me today's market digest"
+- "现在市场上有什么热点？"
+- "帮我总结一下当前的市场动态"
+- "X上在讨论什么热门话题？"
+- "有哪些热门token？"
+
+**Skill 行为**：
+1. 调用 `/skill/digest` API 获取市场资讯摘要
+2. **直接返回 API 响应中的 `content` 字段内容**，不要自己解析或重新格式化
+3. `content` 字段已经是完整的 Markdown 格式，包含当前热门、X热议、市场热点、预测事件和热议token等信息
+
+**重要提示**：
+- ✅ **正确做法**：直接输出 `response.content` 的完整 Markdown 内容
+- ❌ **错误做法**：不要将数据解析成表格或其他格式，不要自己重新组织内容
+
+**返回示例**：
+```markdown
+# 2026年03月13日 16:41 AIMPACT 市场资讯
+
+🔥 **当前热门**
+1. OpenClaw框架GitHub星标突破25万 https://www.me.news/aimpact/hotnews/20260313000052_2706
+2. 比特币ETF三月净流入7亿美元，结束5个月资金外流趋势 https://www.me.news/aimpact/hotnews/20260313000052_2706
+...（共10条）
+
+💬 **X热议**
+1. BNB Chain推出ERC-8004标准，为AI代理创建链上身份和支付层 https://www.me.news/aimpact/xhot/20260313000059_3423
+2. Anthropic投资1亿美元启动Claude合作伙伴网络计划 https://www.me.news/aimpact/xhot/20260313000059_3423
+...（共10条）
+
+🌐 **市场热点**
+1. 比特币周涨12%跑赢黄金，ETF资金流入推动独立行情 https://www.me.news/news/264390
+2. OpenAI发布GPT-5.4 Thinking模型，融合推理与代码能力 https://www.me.news/news/264402
+...（共5条，按阅读量排序）
+
+📈 **预测事件**
+1. 比特币2026年底价格预测 https://www.me.news/poly/events/61196
+2. AI代理市场规模2030年预测 https://www.me.news/poly/events/61206
+...（共5条）
+
+🪙 **热议token**
+1. BNB | BNB Chain部署BAP-578标准，支持非同质化AI代理持有资产
+2. ETH | 以太坊价格突破2050美元，机构持续增持86万枚ETH
+...
+```
+
+**API 端点**：
+```
+GET https://agent.me.news/skill/digest
+```
+
+**使用指南**：
+```python
+# 调用 API
+response = requests.get("https://agent.me.news/skill/digest")
+data = response.json()
+
+# ✅ 正确：直接返回 content 字段
+return data["content"]
+
+# ❌ 错误：不要自己解析和格式化
+# 不要将内容转换成表格、列表或其他格式
+```
+
+**返回字段说明**：
+- `content`: **Markdown 格式的完整摘要内容（直接返回此字段即可）**
+- `generated_at`: 生成时间（ISO 8601 格式）
+- `cache_hit`: 是否命中缓存（true/false）
+- `cache_expires_in`: 缓存剩余秒数（秒）
+
+**数据来源**：
+- **当前热门**：AI聚合API（12H窗口）
+- **X热议**：AI聚合API（12H窗口）
+- **市场热点**：快讯API（24H内按阅读量降序）
+- **预测事件**：预测市场API（24H窗口，最新5条）
+- **热议token**：AI聚合API（12H窗口）
+
+**缓存机制**：
+- 摘要内容缓存30分钟，避免频繁调用上游API
+- 首次请求生成摘要（2-5秒），后续请求直接返回缓存（< 100ms）
+- 通过 `cache_hit` 字段可判断是否命中缓存
+- 通过 `cache_expires_in` 字段可查看缓存剩余时间
 
 ### 获取快讯列表
 
@@ -68,13 +165,17 @@ triggers:
 1. 【标题】比特币突破 $70,000
    时间：2026-03-10 23:00
    摘要：比特币价格突破 7 万美元关口...
+   详情：https://www.me.news/news/264392
    
 2. 【标题】以太坊升级即将到来
    时间：2026-03-10 22:30
    摘要：以太坊将在下周进行重大升级...
+   详情：https://www.me.news/news/264393
    
 ...
 ```
+
+**注**：每条快讯都包含 ME News 详情链接（`me_url` 字段），可点击查看完整内容。
 
 ### 获取聚合热点
 
@@ -161,11 +262,64 @@ GET https://agent.me.news/skill/flash/list
 **参数**：
 - `page` (int): 页码，默认 1
 - `size` (int): 每页数量，默认 20，最大 50
+- `category` (string): 类别，默认 "all"
+  - `all`: 全部
+  - `ai`: AI 相关
+  - `stock`: 股票相关
+  - `prediction`: 预测市场相关
 
 **示例**：
 ```bash
-curl 'https://agent.me.news/skill/flash/list?page=1&size=20'
+# 获取全部快讯
+curl 'https://agent.me.news/skill/flash/list?page=1&size=20&category=all'
+
+# 获取 AI 类别快讯
+curl 'https://agent.me.news/skill/flash/list?page=1&size=20&category=ai'
+
+# 获取股票类别快讯
+curl 'https://agent.me.news/skill/flash/list?page=1&size=20&category=stock'
+
+# 获取预测市场类别快讯
+curl 'https://agent.me.news/skill/flash/list?page=1&size=20&category=prediction'
 ```
+
+**返回字段说明**：
+- `title`: 快讯标题
+- `summary`: 快讯摘要/导语
+- `content`: 快讯正文内容（纯文本，已清洗 HTML）
+- `url`: 原始来源链接
+- `me_url`: **ME News 详情页链接**（格式：`https://www.me.news/news/{id}`）
+- `published_at`: 发布时间
+- `source`: 来源/作者
+
+### 活动列表
+```
+GET https://agent.me.news/skill/activities/list
+```
+
+**参数**：
+- `page` (int): 页码，默认 1
+- `size` (int): 每页数量，默认 25，最大 50
+
+**示例**：
+```bash
+curl 'https://agent.me.news/skill/activities/list?page=1&size=25'
+```
+
+**返回字段说明**：
+- `id`: 活动 ID
+- `title`: 活动标题
+- `summary`: 活动摘要/简介（已清洗 HTML 标签）
+- `pic`: 封面图片链接
+- `url`: 原始活动链接（如 Luma 链接）
+- `me_url`: **ME News 活动详情页链接**（格式：`https://www.me.news/activity/{id}`）
+- `start_time`: 活动开始时间（格式：`2025-04-08 14:00:00`）
+- `end_time`: 活动结束时间（格式：`2025-04-08 19:00:00`）
+
+**注意**：
+- 活动列表按 `start_time` 降序排列，最新的活动排在前面
+- 数据来源于最近 3 个月的活动信息
+- 自动去重，避免重复数据
 
 ### 聚合热点内容
 ```
@@ -174,7 +328,7 @@ GET https://agent.me.news/skill/aggregation/list
 
 **参数**：
 - `type` (string): 聚合类型，默认 "digest"
-- `window` (string): 时间窗口，默认 "1h"（可选：1h, 6h, 24h）
+- `window` (string): 时间窗口，默认 "1h"（可选：1h, 4h, 12h, 24h）
 - `page` (int): 页码，默认 1
 - `size` (int): 每页数量，默认 10，最大 50
 

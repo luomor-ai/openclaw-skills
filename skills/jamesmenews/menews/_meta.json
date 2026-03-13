@@ -3,9 +3,15 @@
   "slug": "menews",
   "displayName": "AIMPACT x ME News - AI-Powered Information Hub for Web4 & AI",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1773230049094,
-    "commit": "https://github.com/openclaw/skills/commit/ca60bd6571741d46bbb2cb77779f0c9e3bc9955d"
+    "version": "1.0.8",
+    "publishedAt": 1773398468460,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1773230049094,
+      "commit": "https://github.com/openclaw/skills/commit/ca60bd6571741d46bbb2cb77779f0c9e3bc9955d"
+    }
+  ]
 }

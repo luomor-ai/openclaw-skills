@@ -4,7 +4,82 @@
 
 ## 基础查询
 
-### 示例 1：获取最新快讯
+### 示例 1：获取市场资讯摘要
+
+**用户输入**：
+```
+给我看看今天的市场摘要
+```
+
+**OpenClaw 响应**：
+```markdown
+# 2026年03月13日 16:41 AIMPACT 市场资讯
+
+🔥 **当前热门**
+1. OpenClaw框架GitHub星标突破25万 https://www.me.news/aimpact/hotnews/20260313000052_2706
+2. 比特币ETF三月净流入7亿美元，结束5个月资金外流趋势 https://www.me.news/aimpact/hotnews/20260313000052_2706
+3. Sharplink持续增持以太坊，总持仓达86.46万枚ETH https://www.me.news/aimpact/hotnews/20260313000052_2706
+4. CZ测试Kimi AI与OpenClaw组合，称其代币效率最优 https://www.me.news/aimpact/hotnews/20260313000052_2706
+5. 以太坊价格突破2050美元，周涨幅达8.5% https://www.me.news/aimpact/hotnews/20260312120054_2375
+6. AI代理市场规模预计2030年达526亿美元，年复合增长率46.3% https://www.me.news/aimpact/hotnews/20260312120054_2375
+7. Coinfello与MetaMask联合推出OpenClaw技能，保护AI钱包访问安全 https://www.me.news/aimpact/hotnews/20260312120054_2375
+8. 中国开发者使用OpenClaw进行加密交易实验，Alpha Arena测试结果公布 https://www.me.news/aimpact/hotnews/20260312000058_2411
+9. 比特币与黄金相关性首次转负，展现独立资产类别特性 https://www.me.news/aimpact/hotnews/20260312000058_2411
+10. OpenAI发布GPT-5.1系列退役公告，GPT-5.4系列全面接管 https://www.me.news/aimpact/hotnews/20260312000058_2411
+
+💬 **X热议**
+1. BNB Chain推出ERC-8004标准，为AI代理创建链上身份和支付层 https://www.me.news/aimpact/xhot/20260313000059_3423
+2. Anthropic投资1亿美元启动Claude合作伙伴网络计划 https://www.me.news/aimpact/xhot/20260313000059_3423
+3. 比特币ETF持续流入推动价格突破关键阻力位，目标75000美元 https://www.me.news/aimpact/xhot/20260313000059_3423
+4. Moonshot AI的Kimi模型在OpenClaw框架中表现优异，获开发者青睐 https://www.me.news/aimpact/xhot/20260313000059_3423
+5. BNB Chain部署BAP-578标准，支持非同质化AI代理自主持有和支付资产 https://www.me.news/aimpact/xhot/20260312120100_3618
+6. Anthropic宣布Claude将永久保持无广告，解释AI助手与广告激励不兼容 https://www.me.news/aimpact/xhot/20260312120100_3618
+7. 以太坊联合创始人Vitalik Buterin出售数百万美元ETH引发市场波动 https://www.me.news/aimpact/xhot/20260312120100_3618
+8. 比特币价格独立于股市和黄金走势，机构投资者重新评估配置策略 https://www.me.news/aimpact/xhot/20260312120100_3618
+9. OpenClaw项目在GitHub获得超25万星标，成为史上增长最快的开源项目之一 https://www.me.news/aimpact/xhot/20260312000104_3165
+10. 美联储降息预期升温，流动性改善利好比特币等风险资产 https://www.me.news/aimpact/xhot/20260312000104_3165
+
+🌐 **市场热点**
+1. 比特币周涨12%跑赢黄金，ETF资金流入推动独立行情 https://www.me.news/news/264390
+2. OpenAI发布GPT-5.4 Thinking模型，融合推理与代码能力 https://www.me.news/news/264402
+3. BNB Chain推出AI代理支付基础设施，ERC-8004标准正式上线 https://www.me.news/news/264416
+4. 以太坊机构持仓创新高，Sharplink持有86万枚ETH不惧亏损 https://www.me.news/news/264405
+5. Anthropic启动1亿美元合作伙伴计划，加速Claude企业级应用 https://www.me.news/news/264378
+
+📈 **预测事件**
+1. 比特币2026年底价格预测 https://www.me.news/poly/events/61196
+2. AI代理市场规模2030年预测 https://www.me.news/poly/events/61206
+3. 以太坊2026年Q4价格走势预测 https://www.me.news/poly/events/61202
+4. 美联储2026年降息次数预测 https://www.me.news/poly/events/61192
+5. 加密货币ETF总规模2026年底预测 https://www.me.news/poly/events/61197
+
+🪙 **热议token**
+1. BNB | BNB Chain部署BAP-578标准，支持非同质化AI代理持有资产
+2. ETH | 以太坊价格突破2050美元，机构持续增持86万枚ETH
+3. BTC | 比特币ETF三月净流入7亿美元，周涨幅12%跑赢黄金
+4. SOL | Solana生态AI代理项目激增，开发者使用OpenClaw框架构建
+5. OP | Optimism推出超级链互操作性升级，支持跨链原生资产转移
+6. ARB | Arbitrum日交易量突破新高，Layer2采用率持续攀升
+7. MATIC | Polygon推出zkEVM主网升级，Gas费用降低60%
+8. AVAX | Avalanche子网数量突破500个，企业级应用加速部署
+9. LINK | Chainlink推出跨链互操作协议CCIP 2.0版本
+10. UNI | Uniswap V4即将上线，引入自定义流动性池功能
+11. AAVE | Aave V3总锁仓量突破100亿美元，DeFi龙头地位稳固
+12. MKR | MakerDAO提案通过，将DAI储备多元化配置
+13. LDO | Lido质押ETH总量突破900万枚，占以太坊质押总量30%
+14. CRV | Curve Finance推出crvUSD稳定币V2版本
+15. COMP | Compound推出新型借贷市场，支持更多长尾资产
+```
+
+**其他提问方式**：
+- "最新的市场资讯汇总"
+- "Show me today's market digest"
+- "现在市场上有什么热点？"
+- "帮我总结一下当前的市场动态"
+- "X上在讨论什么热门话题？"
+- "有哪些热门token？"
+
+### 示例 2：获取最新快讯
 
 **用户输入**：
 ```
@@ -31,7 +106,7 @@
    来源：Bloomberg
 ```
 
-### 示例 2：获取聚合热点
+### 示例 3：获取聚合热点
 
 **用户输入**：
 ```
