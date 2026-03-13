@@ -1,0 +1,11 @@
+{
+  "owner": "bytesagain1",
+  "slug": "homeassistant-toolkit",
+  "displayName": "Homeassistant Toolkit",
+  "latest": {
+    "version": "2.2.0",
+    "publishedAt": 1773421385913,
+    "commit": null
+  },
+  "history": []
+}
