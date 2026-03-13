@@ -3,9 +3,15 @@
   "slug": "orbcafe-ui-component-usage",
   "displayName": "orbcafe-ui-component-usage",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773188223914,
-    "commit": "https://github.com/openclaw/skills/commit/59a61123086088d8cb50b1b51cba11616e44eaa6"
+    "version": "1.0.1",
+    "publishedAt": 1773375889669,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773188223914,
+      "commit": "https://github.com/openclaw/skills/commit/59a61123086088d8cb50b1b51cba11616e44eaa6"
+    }
+  ]
 }

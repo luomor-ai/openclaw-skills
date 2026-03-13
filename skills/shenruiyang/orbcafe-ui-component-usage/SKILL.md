@@ -1,38 +1,65 @@
 ---
 name: orbcafe-ui-component-usage
-description: Router skill for ORBCAFE UI. Use when the request is unclear or spans multiple modules, then classify the task and hand off to the most specific ORBCAFE skill (StdReport, Graph+Detail+Agent, Layout+Navigation, Pivot+AINav).
+description: Route ORBCAFE UI requests to the correct module skill and enforce official examples-based integration baseline. Use when requests are ambiguous, cross-module, or when prior attempts had "no effect"; classify to StdReport, Graph+Detail+Agent, Layout+Navigation, or Pivot+AINav and require install/startup/verification steps.
 ---
 
 # ORBCAFE UI Router
 
-## Purpose
-
-Use this skill as the entry point when a request mentions ORBCAFE UI but does not clearly name the target module.
-
 ## Workflow
 
-1. Classify the request using `references/skill-routing-map.md`.
-2. Load only the matched module skill references.
-3. Enforce public export boundaries from `references/public-export-index.md`.
-4. Apply baseline integration checks from `references/integration-baseline.md`.
-5. Return:
-- Component decision
-- Minimal runnable snippet
-- Required data shape
-- One optional upgrade path
+1. 执行安装与接入基线（必须）。
+2. 使用 `references/skill-routing-map.md` 判定目标模块 skill。
+3. 只加载目标模块所需 references，不加载无关内容。
+4. 使用 `references/public-export-index.md` 约束导入边界。
+5. 使用 `references/integration-baseline.md` 执行 Next.js 与 hydration 检查。
+6. 输出模块决策、最小可运行代码、验收步骤、排障步骤。
 
-## Trigger Heuristics
+## Installation Baseline (Mandatory)
 
-- Use this skill first when user asks for:
-  - "用 ORBCAFE 组件做一个页面"
-  - "不知道选哪个组件"
-  - "把旧页面改成 ORBCAFE 风格"
-- Do not stay in this skill if intent becomes specific. Switch to the matching module skill.
+每次都先给出可执行安装方式，不允许省略：
+
+```bash
+npm install orbcafe-ui @mui/material @mui/icons-material @mui/x-date-pickers @emotion/react @emotion/styled dayjs
+```
+
+如果是本仓库联调（以 `examples` 为准）：
+
+```bash
+# repo root
+npm run build
+
+# examples app
+cd examples
+npm install
+npm run dev
+```
+
+Tailwind 项目必须包含：
+
+```js
+// tailwind.config.js
+content: ["./node_modules/orbcafe-ui/dist/**/*.{js,mjs}"]
+```
 
 ## Output Contract
 
 Always provide:
 
-1. `Decision`: which ORBCAFE module and why.
-2. `Paste-ready code`: imports from `orbcafe-ui` only.
-3. `Boundary checks`: 2-4 checks to avoid non-public API usage and hydration/i18n issues.
+1. `Decision`: 选择哪个模块 skill，并说明依据。
+2. `Paste-ready code`: 仅从 `orbcafe-ui` 入口导入。
+3. `Data shape`: 最小必需字段结构。
+4. `Verify`: 至少 3 条可执行验收步骤（启动、交互、持久化/回调）。
+5. `Troubleshooting`: 至少 3 条“没效果”排查点。
+
+## Examples-First Rules
+
+- 先复用官方 examples 的骨架，再做业务改造。
+- 优先参考：
+  - `examples/README.md`
+  - `examples/app/layout.tsx`
+  - `examples/app/providers.tsx`
+  - `examples/app/_components/*.tsx`
+- 强制遵守 Next.js App Router 经验：
+  - 在 Server Page 解包 `params/searchParams` 后再传入 Client 组件。
+  - 首屏避免 `Date.now()/Math.random()/window/localStorage/usePathname` 直接决定结构。
+  - 必要时使用 `mounted` 防止 hydration mismatch。
