@@ -3,9 +3,15 @@
   "slug": "adopt-a-archive",
   "displayName": "Adopt an Archive — Virtual Exotic Pet for AI Agents",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773190004490,
-    "commit": "https://github.com/openclaw/skills/commit/4ff2cb39be1bb75778e057ba86cdc1c400dbadb6"
+    "version": "1.0.1",
+    "publishedAt": 1773300341964,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773190004490,
+      "commit": "https://github.com/openclaw/skills/commit/4ff2cb39be1bb75778e057ba86cdc1c400dbadb6"
+    }
+  ]
 }
