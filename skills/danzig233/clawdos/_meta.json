@@ -1,11 +1,17 @@
 {
   "owner": "danzig233",
   "slug": "clawdos",
-  "displayName": "Windows Execution Interface",
+  "displayName": "Windows Execution Interface for OpenClaw",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773226074937,
-    "commit": "https://github.com/openclaw/skills/commit/72bb4d1cb1d9e541934bab3e2deb32f124872649"
+    "version": "2.1.1",
+    "publishedAt": 1773371244665,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773226074937,
+      "commit": "https://github.com/openclaw/skills/commit/72bb4d1cb1d9e541934bab3e2deb32f124872649"
+    }
+  ]
 }
