@@ -3,9 +3,15 @@
   "slug": "read-policy",
   "displayName": "Read Policy",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773167359665,
-    "commit": "https://github.com/openclaw/skills/commit/fa8f20258c38fde4bd41e70b95eb53a00f811798"
+    "version": "1.0.2",
+    "publishedAt": 1773309576862,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773167359665,
+      "commit": "https://github.com/openclaw/skills/commit/fa8f20258c38fde4bd41e70b95eb53a00f811798"
+    }
+  ]
 }
