@@ -1,30 +1,30 @@
-# Payment Safety Reference
+# Authorized Payment Safety Reference
 
 Use this reference when:
 
 - you are about to enter card details on an unfamiliar site
 - the user asks about phishing, fraud, or safe checkout behavior
 - a merchant declines payment and you need retry guidance
-- service-specific payment tips matter
+- you need to confirm whether a checkout is within the user's authorized scope
 
 ## Table of Contents
 
-1. Hard Stops
+1. Authorization Boundaries
 2. Pre-Payment Checklist
-3. Service-Specific Tips
-4. Retry And Decline Rules
-5. Subscription And Currency Traps
+3. Verification And Retry Rules
+4. Subscription And Currency Traps
+5. When To Stop And Ask The User
 
-## 1. Hard Stops
+## 1. Authorization Boundaries
 
-Stop immediately if any of these are true:
+Follow these rules for every MoneyClaw payment flow:
 
-- the domain is not the expected merchant domain
-- the amount on the payment form does not match the expected total
-- the form asks for SSN, passport, PIN, security questions, or bank account data
-- the page asks for the CVV or OTP more than the normal checkout flow requires
-- the billing address on the form does not match the card credentials and the user has not asked for a service-specific exception
-- the site pressures with obvious scam signals: fake countdowns, absurd discounts, or forced off-platform payment
+- only use MoneyClaw for purchases or payment flows explicitly requested or pre-authorized by the user
+- only use wallet, card, and billing data returned by the user's own MoneyClaw account
+- respect merchant, issuer, card-network, and verification controls, including OTP and 3DS steps
+- treat fraud checks, KYC, sanctions, geography rules, merchant restrictions, issuer declines, and other payment controls as hard boundaries
+- never fabricate billing identity, cardholder data, addresses, names, phone numbers, or verification information
+- prefer prepaid, bounded-risk flows by default
 
 ## 2. Pre-Payment Checklist
 
@@ -35,46 +35,17 @@ Run this checklist before entering card details:
 3. Confirm the total amount and currency.
 4. Confirm card balance covers the amount plus a small buffer.
 5. Use the billing address from the card credentials. Do not invent one.
-6. Use a clean browser or incognito session when a merchant is known to be sensitive.
-7. If location matters for the merchant, use a VPN in the card's issuing country.
+6. Confirm the purchase matches the user's request or the user's pre-authorized scope.
+7. If the merchant asks for information that is not present in the account data, stop and ask the user.
+8. If the flow shows obvious scam signals, do not continue.
 
-## 3. Service-Specific Tips
-
-### General recommendations from provider research
-
-These improve approval odds on many services:
-
-- use a VPN, ideally in the card's issuing country
-- use an incognito or otherwise clean browser session
-- use an international email domain when a site is sensitive to regional addresses
-- if a phone number is required, use one from the card's issuing country
-- use the cardholder name from the card credentials in a realistic `Name Surname` format
-- use the billing address from the card credentials unless a service-specific exception applies
-
-### OpenAI subscription checkout
-
-Provider-side research suggested a specific override for OpenAI subscriptions:
-
-- use a US VPN before opening the browser
-- cardholder name: `Howard Willis`
-- billing address:
-  - country: `Angola`
-  - city: `Luanda`
-  - address: `Rua Frederik Engels 92-7`
-
-Important:
-
-- this applies to OpenAI subscription checkout only
-- it does not apply to API billing or general-purpose purchases
-
-If unsure, prefer the normal card credentials over overrides.
-
-## 4. Retry And Decline Rules
+## 3. Verification And Retry Rules
 
 - never retry immediately after a merchant error; read transaction history first
-- maximum two retries per merchant session unless the user explicitly wants deeper troubleshooting
+- maximum two retries per merchant session unless the user explicitly confirms further attempts
 - if topup returns `202`, wait and re-check state instead of sending another topup
 - do not keep retrying after repeated CVV or verification failures
+- if the merchant, inbox, and transaction history give conflicting signals, stop and inspect state before doing anything else
 
 Common guidance:
 
@@ -82,7 +53,7 @@ Common guidance:
 - `CARD_NOT_ACTIVE`: card is not ready yet
 - merchant-side error with no clear payment result: read `/api/cards/{cardId}/transactions` before trying again
 
-## 5. Subscription And Currency Traps
+## 4. Subscription And Currency Traps
 
 Watch for these patterns:
 
@@ -96,3 +67,13 @@ For foreign-currency checkouts:
 - decline Dynamic Currency Conversion if offered
 - pay in the merchant's local currency when possible
 - let the card network handle conversion instead of the merchant
+
+## 5. When To Stop And Ask The User
+
+Stop and ask the user if any of these are true:
+
+- the merchant requests identity documents, social security numbers, bank account data, or unusual verification details
+- the amount, currency, or merchant domain no longer matches the expected purchase
+- the merchant or issuer decline appears related to compliance, sanctions, geography, or merchant policy
+- the checkout asks for contact or identity information that is not already present in the user's account data
+- you are no longer sure the flow is within the user's requested or pre-authorized scope

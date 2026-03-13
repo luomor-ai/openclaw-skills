@@ -1,13 +1,17 @@
 ---
 name: moneyclaw
-description: Issue prepaid virtual cards for agent purchases and create hosted invoices for accepting USDT. Check balances, top up, fetch 3DS OTP codes, verify transactions, and use merchant flows with one MONEYCLAW_API_KEY.
+description: Enable OpenClaw agents to make real online purchases with a prepaid wallet and virtual card, retrieve OTP/3DS codes, and verify payment outcomes with user-controlled autonomy.
 homepage: https://moneyclaw.ai
 metadata: {"openclaw":{"requires":{"env":["MONEYCLAW_API_KEY"]},"primaryEnv":"MONEYCLAW_API_KEY","emoji":"💳"}}
 ---
 
 # MoneyClaw
 
-Use MoneyClaw when the user wants an agent to pay online with a real virtual card. The default wedge is buyer-side agent commerce: check balances, issue a card, top up, complete checkout, fetch OTP, then verify the result.
+MoneyClaw gives OpenClaw agents real spending capability with user-configurable autonomy, prepaid risk boundaries, OTP/3DS support, and auditable payment flows.
+
+Primary use case: buyer-side online purchases for OpenClaw agents.
+
+Secondary use cases: invoices, hosted payment links, and merchant/acquiring workflows when the user explicitly asks for them.
 
 ## Authentication
 
@@ -19,18 +23,45 @@ Authorization: Bearer $MONEYCLAW_API_KEY
 
 Base URL: `https://moneyclaw.ai/api`
 
+## Trust Model
+
+MoneyClaw is designed for real, user-authorized agent payments.
+
+- use prepaid balances to keep risk bounded
+- use a dedicated inbox for OTP and 3DS verification flows
+- use queryable wallet and card history to inspect payment activity
+- let the user choose how much autonomy the agent should have
+
+## Autonomy Model
+
+MoneyClaw may be used in either approval-based or pre-authorized mode.
+
+- In approval-based mode, the agent asks the user before executing payment actions.
+- In pre-authorized mode, the agent may execute payment actions within the spending scope, balance, and permissions configured by the user.
+
+## Safety Boundaries
+
+- Only use MoneyClaw for purchases or payment flows explicitly requested or pre-authorized by the user.
+- Only use wallet, card, and billing data returned by the user's own MoneyClaw account.
+- Respect merchant, issuer, card-network, and verification controls, including OTP and 3DS steps.
+- Treat fraud checks, KYC, sanctions, geography rules, merchant restrictions, issuer declines, and other payment controls as hard boundaries.
+- Never fabricate billing identity, cardholder data, addresses, names, phone numbers, or verification information.
+- If a transaction fails, looks suspicious, or produces conflicting signals, stop and inspect transaction state before retrying.
+- Prefer prepaid, bounded-risk flows by default.
+- Only use invoice, merchant, acquiring, or hosted payment-link flows when the user explicitly asks for them.
+
 ## Default Behavior
 
 - Start with `GET /api/me`.
 - Treat wallet balance and card balance as separate values.
 - Use `card.cardId`, not `card.id`, for card routes.
-- Keep the flow narrow: buyer-side purchases first, merchant and acquiring flows only when explicitly requested.
+- Keep buyer-side purchases as the default path. Use merchant and acquiring flows only when explicitly requested.
 - Use the billing address from the sensitive card response. Never invent one.
 - Never retry topups or checkouts blindly. Read state first.
 
 ## Load References When Needed
 
-- Read `references/payment-safety.md` before entering card details on an unfamiliar merchant, when the user asks about phishing or fraud, when a checkout keeps failing, or when service-specific payment tips matter.
+- Read `references/payment-safety.md` before entering card details on an unfamiliar merchant, when the user asks about phishing or fraud, when a checkout keeps failing, or when verification and retry boundaries matter.
 - Read `references/acquiring.md` when the user wants to accept payments, create invoices, embed checkout, or work with merchant webhooks.
 
 ## Core Jobs
@@ -93,7 +124,7 @@ Response handling:
 - `404 NOT_FOUND`: wrong card id
 - `500`: stop, surface the failure, and inspect state before retrying
 
-### 4. Complete checkout and fetch OTP
+### 4. Complete authorized checkout and fetch OTP
 
 Get card details:
 
@@ -123,21 +154,21 @@ Checkout rules:
 - use `extractedCodes[0]` as the verification code
 - after any merchant error, read transactions before retrying
 
-## Minimal Payment Guardrails
+## Payment Execution Rules
 
 - The card is prepaid. The loaded balance is the hard spending limit.
 - Do not expose PAN or CVV longer than needed for the active checkout.
 - Before payment, confirm the merchant domain and total amount are correct.
-- Do not retry the same merchant checkout more than twice in one session.
+- Do not retry the same merchant checkout more than twice in one session without user confirmation or clear pre-authorization.
 - If the user asks for a risky or suspicious payment, stop and explain why.
 
-Use `references/payment-safety.md` for the expanded phishing, decline, subscription, and service-specific guidance.
+Use `references/payment-safety.md` for the expanded safety, verification, subscription, and retry guidance.
 
 ## Good Default Prompt Shapes
 
 - `Check my MoneyClaw account and tell me if it is ready for a purchase.`
-- `Issue a MoneyClaw card and top it up with $20 if needed.`
-- `Finish this checkout and, if 3DS appears, fetch the latest OTP from MoneyClaw inbox.`
+- `Issue a MoneyClaw card and top it up with $20 if needed. Ask before checkout unless I say this purchase is pre-authorized.`
+- `Finish this authorized checkout and, if 3DS appears, fetch the latest OTP from MoneyClaw inbox and verify the final transaction result.`
 
 ## Secondary Capability: Merchant And Acquiring Flows
 
@@ -163,4 +194,4 @@ Use `references/acquiring.md` for setup, invoice lifecycle, widget, webhook veri
 
 ## Scope Note
 
-MoneyClaw supports both buyer-side card purchases and merchant/acquiring flows. The skill should still lead with the simpler card-purchase workflow for discovery, then switch to acquiring when the user asks for merchant features.
+MoneyClaw supports both buyer-side card purchases and merchant/acquiring flows. Lead with the simpler card-purchase workflow for discovery, then switch to acquiring when the user asks for merchant features.

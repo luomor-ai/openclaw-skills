@@ -1,6 +1,6 @@
 # Acquiring Reference
 
-Use this reference when the user wants merchant-side payment collection rather than buyer-side card spending.
+Use this reference only when the user explicitly wants merchant-side payment collection rather than buyer-side card spending.
 
 ## Table of Contents
 
@@ -19,6 +19,8 @@ Switch to acquiring when the user wants to:
 - create hosted invoices
 - embed a payment widget on a site
 - receive server-side payment notifications
+
+Do not switch to acquiring by default. Buyer-side card purchases remain the primary MoneyClaw use case.
 
 ## 2. Merchant Setup
 
