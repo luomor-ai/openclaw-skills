@@ -1,11 +1,17 @@
 {
   "owner": "alirezarezvani",
   "slug": "scrum-master",
-  "displayName": "Scrum Master",
+  "displayName": "scrum-master",
   "latest": {
-    "version": "2.1.1",
-    "publishedAt": 1773198463015,
-    "commit": "https://github.com/openclaw/skills/commit/ffaf52c9368bb5a24025da5f24510190366d4f95"
+    "version": "1.0.0",
+    "publishedAt": 1773243814547,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.1.1",
+      "publishedAt": 1773198463015,
+      "commit": "https://github.com/openclaw/skills/commit/ffaf52c9368bb5a24025da5f24510190366d4f95"
+    }
+  ]
 }
