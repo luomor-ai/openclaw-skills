@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveModule } = require('./module_resolver.cjs');
 /**
  * Cognitive Brain - 数据库初始化脚本
  * 初始化 PostgreSQL + Redis 存储层
@@ -32,7 +33,7 @@ CREATE TABLE IF NOT EXISTS concepts (
   name TEXT NOT NULL,
   type TEXT NOT NULL DEFAULT 'concept',
   attributes JSONB DEFAULT '{}',
-  embedding vector(768),
+  embedding vector(384),
   importance REAL DEFAULT 0.5 CHECK (importance >= 0 AND importance <= 1),
   activation REAL DEFAULT 0.0,
   access_count INTEGER DEFAULT 0,
@@ -82,7 +83,7 @@ CREATE TABLE IF NOT EXISTS episodes (
   emotions JSONB DEFAULT '{}',
   tags JSONB DEFAULT '[]',
   importance REAL DEFAULT 0.5 CHECK (importance >= 0 AND importance <= 1),
-  embedding vector(768),
+  embedding vector(384),
   source_session TEXT,
   source_channel TEXT,
   created_at TIMESTAMPTZ DEFAULT NOW(),
@@ -227,7 +228,7 @@ $$ LANGUAGE plpgsql;
 
 -- 向量相似度搜索
 CREATE OR REPLACE FUNCTION find_similar_episodes(
-  query_vector vector(768),
+  query_vector vector(384),
   match_count INTEGER DEFAULT 10,
   min_similarity REAL DEFAULT 0.5
 )
@@ -261,7 +262,7 @@ async function initDatabase() {
     // 检查是否有 pg
     let pg;
     try {
-      pg = require('pg');
+      pg = resolveModule('pg');
     } catch (e) {
       console.log('⚠️  pg 模块未安装，跳过 PostgreSQL 初始化');
       console.log('   运行: npm install pg\n');
@@ -329,3 +330,5 @@ async function initDatabase() {
 
 // 执行
 initDatabase();
+
+// ============================================

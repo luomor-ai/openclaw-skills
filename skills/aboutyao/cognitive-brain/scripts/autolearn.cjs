@@ -71,17 +71,20 @@ async function runAssociationStrengthening(pool) {
   console.log('🔗 执行联想强化...');
   
   try {
+    // 检查 entities 字段是否存在且为数组
     const cooccurrences = await pool.query(`
       SELECT 
-        e1.value as entity1,
-        e2.value as entity2,
+        e1->>'value' as entity1,
+        e2->>'value' as entity2,
         COUNT(*) as co_count
       FROM episodes ep,
-        json_array_elements_text(ep.entities) e1,
-        json_array_elements_text(ep.entities) e2
-      WHERE e1.value < e2.value
+        jsonb_array_elements(ep.entities::jsonb) e1,
+        jsonb_array_elements(ep.entities::jsonb) e2
+      WHERE e1->>'value' < e2->>'value'
         AND ep.created_at > NOW() - INTERVAL '7 days'
-      GROUP BY e1.value, e2.value
+        AND ep.entities IS NOT NULL
+        AND jsonb_typeof(ep.entities::jsonb) = 'array'
+      GROUP BY e1->>'value', e2->>'value'
       HAVING COUNT(*) >= 2
       ORDER BY co_count DESC
       LIMIT 50

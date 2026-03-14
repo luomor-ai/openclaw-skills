@@ -7,7 +7,7 @@
       "port": 5432,
       "database": "cognitive_brain",
       "user": "postgres",
-      "password": "",
+      "password": "cognitive123",
       "extensions": ["pgvector", "pg_trgm"]
     },
     "cache": {
@@ -19,11 +19,11 @@
     }
   },
   "embedding": {
-    "provider": "none",
-    "dimension": 768,
+    "provider": "local",
+    "dimension": 384,
     "options": {
-      "model": null,
-      "apiKey": null
+      "model": "paraphrase-multilingual-MiniLM-L12-v2",
+      "script": "scripts/embed.py"
     }
   },
   "memory": {
@@ -87,5 +87,15 @@
     "cacheWarmupSize": 100,
     "maxRecallResults": 20,
     "indexOptimizationInterval": 86400000
+  },
+  "sharedWorkspace": {
+    "enabled": true,
+    "sync": true,
+    "storage": {
+      "type": "filesystem",
+      "path": "~/.openclaw/workspace/shared"
+    },
+    "syncInterval": 30000,
+    "conflictResolution": "newest-wins"
   }
 }

@@ -1,7 +1,7 @@
 {
   "name": "cognitive-brain",
-  "version": "1.0.0",
-  "description": "类脑认知系统 - 四层记忆架构 + 联想网络 + 元认知反思 + 自我意识 + 自主学习",
+  "version": "1.2.3",
+  "description": "类脑认知系统 - 四层记忆架构 + 联想网络 + 元认知反思 + 自我意识 + 自主学习 + 跨会话记忆注入",
   "author": "AI Self-Design",
   "license": "MIT",
   "keywords": [
@@ -11,7 +11,8 @@
     "reflection",
     "brain",
     "self-awareness",
-    "autolearn"
+    "autolearn",
+    "cross-session"
   ],
   "triggers": {
     "encode": [
@@ -40,6 +41,12 @@
       "清理",
       "删除记忆"
     ]
+  },
+  "hooks": {
+    "cognitive-recall": {
+      "event": "message:preprocessed",
+      "description": "自动注入跨会话记忆上下文"
+    }
   },
   "dependencies": {
     "pg": "^8.11.0",

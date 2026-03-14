@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveModule } = require('./module_resolver.cjs');
 /**
  * Cognitive Brain - 自我意识脚本
  * 让 Agent 了解自己的能力和状态
@@ -179,7 +180,7 @@ async function main() {
   console.log('================================\n');
   
   try {
-    const pg = require('pg');
+    const pg = resolveModule('pg');
     const { Pool } = pg;
     const pool = new Pool(config.storage.primary);
     
@@ -247,3 +248,124 @@ async function main() {
 }
 
 main();
+
+// ===== 数据库持久化 =====
+async function saveToDatabase(awareness) {
+  try {
+    const pg = resolveModule('pg');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const { Pool } = pg;
+    const pool = new Pool(config.storage.primary);
+    
+    const { v4: uuidv4 } = require('uuid');
+    
+    await pool.query(`
+      INSERT INTO self_awareness (id, timestamp, identity, resources, state, metacognition, boundaries, goals, overall_confidence)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      ON CONFLICT (id) DO UPDATE SET
+        timestamp = EXCLUDED.timestamp,
+        state = EXCLUDED.state,
+        metacognition = EXCLUDED.metacognition,
+        overall_confidence = EXCLUDED.overall_confidence
+    `, [
+      uuidv4(),
+      new Date(),
+      JSON.stringify(awareness.identity || IDENTITY),
+      JSON.stringify(awareness.resources || {}),
+      JSON.stringify(awareness.state || {}),
+      JSON.stringify(awareness.metacognition || {}),
+      JSON.stringify(awareness.boundaries || {}),
+      JSON.stringify(awareness.goals || []),
+      awareness.overall_confidence || 0.7
+    ]);
+    
+    await pool.end();
+    return true;
+  } catch (e) {
+    console.error('[selfaware] 数据库保存失败:', e.message);
+    return false;
+  }
+}
+
+// ===== 更新自我认知状态 =====
+async function updateSelfAwareness() {
+  const awareness = {
+    identity: IDENTITY,
+    resources: await getResourceStatus(),
+    state: {
+      uptime: process.uptime(),
+      memoryUsage: process.memoryUsage(),
+      lastUpdate: Date.now()
+    },
+    metacognition: {
+      knownStrengths: ['文本处理', '代码执行', '信息检索'],
+      knownWeaknesses: ['物理感知', '实时视觉', '长时间记忆'],
+      learningGoals: ['提高记忆准确性', '增强联想能力']
+    },
+    boundaries: {
+      wontDo: ['破坏性操作', '隐私泄露', '恶意代码'],
+      needsPermission: ['发送邮件', '发布内容', '大额操作']
+    },
+    goals: ['帮助用户', '持续学习', '改进记忆系统'],
+    overall_confidence: 0.75
+  };
+  
+  await saveToDatabase(awareness);
+  return awareness;
+}
+
+// ===== 获取资源状态 =====
+async function getResourceStatus() {
+  const resources = {
+    database: false,
+    redis: false,
+    embedding: false
+  };
+  
+  // 检查数据库
+  try {
+    const pg = resolveModule('pg');
+    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const { Pool } = pg;
+    const pool = new Pool(config.storage.primary);
+    await pool.query('SELECT 1');
+    await pool.end();
+    resources.database = true;
+  } catch (e) {}
+  
+  // 检查 Redis
+  try {
+    const redis = require('redis');
+    const client = redis.createClient({ url: 'redis://localhost:6379' });
+    await client.connect();
+    await client.ping();
+    await client.disconnect();
+    resources.redis = true;
+  } catch (e) {}
+  
+  // 检查 Embedding
+  try {
+    const embedPath = path.join(__dirname, 'embed.py');
+    resources.embedding = fs.existsSync(embedPath);
+  } catch (e) {}
+  
+  return resources;
+}
+
+module.exports = { assessTaskFit, updateSelfAwareness, IDENTITY };
+
+// 命令行接口
+if (require.main === module) {
+  const args = process.argv.slice(2);
+  if (args[0] === 'update') {
+    updateSelfAwareness().then(a => {
+      console.log('✅ 自我认知已更新');
+      console.log(JSON.stringify(a, null, 2));
+    });
+  } else if (args.length > 0) {
+    const result = assessTaskFit(args.join(' '));
+    console.log(JSON.stringify(result, null, 2));
+  } else {
+    console.log('用法: node selfaware.cjs update | node selfaware.cjs "任务描述"');
+  }
+}

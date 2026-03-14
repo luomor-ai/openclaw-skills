@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const { resolveModule } = require('./module_resolver.cjs');
 /**
  * Cognitive Brain - 记忆检索脚本
  * 从记忆系统中检索相关信息
@@ -22,19 +23,125 @@ function parseArgs() {
   return params;
 }
 
-// 关键词检索
-async function keywordSearch(pool, query, limit = 10) {
+// Redis 缓存层
+let redis = null;
+let redisClient = null;
+
+// Embedding 支持 - 使用服务客户端
+const { getEmbeddingService } = require('./embedding_service.cjs');
+let embeddingService = null;
+
+async function getEmbedding(text) {
+  if (config.embedding?.provider !== 'local') return null;
+  
   try {
+    // 延迟初始化服务
+    if (!embeddingService) {
+      embeddingService = getEmbeddingService();
+    }
+    
+    // 使用非阻塞模式 - 如果服务未就绪立即返回 null
+    return await embeddingService.embed(text, false);
+  } catch (e) {
+    return null;
+  }
+}
+
+async function vectorSearch(pool, query, limit = 10) {
+  const embedding = await getEmbedding(query);
+  if (!embedding) return [];
+  
+  try {
+    // 使用 pgvector 进行向量搜索
     const result = await pool.query(`
-      SELECT id, summary, content, timestamp, importance, type
+      SELECT id, summary, content, timestamp, importance, type,
+        1 - (embedding <=> $1::vector) as similarity
       FROM episodes
-      WHERE summary ILIKE $1 OR content ILIKE $1
-      ORDER BY importance DESC, timestamp DESC
+      WHERE embedding IS NOT NULL
+      ORDER BY embedding <=> $1::vector
       LIMIT $2
-    `, [`%${query}%`, limit]);
+    `, [JSON.stringify(embedding), limit]);
     
     return result.rows;
   } catch (e) {
+    return [];
+  }
+}
+
+async function initRedis() {
+  if (redis) return true;
+  
+  try {
+    redis = require('redis');
+    const { createClient } = redis;
+    
+    redisClient = createClient({
+      socket: {
+        host: config.storage.cache?.host || 'localhost',
+        port: config.storage.cache?.port || 6379
+      },
+      database: config.storage.cache?.db || 0
+    });
+    
+    await redisClient.connect();
+    return true;
+  } catch (e) {
+    console.log('[recall] Redis 不可用，跳过缓存');
+    return false;
+  }
+}
+
+// 获取缓存
+async function getCache(key) {
+  if (!redisClient) return null;
+  
+  try {
+    const cached = await redisClient.get(`brain:${key}`);
+    if (cached) {
+      return JSON.parse(cached);
+    }
+  } catch (e) {
+    // ignore
+  }
+  return null;
+}
+
+// 设置缓存
+async function setCache(key, value, ttlSeconds = 60) {
+  if (!redisClient) return;
+  
+  try {
+    await redisClient.setEx(`brain:${key}`, ttlSeconds, JSON.stringify(value));
+  } catch (e) {
+    // ignore
+  }
+}
+
+// 关键词检索（支持多关键词）
+async function keywordSearch(pool, query, limit = 10) {
+  try {
+    // 分割查询词，支持空格分隔的多个关键词
+    const keywords = query.split(/\s+/).filter(k => k.length > 0);
+    
+    // 构建条件：每个关键词匹配 summary 或 content
+    const conditions = keywords.map((_, i) => 
+      `(summary ILIKE $${i + 1} OR content ILIKE $${i + 1})`
+    ).join(' OR ');
+    
+    const params = keywords.map(k => `%${k}%`);
+    params.push(limit);
+    
+    const result = await pool.query(`
+      SELECT id, summary, content, timestamp, importance, type
+      FROM episodes
+      WHERE ${conditions}
+      ORDER BY importance DESC, timestamp DESC
+      LIMIT $${params.length}
+    `, params);
+    
+    return result.rows;
+  } catch (e) {
+    console.error('keywordSearch error:', e.message);
     return [];
   }
 }
@@ -112,12 +219,24 @@ async function associationSearch(pool, query, limit = 10) {
   }
 }
 
-// 混合检索
+// 混合检索 - 增强版（集成工作记忆）
 async function hybridSearch(pool, query, options = {}) {
   const limit = options.limit || 10;
   
+  // 加载工作记忆
+  const workingMemoryPath = path.join(__dirname, '..', '.working-memory.json');
+  let workingMemory = null;
+  try {
+    if (fs.existsSync(workingMemoryPath)) {
+      workingMemory = JSON.parse(fs.readFileSync(workingMemoryPath, 'utf8'));
+    }
+  } catch (e) {
+    // ignore
+  }
+  
   const keywordResults = await keywordSearch(pool, query, limit);
   const assocResults = await associationSearch(pool, query, limit);
+  const vectorResults = await vectorSearch(pool, query, limit);
   
   // 合并去重
   const merged = new Map();
@@ -125,23 +244,66 @@ async function hybridSearch(pool, query, options = {}) {
   keywordResults.forEach((r, i) => {
     merged.set(r.id, { 
       ...r, 
-      score: (limit - i) / limit * 0.4,
+      score: (limit - i) / limit * 0.3,
       source: 'keyword'
     });
   });
   
   assocResults.forEach((r, i) => {
     if (merged.has(r.id)) {
-      merged.get(r.id).score += (limit - i) / limit * 0.6;
+      merged.get(r.id).score += (limit - i) / limit * 0.3;
       merged.get(r.id).source = 'hybrid';
     } else {
       merged.set(r.id, { 
         ...r, 
-        score: (limit - i) / limit * 0.6,
+        score: (limit - i) / limit * 0.3,
         source: 'association'
       });
     }
   });
+  
+  // 向量搜索结果权重更高
+  vectorResults.forEach((r, i) => {
+    const vectorScore = r.similarity ? r.similarity * 0.4 : (limit - i) / limit * 0.4;
+    if (merged.has(r.id)) {
+      merged.get(r.id).score += vectorScore;
+      merged.get(r.id).source = 'hybrid+vector';
+    } else {
+      merged.set(r.id, { 
+        ...r, 
+        score: vectorScore,
+        source: 'vector'
+      });
+    }
+  });
+  
+  // 工作记忆增强：提升当前活跃话题相关记忆的分数
+  if (workingMemory?.activeContext) {
+    const activeEntities = workingMemory.activeContext.entities || [];
+    const activeTopic = workingMemory.activeContext.topic;
+    
+    merged.forEach((memory, id) => {
+      let boost = 0;
+      
+      // 匹配活跃实体
+      if (memory.entities && Array.isArray(memory.entities)) {
+        const entityMatch = memory.entities.filter(e => activeEntities.includes(e));
+        if (entityMatch.length > 0) {
+          boost += 0.1 * entityMatch.length;
+        }
+      }
+      
+      // 匹配活跃话题
+      if (activeTopic && (memory.summary?.includes(activeTopic) || memory.content?.includes(activeTopic))) {
+        boost += 0.15;
+      }
+      
+      if (boost > 0) {
+        memory.score += boost;
+        memory.source = memory.source === 'hybrid' ? 'hybrid+working' : 'working_boost';
+      }
+    });
+  }
   
   // 排序返回
   return [...merged.values()]
@@ -176,9 +338,52 @@ function searchFromFile(query, limit = 10) {
 async function recall(query, options = {}) {
   let results = [];
   let source = 'file';
+  const limit = options.limit || 10;
   
+  // 0. 意图识别（新增）
+  let intent = null;
   try {
-    const pg = require('pg');
+    const intentPath = path.join(__dirname, 'intent.cjs');
+    if (fs.existsSync(intentPath)) {
+      const intentModule = require(intentPath);
+      intent = intentModule.recognizeIntent(query);
+      
+      // 根据意图调整检索策略
+      if (intent) {
+        options.intentBoost = {
+          question: intent.name === 'question' ? 0.2 : 0,
+          search: intent.name === 'search' ? 0.3 : 0,
+          request: intent.name === 'request' ? 0.15 : 0
+        };
+      }
+    }
+  } catch (e) {
+    // 意图识别失败不影响主流程
+  }
+  
+  // 1. 生成缓存 key
+  const cacheKey = `recall:${query}:${limit}`;
+  
+  // 2. 尝试从 Redis 获取
+  const redisOk = await initRedis();
+  if (redisOk) {
+    const cached = await getCache(cacheKey);
+    if (cached) {
+      console.log('[recall] ✅ Redis 缓存命中');
+      return {
+        query,
+        results: cached,
+        total: cached.length,
+        source: 'redis',
+        cached: true,
+        timestamp: new Date().toISOString()
+      };
+    }
+  }
+  
+  // 3. 从 PostgreSQL 检索
+  try {
+    const pg = resolveModule('pg');
     const { Pool } = pg;
     const pool = new Pool(config.storage.primary);
     
@@ -195,8 +400,21 @@ async function recall(query, options = {}) {
     }
     
     await pool.end();
+    
+    // 4. 写入 Redis 缓存
+    if (redisOk && results.length > 0) {
+      // 根据重要性决定 TTL
+      const maxImportance = Math.max(...results.map(r => r.importance || 0.5));
+      let ttl = 60; // 默认 1 分钟
+      if (maxImportance >= 0.8) ttl = 600;      // 高重要性 10 分钟
+      else if (maxImportance >= 0.5) ttl = 180; // 中等 3 分钟
+      
+      await setCache(cacheKey, results, ttl);
+      console.log(`[recall] 📦 已缓存 ${results.length} 条结果 (${ttl}s)`);
+    }
+    
   } catch (e) {
-    results = searchFromFile(query, options.limit);
+    results = searchFromFile(query, limit);
   }
   
   return {
@@ -204,6 +422,7 @@ async function recall(query, options = {}) {
     results,
     total: results.length,
     source,
+    cached: false,
     timestamp: new Date().toISOString()
   };
 }
