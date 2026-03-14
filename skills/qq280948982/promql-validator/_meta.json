@@ -1,0 +1,11 @@
+{
+  "owner": "qq280948982",
+  "slug": "promql-validator",
+  "displayName": "Promql Validator",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773408582670,
+    "commit": null
+  },
+  "history": []
+}
