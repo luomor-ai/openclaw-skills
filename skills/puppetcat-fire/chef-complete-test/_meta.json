@@ -1,0 +1,11 @@
+{
+  "owner": "puppetcat-fire",
+  "slug": "chef-complete-test",
+  "displayName": ".Chef Complete Test",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773368145243,
+    "commit": null
+  },
+  "history": []
+}
