@@ -1,11 +1,17 @@
 {
   "owner": "bytesagain3",
   "slug": "flashcard",
-  "displayName": "flashcard",
+  "displayName": "Flashcard",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773242305620,
-    "commit": "https://github.com/openclaw/skills/commit/55d7f3f0b007f13339ce472e61fc33bc345152c9"
+    "version": "2.2.0",
+    "publishedAt": 1773444857882,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773242305620,
+      "commit": "https://github.com/openclaw/skills/commit/55d7f3f0b007f13339ce472e61fc33bc345152c9"
+    }
+  ]
 }
