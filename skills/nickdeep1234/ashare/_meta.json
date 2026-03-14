@@ -1,0 +1,11 @@
+{
+  "owner": "nickdeep1234",
+  "slug": "ashare",
+  "displayName": "A股市场数据",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773411014137,
+    "commit": null
+  },
+  "history": []
+}
