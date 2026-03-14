@@ -1,0 +1,11 @@
+{
+  "owner": "liubroth",
+  "slug": "traffic-query",
+  "displayName": "Traffic Query",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773463860133,
+    "commit": null
+  },
+  "history": []
+}
