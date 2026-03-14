@@ -1,6 +1,10 @@
+---
+name: shopify-toolkit
+description: "Error: --action required. Use when you need shopify toolkit capabilities. Triggers on: shopify toolkit, store, token, product-id, order-id, customer-id."
+---
+
 # Shopify Toolkit
 
-> Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
 
 A full-featured Shopify store management toolkit for listing and managing products, orders, customers, inventory, collections, and shop settings — all from the command line using the Shopify Admin REST API. Provides complete e-commerce store management capabilities for automation and reporting.
 
@@ -29,11 +33,18 @@ Shopify Toolkit gives you programmatic control over your Shopify store. List and
 ## Environment Variables
 
 | Variable | Required | Description |
-|----------|----------|-------------|
-| `SHOPIFY_STORE` | Yes | Store name (from `xxx.myshopify.com`) |
-| `SHOPIFY_ACCESS_TOKEN` | Yes | Admin API access token |
-| `SHOPIFY_API_VERSION` | No | API version (default: `2024-01`) |
-| `SHOPIFY_OUTPUT_FORMAT` | No | Output format: `table`, `json`, `markdown` |
+| Command | Description |
+|---------|-------------|
+| `shop-info` | Shop Info |
+| `list-products` | List Products |
+| `get-product` | Get Product |
+| `create-product` | Create Product |
+| `list-orders` | List Orders |
+| `get-order` | Get Order |
+| `list-customers` | List Customers |
+| `count-products` | Count Products |
+| `count-orders` | Count Orders |
+
 
 ## Examples
 
@@ -56,3 +67,6 @@ SHOPIFY_STORE=mystore SHOPIFY_ACCESS_TOKEN=shpat_xxx shopify-toolkit inventory s
 # Store summary
 SHOPIFY_STORE=mystore SHOPIFY_ACCESS_TOKEN=shpat_xxx shopify-toolkit summary
 ```
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
