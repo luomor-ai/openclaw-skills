@@ -1,0 +1,11 @@
+{
+  "owner": "linux2010",
+  "slug": "stock-quote",
+  "displayName": "Stock Quote",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773498602821,
+    "commit": null
+  },
+  "history": []
+}
