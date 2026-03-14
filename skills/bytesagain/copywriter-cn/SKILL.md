@@ -1,9 +1,6 @@
 ---
 name: copywriter-cn
-version: 1.0.0
-description: "营销文案助手。标题公式(100个)、正文写作、AIDA框架、痛点挖掘、客户证言、落地页文案。Copywriting with 100 headline formulas, body copy, AIDA framework, pain points, testimonials, landing pages."
-author: BytesAgain
-tags: [copywriting, marketing, 文案, 标题, AIDA, 痛点, 证言, 落地页, 营销]
+description: "营销文案助手。标题公式(100个)、正文写作、AIDA框架、痛点挖掘、客户证言、落地页文案。Copywriting with 100 headline formulas, body copy, AIDA framework, pain points, testimonials, landing pages. Use when you need copywriter cn capabilities. Triggers on: copywriter cn."
 ---
 # copywriter-cn
 
@@ -35,3 +32,6 @@ tags: [copywriting, marketing, 文案, 标题, AIDA, 痛点, 证言, 落地页, 
 
 ---
 *copywriter-cn by BytesAgain*
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
