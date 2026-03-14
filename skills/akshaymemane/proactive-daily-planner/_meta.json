@@ -3,9 +3,15 @@
   "slug": "proactive-daily-planner",
   "displayName": "Proactive Daily Planner",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1773350675324,
-    "commit": "https://github.com/openclaw/skills/commit/6020b3c7e1799db27735cc003ca13b5db5d14efb"
+    "version": "0.2.0",
+    "publishedAt": 1773350964292,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1773350675324,
+      "commit": "https://github.com/openclaw/skills/commit/6020b3c7e1799db27735cc003ca13b5db5d14efb"
+    }
+  ]
 }
