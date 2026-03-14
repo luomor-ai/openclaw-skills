@@ -1,0 +1,11 @@
+{
+  "owner": "openwaygate",
+  "slug": "youtube-thumbnail",
+  "displayName": "YouTube Thumbnail",
+  "latest": {
+    "version": "0.10.6-3",
+    "publishedAt": 1773364886617,
+    "commit": null
+  },
+  "history": []
+}
