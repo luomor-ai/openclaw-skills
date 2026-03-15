@@ -1,9 +1,6 @@
 ---
 name: book-recommend
-version: 1.0.0
-description: "书单推荐助手。个性化推荐、书籍摘要、同类书推荐、阅读清单、读书会方案、年度书单。Book recommendation with personalized picks, summaries, similar books, reading lists, book clubs, and annual lists."
-author: BytesAgain
-tags: [books, reading, recommendation, book-club, summary, 书单, 阅读, 推荐, 读书会]
+description: "书单推荐助手。个性化推荐、书籍摘要、同类书推荐、阅读清单、读书会方案、年度书单。Book recommendation with personalized picks, summaries, similar books, reading lists, book clubs, and annual lists. Use when you need book recommend capabilities. Triggers on: book recommend."
 ---
 
 # Book Recommend Skill
@@ -44,3 +41,6 @@ bash scripts/book.sh club "原则" "4weeks"
 # 年度书单
 bash scripts/book.sh annual "2024" "business"
 ```
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
