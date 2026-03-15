@@ -1,117 +1,80 @@
 ---
 name: auto-redbook-content
-description: 小红书热点内容抓取与改写工具。按需调用，抓取首页热点→图片识别→AI改写→本地存储。
-version: 2.2.0
+description: 小红书热点抓取与去AI味改写工具。抓取首页热点→生成去AI味改写提示词→本地存储。
+version: 2.5.1
 metadata:
   openclaw:
     emoji: 📕
     requires:
       bins:
         - node
-        - tesseract
 ---
 
 # auto-redbook-content Skill
 
-小红书热点内容抓取与改写工具。**按需调用**，不包含自动调度功能。
+小红书热点抓取与去 AI 味改写工具。
 
 ## 核心功能
 
-抓取小红书首页热点 → 图片识别（Vision + OCR）→ AI 改写 → 本地 JSON 存储
+抓取小红书首页热点 → 生成去 AI 味改写提示词 → 本地 JSON 存储
 
 ## 触发方式
 
-手动调用（不支持自动定时）：
 ```
 抓取 3 条小红书笔记
 ```
 
 ## 工作流程
 
-1. **抓取热点**：通过 MCP 获取小红书首页热门笔记
-2. **图片识别**：Vision 分析 + OCR 文字提取
-3. **AI 改写**：智能改写标题和正文
-4. **本地存储**：输出到 `output/xiaohongshu_YYYYMMDD_HHMMSS.json`
-
-## 可选功能
-
-- 飞书表格集成：配置后可写入飞书多维表格
+1. **抓取热点**：通过 xiaohongshu MCP 获取首页热门笔记
+2. **生成提示词**：构建去 AI 味的改写提示词
+3. **本地存储**：输出到 `output/xiaohongshu_YYYYMMDD_HHMMSS.json`
 
 ## 环境变量
 
-### 基础配置
 | 变量 | 说明 | 默认值 |
 |------|------|--------|
 | XHS_MAX_RESULTS | 抓取数量 | 3 |
-| REWRITE_MODE | 改写模式：direct/agent | direct |
 
-### 飞书集成（可选）
-| 变量 | 说明 |
-|------|------|
-| FEISHU_APP_TOKEN | 飞书 app_token |
-| FEISHU_TABLE_ID | 飞书 table_id |
+通过环境变量设置，无需 .env 文件。
 
-配置方式：在 skill 目录创建 `.env` 文件
+## 去 AI 味改写要点
+
+提示词包含以下要求：
+- 像真人聊天，不像写作文
+- 多用口语化表达
+- 打破工整结构
+- 加入真实细节
+- 避免 AI 常用连接词
 
 ## 输出格式
 
 JSON 文件包含：
 - 原始标题、内容、作者
-- 图片分析结果
-- 改写后的标题、正文、标签
-- 元数据（点赞数、抓取时间等）
+- 去 AI 味改写提示词
+- 元数据
 
-## 依赖工具
+## 依赖
 
-**必需：**
 - Node.js >= 14.0.0
-- tesseract-ocr
-
-**可选：**
-- xiaohongshu MCP（未配置时使用模拟数据）
-- moltshell-vision（图片分析）
-- image-ocr（OCR）
-- openclaw feishu-bitable（飞书集成）
-
-## 使用示例
-
-```
-# 基础用法
-抓取 3 条小红书笔记
-
-# 指定数量
-抓取 5 条小红书笔记并改写
-
-# 写入飞书（需先配置 .env）
-抓取笔记并写入飞书
-```
-
-## 故障排查
-
-**MCP 调用失败**
-- 未配置时自动使用模拟数据
-
-**图片识别失败**
-- 跳过图片分析，继续处理文本
-
-**飞书写入失败**
-- 检查 token 格式：bascn_xxx 或 cli_xxx
-- 检查 table_id 格式：tblXXXXXXXX
+- xiaohongshu MCP（可选）
 
 ## 安全说明
 
-- ✅ 按需调用，无自动调度
-- ✅ 环境变量管理敏感信息
-- ✅ 使用 spawnSync 避免注入
-- ✅ 文件读取与网络发送分离
+- ✅ 无 shell 执行
+- ✅ 无网络访问
+- ✅ 不读取 .env 文件
+- ✅ 仅读取必要环境变量
+- ✅ 仅写入 output 目录
 
 ## 版本历史
 
-### v2.2.0 (2026-03-15)
-- 🔒 移除所有自动调度功能
-- 📝 简化文档，聚焦核心功能
-- 🎯 明确定位：按需调用工具
+### v2.5.1 (2026-03-15)
+- 🔧 删除 package-lock.json 和 node_modules
+- 📝 移除 npm install 说明
 
-### v2.1.1 (2026-03-14)
-- 📝 文档优化
-- 🔒 安全重构
+### v2.5.0 (2026-03-15)
+- ✨ 改写提示词增加去 AI 味要求
+- 🔒 移除 .env 文件读取
+- 🔒 移除 dotenv 依赖
+- 🔒 仅读取必要环境变量
