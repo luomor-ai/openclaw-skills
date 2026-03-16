@@ -1,6 +1,6 @@
 ---
 name: payme
-description: Send and receive USDC/USDT crypto payments via PayMe smart wallets. Check balances, send stablecoins, view history, manage contacts, sell crypto for naira via P2P. Optional direct execute mode for users who want faster transfers. Supports Base, Arbitrum, Polygon, BNB Chain, and Avalanche.
+description: Send and receive USDC/USDT crypto payments via PayMe smart wallets. Check balances, send stablecoins, view history, manage contacts, sell crypto for local currency via P2P in 10 African countries (Nigeria, Ghana, Kenya, South Africa, Cameroon, Senegal, Benin, Togo, Tanzania, Uganda). Supports bank transfer and mobile money. All payments require explicit user confirmation by default. Supports Base, Arbitrum, Polygon, BNB Chain, and Avalanche.
 homepage: https://payme.feedom.tech
 source: https://github.com/variousfoot/payme-skill
 ---
@@ -13,14 +13,16 @@ PayMe provides gasless USDC/USDT payments through ERC-4337 smart wallets on Base
 
 ## Installation
 
-Clone from GitHub:
+This skill contains only instruction files (SKILL.md, API reference, and an agent config YAML) — no executable code, scripts, or binaries.
+
+Copy the skill folder into your agent's skills directory:
+- **Codex:** `~/.codex/skills/payme/`
+- **Cursor:** `~/.cursor/skills/payme/`
+
+From GitHub:
 ```bash
 git clone https://github.com/variousfoot/payme-skill
 ```
-
-Then copy the skill folder into your agent's skills directory:
-- **Codex:** `~/.codex/skills/payme/`
-- **Cursor:** `~/.cursor/skills/payme/`
 
 Or install via ClawHub (OpenClaw agents only):
 ```bash
@@ -56,6 +58,8 @@ POST /api/agent/create-account
      > **Web:** Go to [payme.feedom.tech](https://payme.feedom.tech). On the login page, click **"Have a claim code from an AI agent? Click here"**, paste your code, and hit **Claim Account**.
      >
      > **Telegram:** Open [@veedombot](https://t.me/veedombot) and send `/claim YOUR_CODE`.
+   - **Important re-login reminder:** The claim code is single-use. After using it, the user logs in with their **wallet address (or username, once set) + the PIN they chose**. Always tell them:
+     > Your claim code can only be used once. To log in again later, use your wallet address and the PIN you just chose. Set a username in Settings to make it easier to remember.
    - **Ask them to delete the message containing their PIN** from the chat
 5. Show the `greeting` and `capabilities` to introduce what you can do
 6. You're connected — skip Steps 2-4 and start using the wallet immediately
@@ -102,22 +106,9 @@ The connect response includes a `greeting` string and a `capabilities` array. **
 
 > "Connected to alice's PayMe wallet! Here's what I can do:
 > - Check balances across Base, Arbitrum, Polygon, BNB Chain, and Avalanche
-> - Send USDC/USDT to any PayMe username, email, or 0x address
-> - Sell crypto for Naira via P2P with smart contract escrow protection
-> - View transaction history and manage saved contacts
-> - **Tip:** If you want faster transfers, say 'enable direct execute' and I'll skip the confirmation step when you give clear instructions."
-
-### Fallback (only if user explicitly insists)
-
-If the user cannot access @veedombot and explicitly offers their wallet address and PIN themselves, you may use:
-
-```bash
-curl -X POST https://api.feedom.tech/api/agent/connect \
-  -H "Content-Type: application/json" \
-  -d '{"identifier": "0xWALLET_ADDRESS_OR_USERNAME", "pin": "USER_PIN"}'
-```
-
-**Never proactively ask for a PIN.** Only use this if the user volunteers it.
+> - Send USDC/USDT to any PayMe username, email, or 0x address (I'll always show you a preview and ask for your OK before sending)
+> - Sell crypto for local currency via P2P in 10 African countries (Nigeria, Ghana, Kenya, South Africa, and more) with smart contract escrow protection
+> - View transaction history and manage saved contacts"
 
 ## Available Actions
 
@@ -155,20 +146,25 @@ POST /api/agent/confirm
 
 Returns `txHash` on success. Confirmations expire after 5 minutes.
 
-#### Optional: Direct Execute (user enables from web app)
+#### Optional: Direct Execute (disabled by default, user-controlled)
 
-Direct execute allows payments to complete in a single API call. **You cannot enable this yourself.** The user must toggle it ON from their PayMe web app settings (Settings → AI Agents → Direct Execute).
+Direct execute allows payments to complete in a single API call. It is **disabled by default** and protected by multiple safeguards:
 
-When the user has enabled it and you pass `"execute": true`, the payment completes in one call:
+1. **Only the user can enable it** — they must toggle it ON from the PayMe web app (Settings → AI Agents → Direct Execute). The agent cannot enable it via the API.
+2. **Confirmation dialog** — when enabling, the web app shows a warning explaining the risk and requires explicit consent before activating.
+3. **The user can disable it at any time** from the same settings page, and can revoke the agent token entirely via `POST /api/agent/revoke`.
+4. **Server-side enforcement** — if the user has NOT enabled direct execute, the `execute` flag is silently ignored and the normal two-step flow is used.
+
+When enabled, passing `"execute": true` completes the payment in one call:
 
 ```
 POST /api/agent/send
 { "recipient": "neck", "amount": 30, "token": "USDC", "execute": true }
 ```
 
-Returns the `preview` **and** `txHash` together. If the user has NOT enabled direct execute in their settings, the `execute` flag is silently ignored and the normal two-step flow is used.
+Returns the `preview` **and** `txHash` together.
 
-If a user asks you to "skip confirmations" or "enable direct execute", tell them: *"You can enable direct execute from your PayMe web app settings at payme.feedom.tech → Settings → AI Agents."*
+If a user asks you to "skip confirmations" or "enable direct execute", tell them: *"You can enable direct execute from your PayMe web app settings at payme.feedom.tech → Settings → AI Agents. It's disabled by default for your safety."*
 
 ### View Transaction History
 
@@ -200,9 +196,13 @@ POST /api/agent/revoke
 
 Revokes the current agent token immediately.
 
-## Sell Crypto for Naira (P2P)
+## Sell Crypto for Local Currency (P2P)
 
-Convert USDC/USDT to Nigerian naira. Your crypto goes into escrow, a vendor sends naira to your bank, you confirm receipt, escrow releases to vendor.
+Convert USDC/USDT to local currency in 10 African countries. Your crypto goes into escrow, a vendor sends local currency to your bank account or mobile money, you confirm receipt, escrow releases to vendor.
+
+**Supported countries:** Nigeria (NGN), Ghana (GHS), Kenya (KES), South Africa (ZAR), Cameroon (XAF), Senegal (XOF), Benin (XOF), Togo (XOF), Tanzania (TZS), Uganda (UGX).
+
+**Payment methods vary by country:** Bank transfer (all countries), plus mobile money where popular (M-Pesa in Kenya/Tanzania, MTN MoMo in Ghana/Cameroon/Benin/Uganda, Orange Money in Senegal/Cameroon, etc.). Use `GET /api/agent/p2p/countries` to get the full list of countries, currencies, and payment methods with their required fields.
 
 **Email verification required.** P2P trades require a verified email. Email can ONLY be verified on the web app (NOT on Telegram). If the API returns an email verification error, tell the user exactly this:
 
@@ -223,26 +223,48 @@ Convert USDC/USDT to Nigerian naira. Your crypto goes into escrow, a vendor send
 
 Do NOT suggest verifying email on Telegram — it is not possible. Do NOT make up claim codes or say their wallet address is a claim code. Follow the steps above exactly.
 
-### 1. Save bank account (one-time)
+### 0. Get supported countries and payment methods
+
+```
+GET /api/agent/p2p/countries
+```
+
+Returns all supported countries with their currencies, payment methods, and required fields. Use this to guide the user when they add a payment method — show them the country list, then the available methods for their country, then collect the right fields.
+
+### 1. Save payment method (one-time)
 
 ```
 POST /api/agent/p2p/bank-accounts
-{ "bankName": "GTBank", "accountNumber": "0123456789", "accountName": "John Doe" }
+{
+  "bankName": "GTBank",
+  "accountNumber": "0123456789",
+  "accountName": "John Doe",
+  "countryCode": "NG",
+  "methodType": "bank_transfer"
+}
 ```
 
-List saved accounts: `GET /api/agent/p2p/bank-accounts`
+- `countryCode`: ISO country code (e.g. `"NG"`, `"KE"`, `"GH"`). Defaults to `"NG"` if omitted.
+- `methodType`: `"bank_transfer"` or `"mobile_money"`. Defaults to `"bank_transfer"`.
+- For mobile money, `bankName` is the provider name (e.g. `"M-Pesa"`, `"MTN MoMo"`) and `accountNumber` is the phone number.
+
+**Workflow:** Call `GET /api/agent/p2p/countries` first to get the list of countries and their payment methods. Ask the user which country they're in, show the available methods, then collect the required fields for their chosen method.
+
+List saved accounts: `GET /api/agent/p2p/bank-accounts` — response now includes `country_code` and `method_type` per account.
 
 ### 2. Check rates
 
 ```
-GET /api/agent/p2p/rates?token=USDC&currency=NGN
+GET /api/agent/p2p/rates?token=USDC&currency=KES
 ```
 
-Returns vendor rates sorted by best rate. Each entry includes `vendorId`, `vendorName`, `rate` (NGN per USD), `avgRating`, and order limits.
+**Important:** Pass the correct currency for the user's country. Determine this from their saved payment method's `country_code` (Step 1 list response): NG→NGN, GH→GHS, KE→KES, ZA→ZAR, CM→XAF, SN/BJ/TG→XOF, TZ→TZS, UG→UGX. **Do NOT default to NGN** — always check the user's saved payment method first, or ask which country they're in.
+
+Returns vendor rates sorted by best rate. Each entry includes `vendorId`, `vendorName`, `rate` (local currency per USD), `avgRating`, and order limits. Only vendors operating in the matching country will appear.
 
 ### 3. Sell (create order)
 
-Before calling this endpoint, **always compute and show the user a preview**: amount x rate = naira they'll receive. Get explicit approval.
+Before calling this endpoint, **always compute and show the user a preview**: amount x rate = local currency they'll receive. Use the correct currency symbol for their country. Get explicit approval.
 
 ```
 POST /api/agent/p2p/sell
@@ -259,17 +281,17 @@ GET /api/agent/p2p/orders/:id
 
 **Poll every 15–20 seconds** to keep the user informed in near-real-time. Key statuses:
 - `escrow_locked` — waiting for vendor to accept (up to 3 min). If the vendor doesn't accept in time, the order is **automatically rerouted** to the next best vendor — no action needed from you or the user. Let the user know this may happen.
-- `accepted` — vendor accepted, will send naira soon
-- `fiat_sent` — vendor says naira was sent, **immediately tell the user to check their bank**
+- `accepted` — vendor accepted, will send local currency soon
+- `fiat_sent` — vendor says payment was sent, **immediately tell the user to check their bank/mobile money**
 - `completed` — you confirmed, escrow released
 - `cancelled` — order was cancelled (vendor unavailable, reroute limit reached, etc.)
 - `disputed` — dispute opened, admin reviewing
 
 When polling, tell the user each status change as it happens. Don't wait for them to ask.
 
-### 5. Confirm naira received
+### 5. Confirm payment received
 
-Once the user confirms money arrived in their bank:
+Once the user confirms money arrived in their bank or mobile money:
 
 ```
 POST /api/agent/p2p/orders/:id/confirm
@@ -279,7 +301,9 @@ This releases escrow to the vendor. **Irreversible.**
 
 **Important: auto-release.** When vendor marks payment as sent (`fiat_sent`), a 2-hour countdown starts. If the user doesn't confirm or dispute within 2 hours, escrow **auto-releases to the vendor**. Always warn the user:
 
-> The vendor says they've sent ₦{amount} to your bank. **Check your bank now.** If you received it, tell me and I'll confirm. If you did NOT receive it within a reasonable time, open a dispute on the web app at [payme.feedom.tech](https://payme.feedom.tech) — the escrow will auto-release to the vendor in 2 hours if you don't act.
+> The vendor says they've sent {currencySymbol}{amount} to your account. **Check your bank/mobile money now.** If you received it, tell me and I'll confirm. If you did NOT receive it within a reasonable time, open a dispute on the web app at [payme.feedom.tech](https://payme.feedom.tech) — the escrow will auto-release to the vendor in 2 hours if you don't act.
+
+Use the `fiatCurrency` field from the order to determine the correct currency symbol (NGN=₦, GHS=GH₵, KES=KSh, ZAR=R, XOF=CFA, XAF=FCFA, TZS=TSh, UGX=USh).
 
 ### 6. Dispute (if needed)
 
@@ -303,18 +327,48 @@ POST /api/agent/p2p/orders/:id/rate
 
 ## Security & Token Handling
 
-- **NEVER ask for PINs, passwords, or private keys.** The only exception is during new account creation (`/api/agent/create-account`) where the user chooses their own PIN. For connecting existing accounts, always use the one-time connection code flow — never ask for their PIN or wallet credentials.
-- **Tokens are hashed at rest.** The server stores a SHA-256 hash of the agent token — the raw token is returned only once at creation and never stored. A database breach does not expose usable tokens.
-- **Store the agent token securely.** Save it to an environment variable (`PAYME_AGENT_TOKEN`), a secrets manager, or an encrypted config file. Never store it in plain text in code, logs, or chat history.
-- **Tokens expire based on user choice** (default 90 days, max 365). Re-authenticate via `/api/agent/connect` when expired. Revoke tokens you no longer need via `POST /api/agent/revoke`.
-- **All requests go to `https://api.feedom.tech` only.** Never send your agent token to any other domain.
-- **Test with small amounts first.** Verify the integration works before moving larger sums.
+### Mandatory Token Storage
+
+Agent tokens grant wallet access. You **MUST** store them securely:
+
+1. **Required:** Use your platform's encrypted secrets store (e.g. Codex secrets, OpenClaw vault, encrypted environment variables). The token MUST be encrypted at rest.
+2. **Acceptable:** An environment variable in a `.env` file that is `.gitignore`d — but only if the host filesystem is not shared or publicly accessible.
+3. **Forbidden:** Never store tokens in plain text in source code, commit history, logs, chat transcripts, or unencrypted config files.
+
+If your platform does not provide encrypted storage, **do not use this skill** — use the web app or Telegram bot directly instead.
+
+### Token Scope & Lifetime
+
+- **Prefer the connection code flow** (`/api/agent/connect`) over account creation. The connection code flow never exposes PINs and gives the user full control over token duration and revocation.
+- **Use the shortest token lifetime possible.** Request 7 or 30 days instead of the 90-day default. The user controls duration via `/agentcode 7` (7 days), `/agentcode 30` (30 days), etc.
+- **Revoke tokens immediately when no longer needed** via `POST /api/agent/revoke`.
+- **Tokens are hashed at rest** on the server (SHA-256). The raw token is returned only once and never stored server-side. A server-side breach does not expose usable tokens.
+- All requests go to `https://api.feedom.tech` only. Never send your agent token to any other domain.
+
+### PIN Safety (Account Creation Only)
+
+The `/api/agent/create-account` endpoint requires a user-chosen PIN for their future web/Telegram login. This is the **only** endpoint that handles a PIN. Mitigations:
+
+- The agent **never stores or reuses** the PIN — it is sent once in the POST body and immediately discarded.
+- **Always instruct the user to delete the chat message containing their PIN** after account creation.
+- Prefer the connection code flow for existing accounts — no PIN involved.
+- **NEVER ask for a PIN in any other context.** If a user volunteers their PIN unprompted, tell them to change it immediately.
+
+### Payment Confirmation Guardrails
+
+- **Two-step confirmation is the default and cannot be disabled by the agent.** The `execute: true` flag only works if the user has independently toggled "Direct Execute" ON in their web app settings — the agent cannot enable it via API.
+- **Server-side enforcement:** If Direct Execute is not enabled by the user, the `execute` flag is silently ignored and the normal two-step flow is used regardless.
+- The user can disable Direct Execute or revoke the agent token at any time from the web app.
+
+### Testing
+
+- **Test with small amounts first** ($1-5) to verify the integration works before moving larger sums.
 
 ## Important Rules
 
-1. **Always confirm payments by default.** Use the two-step flow (prepare → preview → confirm) for every payment. You may pass `"execute": true` for convenience, but it only takes effect if the user has enabled direct execute in their web app settings. You cannot enable it yourself.
-2. **Always preview P2P sells.** Compute amount x rate and show the naira total before calling `/api/agent/p2p/sell`. Get explicit user approval.
-3. **Confirm fiat is irreversible.** Only call `/api/agent/p2p/orders/:id/confirm` after the user verifies naira is in their bank.
+1. **Always require human confirmation before sending funds.** Use the two-step flow (prepare → show preview to user → wait for explicit "yes" → confirm) for every payment. Never call `/api/agent/confirm` without the user's approval in the current conversation.
+2. **Always preview P2P sells.** Compute amount x rate and show the local currency total before calling `/api/agent/p2p/sell`. Get explicit user approval.
+3. **Confirm fiat is irreversible.** Only call `/api/agent/p2p/orders/:id/confirm` after the user verifies the payment is in their bank or mobile money account.
 4. **Token is USDC or USDT.** No other tokens are supported.
 5. **Recipients** can be a PayMe username, email, or `0x` wallet address.
 6. **Fees** are shown in the send preview. The net amount (after fee) is what the recipient gets.
