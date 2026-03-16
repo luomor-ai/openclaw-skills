@@ -8,12 +8,7 @@ AI agent skill for world-class travel planning using [Kontour AI](https://kontou
 npx skills add Bookingdesk-AI/kontour-travel-planner
 ```
 
-Or browse on [skills.sh](https://skills.sh) and [clawhub.ai](https://clawhub.ai).
-
-Version traceability tip: if marketplace semver is not visible, use `SKILL.md` frontmatter `version` plus the current git commit hash as the canonical artifact ID.
-Socket evidence tip: when the Socket page does not render an explicit pass/fail verdict in static fetch output, record page reachability + timestamp alongside ATH/Snyk verdicts.
-Publish blocker note: if ClawHub publish fails with `acceptLicenseTerms: invalid value`, classify it as a platform blocker and continue with refresh/install evidence collection.
-Evidence checklist: see `SECURITY_EVIDENCE.md` for reproducible pre/post capture when Socket/ClawHub static pages omit explicit verdict text.
+Or browse on [skills.sh](https://skills.sh) and [clawhub.com](https://clawhub.com).
 
 ## What This Skill Does
 
@@ -44,6 +39,7 @@ Ground truth files in `references/`:
 - `scripts/plan.sh` — Get structured trip context from natural language
 - `scripts/export-gmaps.sh` — Export itinerary to Google Maps links and KML
 - `scripts/gen-airports.py` — Generate airport reference data
+- `scripts/audit-runtime.sh` — Safety audit for runtime scripts (network/exec primitive scan)
 
 ## Links
 
@@ -53,5 +49,3 @@ Ground truth files in `references/`:
 ## License
 
 MIT-0
-
-License guardrail: keep marketplace and frontmatter license as MIT-0 to avoid publish/review drift.
