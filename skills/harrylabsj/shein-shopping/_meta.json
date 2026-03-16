@@ -1,11 +1,17 @@
 {
   "owner": "harrylabsj",
   "slug": "shein-shopping",
-  "displayName": "Shein Shopping",
+  "displayName": "SHEIN Shopping",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773364537944,
-    "commit": "https://github.com/openclaw/skills/commit/ce317fdb203bcbd5a7f5fa44eb1fe264c2581968"
+    "version": "1.2.0",
+    "publishedAt": 1773579108679,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773364537944,
+      "commit": "https://github.com/openclaw/skills/commit/ce317fdb203bcbd5a7f5fa44eb1fe264c2581968"
+    }
+  ]
 }

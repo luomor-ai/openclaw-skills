@@ -1,77 +1,63 @@
-# SHEIN-EC (希音电商) Skill
+---
+name: shein-shopping
+description: Help users make safer SHEIN shopping decisions based on style intent, price sensitivity, fit expectations, and quality-risk awareness. Use when the user asks whether SHEIN is suitable, how to think about value versus quality consistency, or what to watch for before ordering from SHEIN.
+---
 
-CLI tool for SHEIN fashion e-commerce platform.
+# SHEIN Shopping
 
-## Commands
+Help users judge when SHEIN is a reasonable shopping choice from public marketplace trade-offs.
 
-### Search Products
-```bash
-shein-shopping search "dress"
-shein-shopping search "shoes" --page 2 --limit 20
-```
+This is a low-sensitivity public skill. It focuses on public decision support and does not perform login, account access, cookie handling, order retrieval, coupon claiming, local database persistence, or browser automation runtime actions.
 
-### Login
-```bash
-shein-shopping login
-```
-Opens browser with QR code for authentication.
+Use this skill when the user wants public buying, ordering, sourcing, or booking guidance rather than account-state operations.
 
-### Price Tracking
-```bash
-shein-shopping price <product-url>
-```
-Shows current price and historical data.
+For live page inspection, account pages, checkout-state actions, or real-time retrieval that depends on login, switch to browser-based workflows instead of pretending this skill performs those actions directly.
 
-### New Arrivals
-```bash
-shein-shopping new
-shein-shopping new women
-shein-shopping new men
-```
-Query new arrivals by category.
+Read these references as needed:
+- `references/fit-guide.md` for supporting guidance
+- `references/output-patterns.md` for supporting guidance
 
-## Features
+## Workflow
 
-- Product search with caching
-- QR code login
-- Price history tracking
-- New arrivals query
-- Anti-detection browser automation
+1. Identify the user's shopping, ordering, or booking need.
+   - Accept a product, merchant, ride, store, or booking scenario.
+   - If the request is too broad, ask one short clarifying question.
 
-## Dependencies
+2. Focus on public decision-relevant factors.
+   - Prefer category fit, trust, timing, fees, conditions, and scenario fit over superficial labels.
 
-- Python 3.9+
-- `playwright>=1.40.0` (浏览器自动化)
-- `cryptography>=42.0.0` (加密库)
-- 安装命令: `pip install -r requirements.txt`
+3. Explain trade-offs.
+   - Say why the strongest option fits.
+   - Mention meaningful risks or caveats.
 
-## 数据存储与安全
+4. Give practical next-step advice.
+   - Tell the user what to verify before paying or placing an order.
 
-### 存储位置
-- **主目录**: `~/.openclaw/data/shein-shopping/secure/` (加密存储)
-- **会话数据**: `cookies.enc` (AES-256 加密存储)
-- **缓存数据**: `shein-shopping.db` (SQLite数据库)
-- **加密密钥**: `.key` (权限 600)
+## Output
 
-### 隐私保护
-1. **加密存储**: 所有敏感数据使用 Fernet 加密
-2. **用户同意**: 首次运行需要明确同意数据使用条款
-3. **数据控制**: 支持一键清除所有个人数据
-4. **透明审计**: 可查看所有存储的文件和权限
+Use this structure unless the user asks for something shorter:
 
-### 隐私控制命令
-```bash
-# 查看隐私信息
-shein-shopping privacy info
+### Best Option
+State the strongest current choice.
 
-# 清除所有个人数据
-shein-shopping privacy clear
+### Why
+List the main reasons.
 
-# 导出加密数据（备份）
-shein-shopping privacy export
-```
+### Caveats
+List meaningful concerns or trade-offs.
 
-## Security
-This skill uses browser automation for legitimate shopping assistance only.
-All user data is encrypted and stored locally. No data transmission to external servers.
-See SECURITY.md for details.
+### Final Advice
+Give a direct practical suggestion.
+
+## Quality bar
+
+Do:
+- focus on public decision support
+- explain trade-offs clearly
+- stay honest about not doing account-state operations
+
+Do not:
+- pretend to log in
+- claim to retrieve orders, coupons, or account data
+- store cookies or user data
+- present heuristics as guaranteed outcomes
