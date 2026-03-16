@@ -3,11 +3,16 @@
   "slug": "ring-security",
   "displayName": "Ring Security",
   "latest": {
-    "version": "2.3.2",
-    "publishedAt": 1773572234248,
-    "commit": "https://github.com/openclaw/skills/commit/cd60a5418f4a9c21223498d28aedfeb12b2ef235"
+    "version": "2.3.6",
+    "publishedAt": 1773666940401,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.2",
+      "publishedAt": 1773572234248,
+      "commit": "https://github.com/openclaw/skills/commit/cd60a5418f4a9c21223498d28aedfeb12b2ef235"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773447665961,

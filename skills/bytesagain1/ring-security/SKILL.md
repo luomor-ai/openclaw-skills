@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: ring-security
 description: "Monitor and manage Ring doorbells and security cameras. Query device status, review motion events, manage modes, and export event history. Use when you need ring security capabilities. Triggers on: ring security."
+author: BytesAgain
 ---
 
 # Ring Security
