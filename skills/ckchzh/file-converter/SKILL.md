@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: file-converter
-description: "File format converter. Detect formats, convert between JSON/YAML/XML/CSV/Markdown, minify and prettify code. Commands: detect, json2yaml, yaml2json, csv2md, md2csv, xml2json, json2xml, minify, prettify. Use for data format conversion, code compression, code beautification."
+description: "File format converter. Detect formats, convert between JSON/YAML/XML/CSV/Markdown, minify and prettify code. Commands: detect, json2yaml, yaml2json, csv2md, md2csv, xml2json, json2xml, minify, prettify. Use for data format conversion, code compression, code beautification. Use when you need file converter capabilities. Triggers on: file converter."
+author: BytesAgain
 ---
 
 # 🔄 File Converter
@@ -39,3 +41,6 @@ bash scripts/convert.sh <command> [file]
 - Output goes to stdout — redirect with `>` to save
 - Supports pipe input: `cat data.json | bash scripts/convert.sh json2yaml -`
 - Run `detect` first on unknown files to avoid garbled output
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
