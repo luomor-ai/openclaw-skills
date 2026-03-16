@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: calendar-planner-cn
 description: "日程规划工具。周计划、月计划、时间块、会议安排、截止日期管理、工作生活平衡。Calendar planner with weekly, monthly, time-blocking, meeting scheduling, deadline management, and work-life balance. Use when you need calendar planner cn capabilities. Triggers on: calendar planner cn."
+author: BytesAgain
 ---
 # calendar-planner-cn
 
