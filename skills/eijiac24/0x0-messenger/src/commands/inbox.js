@@ -51,7 +51,7 @@ export async function cmdInbox({ json = false } = {}) {
     const count = msgs.length
 
     const label = (pin.label || '').padEnd(14)
-    const preview = latest
+    const preview = latest?.content
       ? latest.content.slice(0, 38) + (latest.content.length > 38 ? '…' : '')
       : chalk.gray('(no messages)')
     const time = latest ? formatTime(latest.timestamp) : ''

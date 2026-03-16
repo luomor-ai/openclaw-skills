@@ -17,6 +17,10 @@ import {
   cmdContactAdd, cmdContactList, cmdContactLabel, cmdContactRemove
 } from '../src/commands/contact.js'
 import { cmdQr } from '../src/commands/qr.js'
+import { cmdBackup, cmdRestore } from '../src/commands/backup.js'
+import { cmdRequests } from '../src/commands/requests.js'
+import { cmdApprove } from '../src/commands/approve.js'
+import { cmdQueue } from '../src/commands/queue.js'
 
 program
   .name('0x0')
@@ -47,7 +51,8 @@ pin
   .option('-l, --label <label>', 'label for this PIN')
   .option('-e, --expires <duration>', 'expiry duration (e.g. 24h, 7d, 1w)')
   .option('--once', 'expire after receiving one message')
-  .action((opts) => cmdPinNew(opts))
+  .option('--public', 'public PIN for requests (SNS / business card)')
+  .action((opts) => cmdPinNew({ ...opts, lobby: !!opts.public }))
 
 pin
   .command('list')
@@ -107,7 +112,8 @@ program
   .description('start browser UI (localhost)')
   .option('-p, --port <port>', 'port number', '3000')
   .option('--no-open', 'do not open browser automatically')
-  .action((opts) => cmdWeb({ port: parseInt(opts.port), noOpen: !opts.open }))
+  .option('--lan', 'expose to local network (mobile access)')
+  .action((opts) => cmdWeb({ port: parseInt(opts.port), noOpen: !opts.open, lan: !!opts.lan }))
 
 // contact subcommands
 const contact = program.command('contact').description('manage contacts')
@@ -137,5 +143,30 @@ program
   .command('qr <pin>')
   .description('show QR code for a PIN (share to let others connect)')
   .action(cmdQr)
+
+program
+  .command('requests')
+  .description('show pending requests from your public PINs')
+  .action(cmdRequests)
+
+program
+  .command('approve <shortKey> <message>')
+  .description('approve a request by replying (creates a dedicated PIN automatically)')
+  .action(cmdApprove)
+
+program
+  .command('queue')
+  .description('show pending offline messages (TTL: 72h)')
+  .action(cmdQueue)
+
+program
+  .command('backup')
+  .description('show 12-word seed phrase for your number')
+  .action(cmdBackup)
+
+program
+  .command('restore <words...>')
+  .description('restore number from 12-word seed phrase')
+  .action((w) => cmdRestore(w.join(' ')))
 
 program.parse()

@@ -17,6 +17,7 @@ import {
   cmdContactAdd, cmdContactList, cmdContactLabel, cmdContactRemove
 } from '../src/commands/contact.js'
 import { cmdQr } from '../src/commands/qr.js'
+import { cmdBackup, cmdRestore } from '../src/commands/backup.js'
 import { cmdRequests } from '../src/commands/requests.js'
 import { cmdApprove } from '../src/commands/approve.js'
 import { cmdQueue } from '../src/commands/queue.js'
@@ -157,5 +158,15 @@ program
   .command('queue')
   .description('show pending offline messages (TTL: 72h)')
   .action(cmdQueue)
+
+program
+  .command('backup')
+  .description('show 12-word seed phrase for your number')
+  .action(cmdBackup)
+
+program
+  .command('restore <words...>')
+  .description('restore number from 12-word seed phrase')
+  .action((w) => cmdRestore(w.join(' ')))
 
 program.parse()

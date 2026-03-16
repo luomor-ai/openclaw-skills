@@ -30,13 +30,13 @@ export async function cmdPipe(theirNumber, pin) {
   const topic = channelSecret(theirNumber, pin)
   let activeConn = null
 
-  log(`// connecting to ${theirNumber} via pin ${pin}...`)
+  log(`// connecting to ${theirNumber}...`)
 
   swarm.join(topic, { server: true, client: true })
 
   swarm.on('connection', (conn) => {
     activeConn = conn
-    emit({ type: 'connected', peer: theirNumber, pin })
+    emit({ type: 'connected', peer: theirNumber })
 
     conn.on('error', () => {})
     conn.on('data', (data) => {

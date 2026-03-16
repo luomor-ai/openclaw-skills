@@ -11,6 +11,7 @@ import * as contactsStore from '../storage/contacts.js'
 import * as queueStore from '../storage/queue.js'
 
 const WORKERS_URL = 'https://0x0-notification.tiidatech.workers.dev'
+const NOTIFY_KEY = '0x0-nfy-v1-c8f3a1b9'
 const NUMBER_RE = /^0x0-\d{3}-\d{4}-\d{4}$/
 const PIN_RE = /^[0-9a-f]{4,16}$/
 
@@ -212,7 +213,7 @@ export function createApiHandler(ws) {
         if (!notifyIdentity) break
         await fetch(`${WORKERS_URL}/register`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-0x0-Key': NOTIFY_KEY },
           body: JSON.stringify({ number: notifyIdentity.number, token, platform: safePlatform })
         }).catch(() => {})
         sendEvent('notify.registered', {})
@@ -224,7 +225,7 @@ export function createApiHandler(ws) {
         if (!unregIdentity) break
         await fetch(`${WORKERS_URL}/register`, {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-0x0-Key': NOTIFY_KEY },
           body: JSON.stringify({ number: unregIdentity.number })
         }).catch(() => {})
         sendEvent('notify.unregistered', {})
@@ -279,7 +280,7 @@ export function createApiHandler(ws) {
         // 相手に通知を送る（バックグラウンド、失敗は無視）
         fetch(`${WORKERS_URL}/notify`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', 'X-0x0-Key': NOTIFY_KEY },
           body: JSON.stringify({ recipientNumber: contact.theirNumber })
         }).catch(() => {})
         break

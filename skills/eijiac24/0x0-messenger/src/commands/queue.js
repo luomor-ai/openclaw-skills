@@ -20,7 +20,7 @@ export function cmdQueue() {
       : `pin:${item.pinId?.slice(0, 8)}…`
 
     console.log(chalk.white(`  → ${dest}`))
-    console.log(chalk.gray(`     ${item.content.slice(0, 60)}${item.content.length > 60 ? '…' : ''}`))
+    console.log(chalk.gray(`     ${(item.content || '').slice(0, 60)}${(item.content || '').length > 60 ? '…' : ''}`))
     console.log(chalk.gray(`     ${time}  // TTL: ${ttlHours}h remaining`))
     console.log()
   }

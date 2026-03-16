@@ -32,7 +32,10 @@ export async function cmdSend(theirNumber, pin, content) {
     spinner.stop()
     conn.on('error', () => {})
 
-    conn.write(createMessage(content))
+    // write が完全にフラッシュされてから destroy する
+    await new Promise((resolve) => {
+      conn.write(createMessage(content), resolve)
+    })
 
     // ローカルPINがあればメッセージを保存
     const localPin = pinsStore.findByValue(pin)
@@ -46,6 +49,8 @@ export async function cmdSend(theirNumber, pin, content) {
 
     console.log(chalk.gray('[sent]'))
     sent = true
+    // データ送信後、接続が相手に届くのを少し待つ
+    await new Promise((r) => setTimeout(r, 500))
     await swarm.destroy()
     process.exit(0)
   })
