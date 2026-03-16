@@ -1,6 +1,6 @@
 ---
 name: bailian-studio
-description: Call Aliyun Bailian via DashScope; OCR text extraction first.
+description: Call Aliyun Bailian via DashScope; OCR text extraction first + TTS speak.
 ---
 
 # Bailian Studio
@@ -12,6 +12,7 @@ First feature: OCR text extraction via DashScope.
 - Python 3
 - `dashscope` (>=1.22.2)
 - `oss2`
+- `ffmpeg` (TTS 播放依赖，使用 ffplay)
 
 Install:
 ```bash
@@ -31,6 +32,11 @@ pip install dashscope oss2
 Example `secrets/bailian.env`:
 ```env
 DASHSCOPE_API_KEY=sk-xxx
+# TTS 可选配置（留空走默认）
+BAILIAN_TTS_MODEL=qwen3-tts-flash
+BAILIAN_TTS_VOICE=
+BAILIAN_TTS_SAMPLE_RATE=16000
+
 OSS_ACCESS_KEY=ak-xxx
 OSS_SECRET_KEY=sk-xxx
 OSS_BUCKET=your-bucket
@@ -45,6 +51,12 @@ OSS_REGION=cn-beijing
 - `DASHSCOPE_BASE_URL`
 
 ## Usage
+
+### TTS (speak)
+
+```bash
+python3 {baseDir}/scripts/tts_speak.py --text "你好"
+```
 
 ### OCR (text)
 

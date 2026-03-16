@@ -41,6 +41,14 @@ def get_region_base_url(env_path: Optional[Path] = None) -> str:
     return _get_value("DASHSCOPE_BASE_URL", env_path) or DEFAULT_BASE_URL
 
 
+def get_tts_config(env_path: Optional[Path] = None) -> Dict[str, str]:
+    return {
+        "model": _get_value("BAILIAN_TTS_MODEL", env_path) or "qwen3-tts-flash",
+        "voice": _get_value("BAILIAN_TTS_VOICE", env_path),
+        "sample_rate": _get_value("BAILIAN_TTS_SAMPLE_RATE", env_path) or "16000",
+    }
+
+
 def get_oss_config(env_path: Optional[Path] = None) -> Dict[str, str]:
     cfg = {
         "access_key": _get_value("OSS_ACCESS_KEY", env_path),
