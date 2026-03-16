@@ -3,11 +3,16 @@
   "slug": "code-reviewer-cn",
   "displayName": "Code Reviewer Cn",
   "latest": {
-    "version": "2.2.0",
-    "publishedAt": 1773421050900,
-    "commit": "https://github.com/openclaw/skills/commit/0a38c6cc590c4463a93a9553f3d6c78ff0318899"
+    "version": "2.3.5",
+    "publishedAt": 1773665240599,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.2.0",
+      "publishedAt": 1773421050900,
+      "commit": "https://github.com/openclaw/skills/commit/0a38c6cc590c4463a93a9553f3d6c78ff0318899"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773170251161,
