@@ -3,9 +3,15 @@
   "slug": "pdd-shopping",
   "displayName": "PDD Shopping",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773270167985,
-    "commit": "https://github.com/openclaw/skills/commit/fe90fccb8c75c6eb31b5482b31b992aac57dcd40"
+    "version": "1.1.1",
+    "publishedAt": 1773560168687,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773270167985,
+      "commit": "https://github.com/openclaw/skills/commit/fe90fccb8c75c6eb31b5482b31b992aac57dcd40"
+    }
+  ]
 }

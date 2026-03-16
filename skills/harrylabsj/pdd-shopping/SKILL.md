@@ -1,9 +1,9 @@
 ---
 name: PDD Shopping
 slug: pdd-shopping
-version: 1.1.0
+version: 1.1.1
 homepage: https://clawic.com/skills/pdd
-description: Navigate Pinduoduo (拼多多) with smart group buying strategies, seller vetting, and bargain hunting techniques.
+description: Navigate Pinduoduo (拼多多) with smart group buying strategies, seller vetting, bargain hunting techniques, and browser-based subsidy/detail checks.
 metadata:
   clawdbot:
     emoji: "🛒"
@@ -23,6 +23,22 @@ User wants to shop on Pinduoduo (拼多多). Agent helps with group buying strat
 | Group buying guide | `groupbuy.md` |
 | Seller vetting | `sellers.md` |
 | Quality assessment | `quality.md` |
+
+## Browser Workflow Upgrade
+
+When the user needs live PDD page validation, follow the shared **browser-commerce-base** workflow:
+- public browsing → `openclaw`
+- logged-in assets such as cart/orders/coupons → `user` only when necessary
+- re-snapshot after subsidy overlays, 拼团 panels, or SKU switches
+- capture service badges and compensation promises in screenshots
+
+Key browser extraction order on PDD:
+- 标题
+- 当前价 / 百亿补贴价 / 拼团价
+- 店铺类型
+- 服务保障（假一赔十 / 退货包运费 / 品质险）
+- 拼团门槛
+- 发货承诺与评价风险
 
 ## Core Rules
 
