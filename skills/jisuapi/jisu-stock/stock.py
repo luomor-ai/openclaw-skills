@@ -8,15 +8,14 @@ https://www.jisuapi.com/api/stock/
 import sys
 import json
 import os
+from typing import Any, Dict
 import requests
 
 
 BASE_URL = "https://api.jisuapi.com/stock"
 
 
-def _call_stock_api(path: str, appkey: str, params: dict | None = None):
-    if params is None:
-        params = {}
+def _call_stock_api(path: str, appkey: str, params: Dict[str, Any]):
     all_params = {"appkey": appkey}
     all_params.update({k: v for k, v in params.items() if v not in (None, "")})
 

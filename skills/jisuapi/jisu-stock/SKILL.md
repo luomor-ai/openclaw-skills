@@ -26,7 +26,7 @@ $env:JISU_API_KEY="your_appkey_here"
 
 ## 脚本路径
 
-脚本文件：`skill/stock/stock.py`
+脚本文件：`skills/stock/stock.py`
 
 ## 使用方式
 
@@ -35,7 +35,7 @@ $env:JISU_API_KEY="your_appkey_here"
 根据股票代码查询当日行情，返回名称、代码、最新价、昨收盘价、数据量、更新时间及按分钟维度的趋势数组（时间、价格、成交量、成交总额、平均价）。
 
 ```bash
-python3 skill/stock/stock.py query '{"code":"300917"}'
+python3 skills/stock/stock.py query '{"code":"300917"}'
 ```
 
 请求 JSON：
@@ -55,7 +55,7 @@ python3 skill/stock/stock.py query '{"code":"300917"}'
 按分类分页获取股票列表。分类：1 沪深股市，3 港股，4 北证A股。
 
 ```bash
-python3 skill/stock/stock.py list '{"classid":1,"pagenum":1,"pagesize":10}'
+python3 skills/stock/stock.py list '{"classid":1,"pagenum":1,"pagesize":10}'
 ```
 
 请求 JSON：
@@ -79,7 +79,7 @@ python3 skill/stock/stock.py list '{"classid":1,"pagenum":1,"pagesize":10}'
 根据股票代码获取单只股票详情：最新价、最高/最低价、成交量、成交额、换手率、开盘价、昨收盘价、涨跌幅、涨跌额、振幅、量比、市盈率、市净率、更新时间等。
 
 ```bash
-python3 skill/stock/stock.py detail '{"code":"300917"}'
+python3 skills/stock/stock.py detail '{"code":"300917"}'
 ```
 
 请求 JSON：
@@ -191,5 +191,5 @@ python3 skill/stock/stock.py detail '{"code":"300917"}'
 ## 在 OpenClaw 中的推荐用法
 
 1. 用户提问：「300917 这只股票今天行情怎么样？」  
-2. 代理可先调用：`python3 skill/stock/stock.py detail '{"code":"300917"}'` 获取最新价、涨跌幅、成交量等摘要；若需要当日分钟级走势，再调用 `python3 skill/stock/stock.py query '{"code":"300917"}'`。  
-3. 用户问「沪深股市有哪些股票」或「给我看一页港股列表」时，可调用：`python3 skill/stock/stock.py list '{"classid":1,"pagenum":1,"pagesize":20}'` 或 `classid: 3` 获取列表，再结合用户问题选取并展示名称、代码等信息。
+2. 代理可先调用：`python3 skills/stock/stock.py detail '{"code":"300917"}'` 获取最新价、涨跌幅、成交量等摘要；若需要当日分钟级走势，再调用 `python3 skills/stock/stock.py query '{"code":"300917"}'`。  
+3. 用户问「沪深股市有哪些股票」或「给我看一页港股列表」时，可调用：`python3 skills/stock/stock.py list '{"classid":1,"pagenum":1,"pagesize":20}'` 或 `classid: 3` 获取列表，再结合用户问题选取并展示名称、代码等信息。
