@@ -1,6 +1,8 @@
 ---
+version: "2.0.0"
 name: dockerfile-builder
 description: "Unknown option: help. Use when you need dockerfile builder capabilities. Triggers on: dockerfile builder, lang, app-name, port, multi-stage, dockerignore."
+author: BytesAgain
 ---
 
 # dockerfile-builder
