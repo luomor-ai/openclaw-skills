@@ -3,11 +3,16 @@
   "slug": "deploy-public",
   "displayName": "Deploy Public",
   "latest": {
-    "version": "1.9.38",
-    "publishedAt": 1773698168525,
-    "commit": "https://github.com/openclaw/skills/commit/9a9a76a80d3015df3da4f0ca4916561d793aa8bd"
+    "version": "1.9.43",
+    "publishedAt": 1773758921352,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.9.38",
+      "publishedAt": 1773698168525,
+      "commit": "https://github.com/openclaw/skills/commit/9a9a76a80d3015df3da4f0ca4916561d793aa8bd"
+    },
     {
       "version": "1.9.36",
       "publishedAt": 1773685262467,
