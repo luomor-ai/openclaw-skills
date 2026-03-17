@@ -3,9 +3,15 @@
   "slug": "youtube-comment",
   "displayName": "YouTube Comment",
   "latest": {
-    "version": "0.10.6-3",
-    "publishedAt": 1773327881434,
-    "commit": "https://github.com/openclaw/skills/commit/72b152426ec89554c0ad0d2c760a96a1346d252e"
+    "version": "0.10.7-dev",
+    "publishedAt": 1773496832798,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.10.6-3",
+      "publishedAt": 1773327881434,
+      "commit": "https://github.com/openclaw/skills/commit/72b152426ec89554c0ad0d2c760a96a1346d252e"
+    }
+  ]
 }
