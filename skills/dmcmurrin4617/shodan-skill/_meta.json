@@ -1,0 +1,11 @@
+{
+  "owner": "dmcmurrin4617",
+  "slug": "shodan-skill",
+  "displayName": "Shodan Skill",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773470186354,
+    "commit": null
+  },
+  "history": []
+}
