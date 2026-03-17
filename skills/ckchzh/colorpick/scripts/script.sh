@@ -1,34 +1,332 @@
-#!/bin/bash
-cmd_hex2rgb() { local hex="$1"; [ -z "$hex" ] && { echo "Usage: colorpick hex2rgb <#hex>"; return 1; }
-    python3 -c "
-h='$hex'.lstrip('#')
-r,g,b=int(h[0:2],16),int(h[2:4],16),int(h[4:6],16)
-print('#{} → rgb({},{},{})'.format(h,r,g,b))
-print('\033[48;2;{};{};{}m     \033[0m'.format(r,g,b))
-"; }
-cmd_rgb2hex() { local r="$1" g="$2" b="$3"
-    [ -z "$r" ] || [ -z "$g" ] || [ -z "$b" ] && { echo "Usage: colorpick rgb2hex <r> <g> <b>"; return 1; }
-    python3 -c "print('rgb({},{},{}) → #{:02x}{:02x}{:02x}'.format(int('$r'),int('$g'),int('$b'),int('$r'),int('$g'),int('$b')))"; }
-cmd_palette() { local base="$1"; [ -z "$base" ] && { echo "Usage: colorpick palette <#hex>"; return 1; }
-    python3 -c "
-h='$base'.lstrip('#')
-r,g,b=int(h[0:2],16),int(h[2:4],16),int(h[4:6],16)
-print('Color palette for #{}'.format(h))
-for factor in [0.2,0.4,0.6,0.8,1.0]:
- nr,ng,nb=int(r*factor),int(g*factor),int(b*factor)
- print('  \033[48;2;{};{};{}m   \033[0m #{:02x}{:02x}{:02x} ({:.0f}%)'.format(nr,ng,nb,nr,ng,nb,factor*100))
-for factor in [0.2,0.4,0.6,0.8]:
- nr=min(255,r+int((255-r)*factor))
- ng=min(255,g+int((255-g)*factor))
- nb=min(255,b+int((255-b)*factor))
- print('  \033[48;2;{};{};{}m   \033[0m #{:02x}{:02x}{:02x} (light {:.0f}%)'.format(nr,ng,nb,nr,ng,nb,factor*100))
-"; }
-cmd_random() { local n="${1:-5}"; python3 -c "
-import random
-for _ in range(int('$n')):
- r,g,b=random.randint(0,255),random.randint(0,255),random.randint(0,255)
- print('\033[48;2;{};{};{}m   \033[0m #{:02x}{:02x}{:02x} rgb({},{},{})'.format(r,g,b,r,g,b,r,g,b))
-"; }
-cmd_help() { echo "ColorPick - Color Converter & Palette"; echo "Commands: hex2rgb <hex> | rgb2hex <r> <g> <b> | palette <hex> | random [n] | help"; }
-cmd_info() { echo "ColorPick v1.0.0 | Powered by BytesAgain"; }
-case "$1" in hex2rgb) shift; cmd_hex2rgb "$@";; rgb2hex) shift; cmd_rgb2hex "$@";; palette) shift; cmd_palette "$@";; random) shift; cmd_random "$@";; info) cmd_info;; help|"") cmd_help;; *) cmd_help; exit 1;; esac
+#!/usr/bin/env bash
+# Colorpick — design tool
+# Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
+set -euo pipefail
+
+DATA_DIR="${HOME}/.local/share/colorpick"
+mkdir -p "$DATA_DIR"
+
+_log() { echo "$(date '+%m-%d %H:%M') $1: $2" >> "$DATA_DIR/history.log"; }
+
+_version() { echo "colorpick v2.0.0"; }
+
+_help() {
+    echo "Colorpick v2.0.0 — design toolkit"
+    echo ""
+    echo "Usage: colorpick <command> [args]"
+    echo ""
+    echo "Commands:"
+    echo "  palette            Palette"
+    echo "  preview            Preview"
+    echo "  generate           Generate"
+    echo "  convert            Convert"
+    echo "  harmonize          Harmonize"
+    echo "  contrast           Contrast"
+    echo "  export             Export"
+    echo "  random             Random"
+    echo "  browse             Browse"
+    echo "  mix                Mix"
+    echo "  gradient           Gradient"
+    echo "  swatch             Swatch"
+    echo "  stats              Summary statistics"
+    echo "  export <fmt>       Export (json|csv|txt)"
+    echo "  status             Health check"
+    echo "  help               Show this help"
+    echo "  version            Show version"
+    echo ""
+    echo "Data: $DATA_DIR"
+}
+
+_stats() {
+    echo "=== Colorpick Stats ==="
+    local total=0
+    for f in "$DATA_DIR"/*.log; do
+        [ -f "$f" ] || continue
+        local name=$(basename "$f" .log)
+        local c=$(wc -l < "$f")
+        total=$((total + c))
+        echo "  $name: $c entries"
+    done
+    echo "  ---"
+    echo "  Total: $total entries"
+    echo "  Data size: $(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)"
+    echo "  Since: $(head -1 "$DATA_DIR/history.log" 2>/dev/null | cut -d'|' -f1 || echo 'N/A')"
+}
+
+_export() {
+    local fmt="${1:-json}"
+    local out="$DATA_DIR/export.$fmt"
+    case "$fmt" in
+        json)
+            echo "[" > "$out"
+            local first=1
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                local name=$(basename "$f" .log)
+                while IFS='|' read -r ts val; do
+                    [ $first -eq 1 ] && first=0 || echo "," >> "$out"
+                    printf '  {"type":"%s","time":"%s","value":"%s"}' "$name" "$ts" "$val" >> "$out"
+                done < "$f"
+            done
+            echo "" >> "$out"
+            echo "]" >> "$out"
+            ;;
+        csv)
+            echo "type,time,value" > "$out"
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                local name=$(basename "$f" .log)
+                while IFS='|' read -r ts val; do
+                    echo "$name,$ts,$val" >> "$out"
+                done < "$f"
+            done
+            ;;
+        txt)
+            echo "=== Colorpick Export ===" > "$out"
+            for f in "$DATA_DIR"/*.log; do
+                [ -f "$f" ] || continue
+                echo "--- $(basename "$f" .log) ---" >> "$out"
+                cat "$f" >> "$out"
+                echo "" >> "$out"
+            done
+            ;;
+        *) echo "Formats: json, csv, txt"; return 1 ;;
+    esac
+    echo "Exported to $out ($(wc -c < "$out") bytes)"
+}
+
+_status() {
+    echo "=== Colorpick Status ==="
+    echo "  Version: v2.0.0"
+    echo "  Data dir: $DATA_DIR"
+    echo "  Entries: $(cat "$DATA_DIR"/*.log 2>/dev/null | wc -l) total"
+    echo "  Disk: $(du -sh "$DATA_DIR" 2>/dev/null | cut -f1)"
+    local last=$(tail -1 "$DATA_DIR/history.log" 2>/dev/null || echo "never")
+    echo "  Last activity: $last"
+    echo "  Status: OK"
+}
+
+_search() {
+    local term="${1:?Usage: colorpick search <term>}"
+    echo "Searching for: $term"
+    local found=0
+    for f in "$DATA_DIR"/*.log; do
+        [ -f "$f" ] || continue
+        local matches=$(grep -i "$term" "$f" 2>/dev/null || true)
+        if [ -n "$matches" ]; then
+            echo "  --- $(basename "$f" .log) ---"
+            echo "$matches" | while read -r line; do
+                echo "    $line"
+                found=$((found + 1))
+            done
+        fi
+    done
+    [ $found -eq 0 ] && echo "  No matches found."
+}
+
+_recent() {
+    echo "=== Recent Activity ==="
+    if [ -f "$DATA_DIR/history.log" ]; then
+        tail -20 "$DATA_DIR/history.log" | while IFS='' read -r line; do
+            echo "  $line"
+        done
+    else
+        echo "  No activity yet."
+    fi
+}
+
+# Main dispatch
+case "${1:-help}" in
+    palette)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent palette entries:"
+            tail -20 "$DATA_DIR/palette.log" 2>/dev/null || echo "  No entries yet. Use: colorpick palette <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/palette.log"
+            local total=$(wc -l < "$DATA_DIR/palette.log")
+            echo "  [Colorpick] palette: $input"
+            echo "  Saved. Total palette entries: $total"
+            _log "palette" "$input"
+        fi
+        ;;
+    preview)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent preview entries:"
+            tail -20 "$DATA_DIR/preview.log" 2>/dev/null || echo "  No entries yet. Use: colorpick preview <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/preview.log"
+            local total=$(wc -l < "$DATA_DIR/preview.log")
+            echo "  [Colorpick] preview: $input"
+            echo "  Saved. Total preview entries: $total"
+            _log "preview" "$input"
+        fi
+        ;;
+    generate)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent generate entries:"
+            tail -20 "$DATA_DIR/generate.log" 2>/dev/null || echo "  No entries yet. Use: colorpick generate <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/generate.log"
+            local total=$(wc -l < "$DATA_DIR/generate.log")
+            echo "  [Colorpick] generate: $input"
+            echo "  Saved. Total generate entries: $total"
+            _log "generate" "$input"
+        fi
+        ;;
+    convert)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent convert entries:"
+            tail -20 "$DATA_DIR/convert.log" 2>/dev/null || echo "  No entries yet. Use: colorpick convert <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/convert.log"
+            local total=$(wc -l < "$DATA_DIR/convert.log")
+            echo "  [Colorpick] convert: $input"
+            echo "  Saved. Total convert entries: $total"
+            _log "convert" "$input"
+        fi
+        ;;
+    harmonize)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent harmonize entries:"
+            tail -20 "$DATA_DIR/harmonize.log" 2>/dev/null || echo "  No entries yet. Use: colorpick harmonize <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/harmonize.log"
+            local total=$(wc -l < "$DATA_DIR/harmonize.log")
+            echo "  [Colorpick] harmonize: $input"
+            echo "  Saved. Total harmonize entries: $total"
+            _log "harmonize" "$input"
+        fi
+        ;;
+    contrast)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent contrast entries:"
+            tail -20 "$DATA_DIR/contrast.log" 2>/dev/null || echo "  No entries yet. Use: colorpick contrast <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/contrast.log"
+            local total=$(wc -l < "$DATA_DIR/contrast.log")
+            echo "  [Colorpick] contrast: $input"
+            echo "  Saved. Total contrast entries: $total"
+            _log "contrast" "$input"
+        fi
+        ;;
+    export)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent export entries:"
+            tail -20 "$DATA_DIR/export.log" 2>/dev/null || echo "  No entries yet. Use: colorpick export <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/export.log"
+            local total=$(wc -l < "$DATA_DIR/export.log")
+            echo "  [Colorpick] export: $input"
+            echo "  Saved. Total export entries: $total"
+            _log "export" "$input"
+        fi
+        ;;
+    random)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent random entries:"
+            tail -20 "$DATA_DIR/random.log" 2>/dev/null || echo "  No entries yet. Use: colorpick random <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/random.log"
+            local total=$(wc -l < "$DATA_DIR/random.log")
+            echo "  [Colorpick] random: $input"
+            echo "  Saved. Total random entries: $total"
+            _log "random" "$input"
+        fi
+        ;;
+    browse)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent browse entries:"
+            tail -20 "$DATA_DIR/browse.log" 2>/dev/null || echo "  No entries yet. Use: colorpick browse <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/browse.log"
+            local total=$(wc -l < "$DATA_DIR/browse.log")
+            echo "  [Colorpick] browse: $input"
+            echo "  Saved. Total browse entries: $total"
+            _log "browse" "$input"
+        fi
+        ;;
+    mix)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent mix entries:"
+            tail -20 "$DATA_DIR/mix.log" 2>/dev/null || echo "  No entries yet. Use: colorpick mix <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/mix.log"
+            local total=$(wc -l < "$DATA_DIR/mix.log")
+            echo "  [Colorpick] mix: $input"
+            echo "  Saved. Total mix entries: $total"
+            _log "mix" "$input"
+        fi
+        ;;
+    gradient)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent gradient entries:"
+            tail -20 "$DATA_DIR/gradient.log" 2>/dev/null || echo "  No entries yet. Use: colorpick gradient <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/gradient.log"
+            local total=$(wc -l < "$DATA_DIR/gradient.log")
+            echo "  [Colorpick] gradient: $input"
+            echo "  Saved. Total gradient entries: $total"
+            _log "gradient" "$input"
+        fi
+        ;;
+    swatch)
+        shift
+        if [ $# -eq 0 ]; then
+            echo "Recent swatch entries:"
+            tail -20 "$DATA_DIR/swatch.log" 2>/dev/null || echo "  No entries yet. Use: colorpick swatch <input>"
+        else
+            local input="$*"
+            local ts=$(date '+%Y-%m-%d %H:%M')
+            echo "$ts|$input" >> "$DATA_DIR/swatch.log"
+            local total=$(wc -l < "$DATA_DIR/swatch.log")
+            echo "  [Colorpick] swatch: $input"
+            echo "  Saved. Total swatch entries: $total"
+            _log "swatch" "$input"
+        fi
+        ;;
+    stats) _stats ;;
+    export) shift; _export "$@" ;;
+    search) shift; _search "$@" ;;
+    recent) _recent ;;
+    status) _status ;;
+    help|--help|-h) _help ;;
+    version|--version|-v) _version ;;
+    *)
+        echo "Unknown command: $1"
+        echo "Run 'colorpick help' for available commands."
+        exit 1
+        ;;
+esac
