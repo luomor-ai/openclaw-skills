@@ -1,0 +1,11 @@
+{
+  "owner": "googleworkspace-bot",
+  "slug": "recipe-sync-contacts-to-sheet",
+  "displayName": "Recipe Sync Contacts To Sheet",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773569323311,
+    "commit": null
+  },
+  "history": []
+}
