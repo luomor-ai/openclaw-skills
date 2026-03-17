@@ -1,266 +1,266 @@
 ---
 name: joinquant
-description: JoinQuant Quantitative Trading Platform — Provides A-share, futures, and fund data queries with event-driven strategy backtesting, supporting online research and live trading.
-version: 1.0.0
+description: 聚宽量化交易平台 - 提供A股、期货、基金数据查询，事件驱动策略回测，支持在线研究与模拟实盘。
+version: 1.1.0
 homepage: https://www.joinquant.com
 metadata: {"clawdbot":{"emoji":"🔬","requires":{"bins":["python3"]}}}
 ---
 
-# JoinQuant (聚宽量化)
+# 聚宽量化（JoinQuant）
 
-[JoinQuant](https://www.joinquant.com) is a leading Chinese online quantitative trading platform offering free data queries, strategy backtesting, and paper trading. It supports A-shares, futures, funds, indices, and more, using an event-driven Python strategy framework.
+[聚宽](https://www.joinquant.com) 是中国领先的在线量化交易平台，提供免费数据查询、策略回测和模拟交易。支持A股、期货、基金、指数等品种，采用事件驱动的Python策略框架。
 
-> ⚠️ **Registration at https://www.joinquant.com is required**. Strategies run on JoinQuant's cloud, but you can also retrieve data locally via JQData.
+> ⚠️ **需要在 https://www.joinquant.com 注册账号**。策略运行在聚宽云端，也可以通过JQData在本地获取数据。
 
-## Installation (Local Data SDK)
+## 安装 (Local Data SDK)
 
 ```bash
 pip install jqdatasdk
 ```
 
-## Local Data Authentication
+## 本地数据认证
 
 ```python
 import jqdatasdk as jq
 
-# Log in with your JoinQuant account (free daily data quota)
+# 使用聚宽账号登录（每日免费数据额度）
 jq.auth('your_username', 'your_password')
 
-# Check remaining data quota
+# 查看剩余数据额度
 print(jq.get_query_count())
 ```
 
-## Strategy Program Structure (Online Backtesting)
+## 策略程序结构（在线回测）
 
-JoinQuant strategies use an event-driven architecture, written and run on the platform's web interface:
+聚宽策略采用事件驱动架构，在平台网页界面编写和运行：
 
 ```python
 def initialize(context):
-    """Initialization function — called once when the strategy starts"""
-    # Set benchmark index (CSI 300)
+    """初始化函数 — 策略启动时调用一次"""
+    # 设置基准指数（沪深300）
     set_benchmark('000300.XSHG')
-    # Set commission and slippage
+    # 设置手续费 and slippage
     set_order_cost(OrderCost(open_tax=0, close_tax=0.001,
                               open_commission=0.0003, close_commission=0.0003,
                               min_commission=5), type='stock')
     set_slippage(FixedSlippage(0.02))
-    # Set stock pool
+    # 设置股票池
     g.security = '000001.XSHE'
 
 def handle_data(context, data):
-    """Intraday event — triggered once per trading frequency"""
+    """盘中事件 — 每个交易频率触发一次"""
     security = g.security
-    # Get the last 20 days of closing prices
+    # 获取最近20天收盘价
     close_data = attribute_history(security, 20, '1d', ['close'])
     ma5 = close_data['close'][-5:].mean()
     ma20 = close_data['close'].mean()
 
-    # Golden cross — buy
+    # 金叉 — buy
     if ma5 > ma20:
         order_target_value(security, context.portfolio.total_value * 0.9)
-    # Death cross — sell
+    # 死叉 — sell
     elif ma5 < ma20:
         order_target(security, 0)
 ```
 
 ---
 
-## Stock Code Format
+## 股票代码格式
 
-| Market | Suffix | Example |
+| 市场 | 后缀 | 示例 |
 |---|---|---|
-| Shanghai A-shares | `.XSHG` | `600000.XSHG` (SPD Bank) |
-| Shenzhen A-shares | `.XSHE` | `000001.XSHE` (Ping An Bank) |
-| Indices | `.XSHG/.XSHE` | `000300.XSHG` (CSI 300) |
-| Futures | `.XDCE/.XZCE/.XSGE/.CCFX` | `IF2401.CCFX` (Stock Index Futures) |
-| Funds | `.XSHG/.XSHE` | `510300.XSHG` (CSI 300 ETF) |
+| 上海A股 | `.XSHG` | `600000.XSHG`（浦发银行） |
+| 深圳A股 | `.XSHE` | `000001.XSHE`（平安银行） |
+| 指数 | `.XSHG/.XSHE` | `000300.XSHG`（沪深300） |
+| 期货 | `.XDCE/.XZCE/.XSGE/.CCFX` | `IF2401.CCFX`（股指期货） |
+| 基金 | `.XSHG/.XSHE` | `510300.XSHG`（沪深300ETF） |
 
 ---
 
-## Data Query Functions (JQData)
+## 数据查询函数（JQData）
 
-### Market Data
+### 行情数据
 
 ```python
 import jqdatasdk as jq
 
-# Get daily candlestick data
+# 获取日K线数据
 df = jq.get_price(
-    '000001.XSHE',              # Stock code
-    start_date='2024-01-01',    # Start date
-    end_date='2024-06-30',      # End date
-    frequency='daily',          # Frequency: daily, minute, 1m, 5m, 15m, 30m, 60m, 120m
+    '000001.XSHE',              # 股票代码
+    start_date='2024-01-01',    # 开始日期
+    end_date='2024-06-30',      # 结束日期
+    frequency='daily',          # 频率: daily(日), minute(分钟), 1m, 5m, 15m, 30m, 60m, 120m
     fields=['open', 'close', 'high', 'low', 'volume', 'money'],
-    skip_paused=True,           # Skip suspended trading days
-    fq='pre',                   # Adjustment: None (unadjusted), 'pre' (forward-adjusted), 'post' (backward-adjusted)
-    panel=False                 # False returns DataFrame
+    skip_paused=True,           # 跳过停牌日
+    fq='pre',                   # 复权: None(不复权), 'pre'(前复权), 'post'(后复权)
+    panel=False                 # False返回DataFrame
 )
 
-# Get data for multiple stocks
+# 获取多只股票数据
 df = jq.get_price(['000001.XSHE', '600000.XSHG'],
                    start_date='2024-01-01', end_date='2024-06-30',
                    frequency='daily', fields=['close'], panel=False)
 
-# Get minute-level data
+# 获取分钟级数据
 df = jq.get_price('000001.XSHE', start_date='2024-06-01 09:30:00',
                    end_date='2024-06-01 15:00:00', frequency='1m')
 ```
 
-### Get Last N Data Points
+### 获取最近N条数据
 
 ```python
-# Get closing prices for the last 20 trading days
+# 获取最近20个交易日的收盘价
 df = jq.get_bars('000001.XSHE', count=20, unit='1d', fields=['close', 'volume'])
 ```
 
 
-### Financial Data
+### 财务数据
 
 ```python
-# Query financial indicators
+# 查询财务指标
 df = jq.get_fundamentals(
     jq.query(
         jq.valuation.code,
-        jq.valuation.market_cap,          # Total market cap (100M CNY)
-        jq.valuation.pe_ratio,            # Price-to-earnings ratio
-        jq.valuation.pb_ratio,            # Price-to-book ratio
-        jq.valuation.turnover_ratio,      # Turnover rate
-        jq.indicator.roe,                 # Return on equity (ROE)
-        jq.indicator.eps,                 # Earnings per share
-        jq.indicator.revenue,             # Revenue
-        jq.indicator.net_profit,          # Net profit
+        jq.valuation.market_cap,          # 总市值（亿元）
+        jq.valuation.pe_ratio,            # 市盈率
+        jq.valuation.pb_ratio,            # 市净率
+        jq.valuation.turnover_ratio,      # 换手率
+        jq.indicator.roe,                 # 净资产收益率（ROE）
+        jq.indicator.eps,                 # 每股收益
+        jq.indicator.revenue,             # 营业收入
+        jq.indicator.net_profit,          # 净利润
     ).filter(
-        jq.valuation.pe_ratio > 0,        # Filter out loss-making stocks
-        jq.valuation.pe_ratio < 30,       # PE less than 30
-        jq.valuation.market_cap > 100     # Market cap greater than 10B CNY
+        jq.valuation.pe_ratio > 0,        # 排除亏损股
+        jq.valuation.pe_ratio < 30,       # PE小于30
+        jq.valuation.market_cap > 100     # 市值大于100亿元
     ).order_by(
-        jq.valuation.market_cap.desc()    # Sort by market cap descending
-    ).limit(50),                          # Take top 50
+        jq.valuation.market_cap.desc()    # 按市值降序排列
+    ).limit(50),                          # 取前50
     date='2024-06-30'
 )
 print(df)
 ```
 
-### Index Constituents
+### 指数成分股
 
 ```python
-# Get CSI 300 constituents
+# 获取沪深300成分股
 stocks = jq.get_index_stocks('000300.XSHG')
-print(f'CSI 300 has {len(stocks)} constituent stocks')
+print(f'沪深300共 {len(stocks)} 只成分股')
 
-# Get industry constituents
-stocks = jq.get_industry_stocks('I64')  # Banking
+# 获取行业成分股
+stocks = jq.get_industry_stocks('I64')  # 银行业
 ```
 
-### Industry Classification
+### 行业分类
 
 ```python
-# Get the industry a stock belongs to
+# 获取股票所属行业
 industry = jq.get_industry('000001.XSHE')
 print(industry)
 
-# Get Shenwan Level-1 industry list
+# 获取申万一级行业列表
 industries = jq.get_industries(name='sw_l1')
 print(industries)
 ```
 
-### Trading Calendar
+### 交易日历
 
 ```python
-# Get list of trading days
+# 获取交易日列表
 days = jq.get_trade_days(start_date='2024-01-01', end_date='2024-06-30')
 
-# Get all trading days
+# 获取全部交易日
 all_days = jq.get_all_trade_days()
 ```
 
-### Stock Basic Information
+### 股票基本信息
 
 ```python
-# Get all A-share listings
+# 获取全部A股上市公司
 stocks = jq.get_all_securities(types=['stock'], date='2024-06-30')
-print(f'Total A-shares: {len(stocks)}')
+print(f'A股总数: {len(stocks)}')
 
-# Get info for a single stock
+# 获取单只股票信息
 info = jq.get_security_info('000001.XSHE')
-print(f'Name: {info.display_name}, Listing date: {info.start_date}')
+print(f'名称: {info.display_name}, 上市日期: {info.start_date}')
 
-# Get ST stocks
+# 获取ST股票
 st_stocks = jq.get_extras('is_st', ['000001.XSHE'], start_date='2024-01-01', end_date='2024-06-30')
 ```
 
-### Top Trader (Dragon & Tiger) List Data
+### 龙虎榜数据
 
 ```python
-# Get Dragon & Tiger list data
+# 获取龙虎榜数据
 df = jq.get_billboard_list(stock_list=None, start_date='2024-06-01', end_date='2024-06-30')
 print(df.head())
 ```
 
-### Margin Trading Data
+### 融资融券数据
 
 ```python
-# Get margin trading summary data
+# 获取融资融券汇总数据
 df = jq.get_mtss('000001.XSHE', start_date='2024-01-01', end_date='2024-06-30')
 print(df.head())
 ```
 
 ---
 
-## Trading Functions (Online Strategy)
+## 交易函数（在线策略）
 
-### Order by Quantity
+### 按数量下单
 
 ```python
-# Buy 100 shares
+# 买入100股
 order('000001.XSHE', 100)
 
-# Sell 200 shares
+# 卖出200股
 order('000001.XSHE', -200)
 
-# Limit price buy
+# 限价买入
 order('000001.XSHE', 100, LimitOrderStyle(11.50))
 
-# Market price buy
+# 市价买入
 order('000001.XSHE', 100, MarketOrderStyle())
 ```
 
-### Rebalance to Target
+### 调仓到目标
 
 ```python
-# Rebalance to target quantity
+# 调仓到目标数量
 order_target('000001.XSHE', 1000)     # Adjust to hold 1000 shares
 order_target('000001.XSHE', 0)        # Liquidate position
 
-# Rebalance to target value
+# 调仓到目标金额
 order_target_value('000001.XSHE', 100000)  # Adjust to 100,000 CNY market value
 
-# Rebalance to target percentage (of total assets)
+# 调仓到目标比例（占总资产）
 order_target_percent('000001.XSHE', 0.3)   # Adjust to 30% of total assets
 ```
 
-### Cancel Order
+### 撤单
 
 ```python
-# Get unfilled orders
+# 获取未成交订单
 open_orders = get_open_orders()
-# Cancel a specific order
+# 撤销指定订单
 cancel_order(order_id)
 ```
 
 
 ---
 
-## Account & Position Queries
+## 账户与持仓查询
 
 ```python
 def handle_data(context, data):
-    # Account information
-    cash = context.portfolio.available_cash       # Available cash
-    total = context.portfolio.total_value          # Total assets
-    positions_value = context.portfolio.positions_value  # Position market value
+    # 账户信息rmation
+    cash = context.portfolio.available_cash       # 可用资金
+    total = context.portfolio.total_value          # 总资产
+    positions_value = context.portfolio.positions_value  # 持仓市值
 
-    # Query positions
+    # 查询持仓
     for stock, pos in context.portfolio.positions.items():
         print(f'{stock}: Quantity={pos.total_amount}, '
               f'Sellable={pos.closeable_amount}, '
@@ -271,19 +271,19 @@ def handle_data(context, data):
 
 ---
 
-## Scheduled Tasks
+## 定时任务
 
 ```python
 def initialize(context):
-    # Execute before market open each day
+    # 每日盘前执行
     run_daily(before_market_open, time='before_open')
-    # Execute at specified time each day
+    # 每日指定时间执行
     run_daily(market_open, time='09:35')
     run_daily(afternoon_check, time='14:50')
-    # Execute weekly
-    run_weekly(weekly_rebalance, weekday=1, time='09:35')  # Every Monday
-    # Execute monthly
-    run_monthly(monthly_rebalance, monthday=1, time='09:35')  # 1st of each month
+    # 每周执行
+    run_weekly(weekly_rebalance, weekday=1, time='09:35')  # 每周一
+    # 每月执行
+    run_monthly(monthly_rebalance, monthday=1, time='09:35')  # 每月1号
 
 def before_market_open(context):
     log.info('Pre-market preparation')
@@ -294,7 +294,7 @@ def market_open(context):
 
 ---
 
-## Risk Management
+## 风险管理
 
 ```python
 def initialize(context):
@@ -303,20 +303,20 @@ def initialize(context):
 
 def handle_data(context, data):
     security = g.security
-    # Get current price
+    # 获取当前价格
     current_price = data[security].close
 
-    # Check position P&L
+    # 检查持仓盈亏
     if security in context.portfolio.positions:
         pos = context.portfolio.positions[security]
         cost = pos.avg_cost
         pnl_ratio = (current_price - cost) / cost
 
-        # Take profit at 10%
+        # 盈利10%止盈
         if pnl_ratio >= 0.10:
             order_target(security, 0)
             log.info(f'Take profit: {security} gain {pnl_ratio:.2%}')
-        # Stop loss at 5%
+        # 亏损5%止损
         elif pnl_ratio <= -0.05:
             order_target(security, 0)
             log.info(f'Stop loss: {security} loss {pnl_ratio:.2%}')
@@ -324,7 +324,7 @@ def handle_data(context, data):
 
 ---
 
-## Full Example — Multi-Factor Stock Selection Strategy
+## 完整示例 — Multi-Factor Stock Selection Strategy
 
 ```python
 def initialize(context):
@@ -332,12 +332,12 @@ def initialize(context):
     set_order_cost(OrderCost(open_tax=0, close_tax=0.001,
                               open_commission=0.0003, close_commission=0.0003,
                               min_commission=5), type='stock')
-    g.hold_num = 10  # Number of holdings
-    # Rebalance on the 1st trading day of each month
+    g.hold_num = 10  # 持股数量
+    # 每月第一个交易日调仓
     run_monthly(rebalance, monthday=1, time='09:35')
 
 def rebalance(context):
-    # Multi-factor stock selection
+    # 多因子选股
     df = get_fundamentals(
         query(
             valuation.code,
@@ -360,12 +360,12 @@ def rebalance(context):
     target_stocks = list(df['code'])
     log.info(f'Selected {len(target_stocks)} stocks')
 
-    # Sell stocks not in the target list
+    # 卖出不在目标列表中的股票
     for stock in context.portfolio.positions:
         if stock not in target_stocks:
             order_target(stock, 0)
 
-    # Equal-weight buy target stocks
+    # 等权重买入目标股票
     if target_stocks:
         per_value = context.portfolio.total_value * 0.95 / len(target_stocks)
         for stock in target_stocks:
@@ -378,9 +378,9 @@ def handle_data(context, data):
 
 ---
 
-## Advanced Examples
+## 进阶示例
 
-### Sector Rotation Strategy
+### 行业轮动策略
 
 ```python
 def initialize(context):
@@ -399,7 +399,7 @@ def initialize(context):
     run_monthly(rebalance, monthday=1, time='09:35')
 
 def rebalance(context):
-    """Sort by 20-day momentum, select the top N strongest ETFs"""
+    """按20日动量排序，选取最强的前N只ETF"""
     momentum = {}
     for etf, name in g.industry_etfs.items():
         df = attribute_history(etf, 20, '1d', ['close'])
@@ -407,17 +407,17 @@ def rebalance(context):
             ret = (df['close'].iloc[-1] / df['close'].iloc[0]) - 1
             momentum[etf] = ret
 
-    # Sort by momentum
+    # 按动量排序
     sorted_etfs = sorted(momentum.items(), key=lambda x: x[1], reverse=True)
     targets = [etf for etf, _ in sorted_etfs[:g.hold_num]]
     log.info(f'This month selected: {[g.industry_etfs[e] for e in targets]}')
 
-    # Sell positions not in the target list
+    # 卖出不在目标列表中的持仓
     for stock in context.portfolio.positions:
         if stock not in targets:
             order_target(stock, 0)
 
-    # Equal-weight buy
+    # 等权重买入
     per_value = context.portfolio.total_value * 0.95 / len(targets)
     for etf in targets:
         order_target_value(etf, per_value)
@@ -426,7 +426,7 @@ def handle_data(context, data):
     pass
 ```
 
-### Data Research — Market-Wide Financial Screening
+### 数据研究 — 全市场财务筛选
 
 ```python
 import jqdatasdk as jq
@@ -434,7 +434,7 @@ import pandas as pd
 
 jq.auth('your_username', 'your_password')
 
-# Market-wide financial screening: Low PE + High ROE + High growth
+# 全市场财务筛选：低PE + 高ROE + 高成长
 df = jq.get_fundamentals(
     jq.query(
         jq.valuation.code,
@@ -442,8 +442,8 @@ df = jq.get_fundamentals(
         jq.valuation.pb_ratio,
         jq.valuation.market_cap,
         jq.indicator.roe,
-        jq.indicator.inc_revenue_year_on_year,    # YoY revenue growth rate
-        jq.indicator.inc_net_profit_year_on_year,  # YoY net profit growth rate
+        jq.indicator.inc_revenue_year_on_year,    # 营收同比增长率
+        jq.indicator.inc_net_profit_year_on_year,  # 净利润同比增长率
     ).filter(
         jq.valuation.pe_ratio > 5,
         jq.valuation.pe_ratio < 20,
@@ -457,28 +457,28 @@ df = jq.get_fundamentals(
     date='2024-06-30'
 )
 
-print(f'Screened {len(df)} stocks:')
+print(f'筛选出 {len(df)} 只股票:')
 print(df.to_string(index=False))
 
-# Export to CSV
+# 导出为CSV
 df.to_csv('selected_stocks.csv', index=False)
 ```
 
 ---
 
-## Usage Tips
+## 使用技巧
 
-- JoinQuant strategies run on the cloud — no local trading environment installation needed.
-- The JQData local SDK has a free daily data quota, suitable for data research.
-- Use `attribute_history` to get historical data within strategies; use `get_price` in the research environment.
-- Use `set_order_cost` to set realistic commissions during backtesting — the default commission is 0.
-- The `g` object is used for persisting variables across functions (similar to Ptrade).
-- Documentation: https://www.joinquant.com/help/api/help
+- 聚宽策略运行在云端 — 无需本地安装交易环境。
+- JQData本地SDK有免费每日数据额度，适合数据研究。
+- 在策略中使用 `attribute_history` 获取历史数据；在研究环境中使用 `get_price`。
+- 回测时使用 `set_order_cost` 设置真实手续费 — 默认手续费为0。
+- `g` 对象用于在函数之间持久化变量（类似Ptrade）。
+- 文档：https://www.joinquant.com/help/api/help
 
 ---
 
 ## 社区与支持
 
-由 **大佬量化 (Boss Quant)** 维护 — 量化交易教学与策略研发团队。
+由 **大佬量化 (BossQuant)** 维护 — 量化交易教学与策略研发团队。
 
-微信客服: **bossquant1** · [Bilibili](https://space.bilibili.com/48693330) · 搜索 **大佬量化** on 微信公众号 / Bilibili / 抖音
+微信客服: **bossquant1** · [Bilibili](https://space.bilibili.com/48693330) · 搜索 **大佬量化** — 微信公众号 / Bilibili / 抖音
