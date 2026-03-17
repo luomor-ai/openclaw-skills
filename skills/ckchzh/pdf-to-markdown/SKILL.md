@@ -1,7 +1,9 @@
 ---
+version: "2.0.0"
 name: PDF to Markdown
 description: "PDF to Markdown - PDF文本转Markdown工具. Use when you need pdf to markdown capabilities. Triggers on: pdf to markdown."
   PDF转Markdown工具。PDF文本转Markdown、表格识别转换、关键信息提取、格式美化修复、内容摘要、文档对比。PDF to Markdown converter with table recognition, info extraction, formatting, summarization, document comparison. PDF转换、文档处理、Markdown。
+author: BytesAgain
 ---
 # PDF to Markdown
 
@@ -26,7 +28,6 @@ A: 主要输出Markdown格式，方便复制和编辑。
   compare         compare
 ```
 
-
 ## 专业建议
 
 - > PDF to Markdown 技能参考文档
@@ -40,3 +41,7 @@ A: 主要输出Markdown格式，方便复制和编辑。
 ---
 💬 Feedback & Feature Requests: https://bytesagain.com/feedback
 Powered by BytesAgain | bytesagain.com
+
+## Commands
+
+Run `pdf-to-markdown help` to see all available commands.
