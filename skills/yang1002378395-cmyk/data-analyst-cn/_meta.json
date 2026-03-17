@@ -3,11 +3,16 @@
   "slug": "data-analyst-cn",
   "displayName": "Data Analyst Cn",
   "latest": {
-    "version": "1.0.19",
-    "publishedAt": 1773611833686,
-    "commit": "https://github.com/openclaw/skills/commit/502e99ff9cbd32d46d02ac4104f329691612158b"
+    "version": "1.1.0",
+    "publishedAt": 1773643766004,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.19",
+      "publishedAt": 1773611833686,
+      "commit": "https://github.com/openclaw/skills/commit/502e99ff9cbd32d46d02ac4104f329691612158b"
+    },
     {
       "version": "1.0.11",
       "publishedAt": 1773611318118,
