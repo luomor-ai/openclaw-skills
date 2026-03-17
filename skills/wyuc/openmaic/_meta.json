@@ -1,0 +1,11 @@
+{
+  "owner": "wyuc",
+  "slug": "openmaic",
+  "displayName": "OpenMAIC",
+  "latest": {
+    "version": "0.2.1",
+    "publishedAt": 1773632768690,
+    "commit": null
+  },
+  "history": []
+}
