@@ -1,0 +1,11 @@
+{
+  "owner": "nelsongallardo",
+  "slug": "phog-cli",
+  "displayName": "Posthog CLI",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773616787935,
+    "commit": null
+  },
+  "history": []
+}
