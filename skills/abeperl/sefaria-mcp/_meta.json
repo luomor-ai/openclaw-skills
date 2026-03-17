@@ -1,0 +1,11 @@
+{
+  "owner": "abeperl",
+  "slug": "sefaria-mcp",
+  "displayName": "Sefaria MCP Server",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773698780746,
+    "commit": null
+  },
+  "history": []
+}
