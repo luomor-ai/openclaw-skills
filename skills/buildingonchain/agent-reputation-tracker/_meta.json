@@ -1,0 +1,11 @@
+{
+  "owner": "buildingonchain",
+  "slug": "agent-reputation-tracker",
+  "displayName": "Agent Reputation Tracker",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773702054447,
+    "commit": null
+  },
+  "history": []
+}
