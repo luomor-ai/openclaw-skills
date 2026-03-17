@@ -1,0 +1,11 @@
+{
+  "owner": "jiangyukunok",
+  "slug": "sglang-diffusion-video",
+  "displayName": "SGLang-Diffusion Video Generation",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1773625578597,
+    "commit": null
+  },
+  "history": []
+}
