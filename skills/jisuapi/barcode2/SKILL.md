@@ -25,7 +25,7 @@ $env:JISU_API_KEY="your_appkey_here"
 
 ## 脚本路径
 
-脚本文件：`skill/barcode/barcode.py`
+脚本文件：`skills/barcode/barcode.py`
 
 ## 使用方式
 
@@ -37,7 +37,7 @@ $env:JISU_API_KEY="your_appkey_here"
 ### 1. 条码生成（/barcode/generate）
 
 ```bash
-python3 skill/barcode/barcode.py generate '{
+python3 skills/barcode/barcode.py generate '{
   "type": "ean13",
   "barcode": "6901236341056",
   "fontsize": 12,
@@ -72,7 +72,7 @@ python3 skill/barcode/barcode.py generate '{
 ### 2. 条码识别（/barcode/read）
 
 ```bash
-python3 skill/barcode/barcode.py read '{
+python3 skills/barcode/barcode.py read '{
   "barcode": "https://api.jisuapi.com/barcode/barcode/1471602033673149.png"
 }'
 ```
