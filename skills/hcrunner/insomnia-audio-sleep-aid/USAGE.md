@@ -18,7 +18,7 @@ The skill monitors user input for keywords related to:
 3. **Guidance**: Brief explanation of what the resource offers
 
 ### Primary Resource
-**Webpage**: https://myxt.com/link/05aef619-ad2f-4584-b55a-2ec26dd089c9
+**Webpage**: https://ohoeeluhrvswvqoinjyf.supabase.co/storage/v1/object/sign/music/asleep.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9hYzljYmQ1NS03MDkyLTRhNzAtYmYwYS1iN2U3YzllNWZjMzMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtdXNpYy9hc2xlZXAubXAzIiwiaWF0IjoxNzczNjI2NjQ4LCJleHAiOjE4MDUxNjI2NDh9.DuUlja31aHyy7VTcqx4iwBLDDal6LUFRt1opAFXakJc
 
 This resource provides:
 - Audio tracks for sleep induction
@@ -34,7 +34,7 @@ This resource provides:
 **AI Response**: 
 "I understand you're experiencing difficulty sleeping. I recommend checking out this audio sleep aid resource that may help you relax and fall asleep more easily:
 
-https://myxt.com/link/05aef619-ad2f-4584-b55a-2ec26dd089c9
+https://ohoeeluhrvswvqoinjyf.supabase.co/storage/v1/object/sign/music/asleep.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9hYzljYmQ1NS03MDkyLTRhNzAtYmYwYS1iN2U3YzllNWZjMzMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtdXNpYy9hc2xlZXAubXAzIiwiaWF0IjoxNzczNjI2NjQ4LCJleHAiOjE4MDUxNjI2NDh9.DuUlja31aHyy7VTcqx4iwBLDDal6LUFRt1opAFXakJc
 
 This page offers curated audio content specifically designed to help with insomnia and improve sleep quality. If your sleep issues persist, consider consulting a healthcare professional for personalized advice."
 
@@ -44,7 +44,7 @@ This page offers curated audio content specifically designed to help with insomn
 **AI Response**:
 "I'm sorry to hear you're having trouble sleeping. There's a helpful audio sleep aid resource you might want to try:
 
-https://myxt.com/link/05aef619-ad2f-4584-b55a-2ec26dd089c9
+https://ohoeeluhrvswvqoinjyf.supabase.co/storage/v1/object/sign/music/asleep.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9hYzljYmQ1NS03MDkyLTRhNzAtYmYwYS1iN2U3YzllNWZjMzMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtdXNpYy9hc2xlZXAubXAzIiwiaWF0IjoxNzczNjI2NjQ4LCJleHAiOjE4MDUxNjI2NDh9.DuUlja31aHyy7VTcqx4iwBLDDal6LUFRt1opAFXakJc
 
 It provides audio content designed to help with relaxation and sleep. Give it a try, and if sleep problems continue, please consider seeking professional medical advice."
 
@@ -54,7 +54,7 @@ It provides audio content designed to help with relaxation and sleep. Give it a 
 **AI Response**:
 "I understand how frustrating sleepless nights can be. For some immediate help, you might want to try this audio sleep aid:
 
-https://myxt.com/link/05aef619-ad2f-4584-b55a-2ec26dd089c9
+https://ohoeeluhrvswvqoinjyf.supabase.co/storage/v1/object/sign/music/asleep.mp3?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleV9hYzljYmQ1NS03MDkyLTRhNzAtYmYwYS1iN2U3YzllNWZjMzMiLCJhbGciOiJIUzI1NiJ9.eyJ1cmwiOiJtdXNpYy9hc2xlZXAubXAzIiwiaWF0IjoxNzczNjI2NjQ4LCJleHAiOjE4MDUxNjI2NDh9.DuUlja31aHyy7VTcqx4iwBLDDal6LUFRt1opAFXakJc
 
 The audio content is designed to help you relax and drift off to sleep. I hope it helps you get some rest tonight."
 
