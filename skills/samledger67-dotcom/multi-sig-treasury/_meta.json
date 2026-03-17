@@ -1,0 +1,11 @@
+{
+  "owner": "samledger67-dotcom",
+  "slug": "multi-sig-treasury",
+  "displayName": "Multi-Sig Treasury",
+  "latest": {
+    "version": "98.0.1",
+    "publishedAt": 1773724968295,
+    "commit": null
+  },
+  "history": []
+}
