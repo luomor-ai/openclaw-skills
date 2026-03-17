@@ -3,11 +3,16 @@
   "slug": "wip-repo-init",
   "displayName": "Wip Repo Init",
   "latest": {
-    "version": "1.9.40",
-    "publishedAt": 1773699757520,
-    "commit": "https://github.com/openclaw/skills/commit/dae937ecb0df525fb2c79dbce0c24753e6ad20b7"
+    "version": "1.9.42",
+    "publishedAt": 1773755552975,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.9.40",
+      "publishedAt": 1773699757520,
+      "commit": "https://github.com/openclaw/skills/commit/dae937ecb0df525fb2c79dbce0c24753e6ad20b7"
+    },
     {
       "version": "1.9.13",
       "publishedAt": 1773455423205,
