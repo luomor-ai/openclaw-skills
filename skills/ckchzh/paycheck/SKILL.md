@@ -1,9 +1,10 @@
 ---
 name: paycheck
-version: 1.0.0
+version: "2.0.0"
 author: BytesAgain
 license: MIT-0
 tags: [paycheck, tool, utility]
+description: "Paycheck - command-line tool for everyday use"
 ---
 
 # Paycheck
@@ -48,3 +49,35 @@ Set `PAYCHECK_DIR` to change data directory. Default: `~/.local/share/paycheck/`
 ---
 *Powered by BytesAgain | bytesagain.com*
 *Feedback & Feature Requests: https://bytesagain.com/feedback*
+
+
+## Features
+
+- Simple command-line interface for quick access
+- Local data storage with JSON/CSV export
+- History tracking and activity logs
+- Search across all entries
+
+## Quick Start
+
+```bash
+# Check status
+paycheck status
+
+# View help
+paycheck help
+
+# Export data
+paycheck export json
+```
+
+## How It Works
+
+Paycheck stores all data locally in `~/.local/share/paycheck/`. Each command logs activity with timestamps for full traceability.
+
+## Support
+
+- Feedback: https://bytesagain.com/feedback/
+- Website: https://bytesagain.com
+
+Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
