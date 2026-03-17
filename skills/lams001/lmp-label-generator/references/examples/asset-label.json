@@ -52,7 +52,7 @@
       "content": "IT",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 10,
+        "fontSize": 14,
         "fontWeight": "bold",
         "fontStyle": "normal",
         "color": "#FFFFFF",
@@ -72,7 +72,7 @@
       "content": "固定资产",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 8,
+        "fontSize": 14,
         "fontWeight": "bold",
         "fontStyle": "normal",
         "color": "#1A56DB",
@@ -92,7 +92,7 @@
       "content": "IT-2026-001234",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 10,
+        "fontSize": 14,
         "fontWeight": "bold",
         "fontStyle": "normal",
         "color": "#000000",
@@ -112,7 +112,7 @@
       "content": "笔记本电脑\n使用人：张三\n购入：2026-01",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 6,
+        "fontSize": 12,
         "fontWeight": "normal",
         "fontStyle": "normal",
         "color": "#555555",
@@ -149,7 +149,7 @@
       "content": "扫码查看详情",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 5,
+        "fontSize": 12,
         "fontWeight": "normal",
         "fontStyle": "normal",
         "color": "#888888",

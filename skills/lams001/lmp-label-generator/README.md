@@ -35,14 +35,14 @@ Describe a label in plain language. The skill generates a complete LMP-format la
 - Barcodes (EAN13, QR Code, Code128, etc.)
 - Exact mm-level positioning
 
-**Every generation always does both:**
+**Default: local only. No data is sent to any server unless you explicitly enable cloud preview.**
 
 | Step | When | What happens |
 |------|------|--------------|
-| **① Local file** (always) | Every time | Saves `.lmp` file to `~/Downloads/` — works even without an account |
-| **② Cloud push** (if apiKey set) | `apiKey` is configured | Also calls your SaaS API and returns a direct designer link |
+| **① Local file** (always) | Every time | Saves `.lmp` file to `~/Downloads/` — no account or config required |
+| **② Cloud preview** (optional) | **Only when you set** `config.apiEndpoint` | POSTs LMP to that URL and returns a one-click designer link (no API key required for preview) |
 
-No API key? You still get the LMP file every time. Want the one-click link? Add your API key.
+By default `apiEndpoint` is **empty**, so the skill never sends label data externally. To get the one-click preview link, add `apiEndpoint` in the skill config (see Mode B below).
 
 ## How to Use
 
@@ -54,20 +54,21 @@ Just ask:
 
 The skill generates the LMP JSON and saves it locally.
 
-### Cloud Push Mode (Mode B — Recommended)
+### Cloud Preview Mode (Mode B — Optional)
 
-**Step 1**: Get your API key from [LabelMake Pro → Account Settings → OpenClaw Integration](https://labelmakepro.com/admin/user/profile)
+**Only if you want** the one-click link to open the label in the browser: set `apiEndpoint` in the skill config. **No API key required** for the preview endpoint; label content will be sent to the URL you configure.
 
-**Step 2**: Configure this skill:
+**Step 1**: In your OpenClaw/skill config, set:
 
 ```yaml
 config:
-  apiEndpoint: "https://labelmakepro.com/api/v1/oc/import"
-  apiKey: "oc_sk_your_key_here"
+  apiEndpoint: "https://labelmakepro.com/api/v1/oc/preview"
   frontendUrl: "https://labelmakepro.com"
 ```
 
-**Step 3**: Ask the same way. After generation, the skill calls the API and returns a direct link to open the label in the designer.
+**Step 2**: Generate a label as usual. The skill will POST the LMP to that endpoint and return a link to open it in the designer.
+
+**Privacy**: Generated labels may contain PII (names, addresses, product details). Data is sent only when you explicitly set `apiEndpoint`. Leave it empty for local-only operation.
 
 ## Example Prompts
 
@@ -104,9 +105,9 @@ Supported element types:
 
 > **Privacy**: The skill calls only the API endpoint you configure. Your label content never leaves your configured endpoint.
 
-## 🔐 API Key Security
+## 🔐 API Key & Secret Storage
 
-By default, `config.apiKey` is stored as plaintext in `openclaw.json`. For better security, use OpenClaw's **SecretRef** system to store the key in an environment variable:
+**Do not store API keys or secrets in plaintext** in `openclaw.json` or skill config (misconfiguration risk). Use OpenClaw's **SecretRef** or environment variables:
 
 ```json
 "config": {
@@ -123,6 +124,14 @@ $env:LABELMAKER_OC_API_KEY = "oc_sk_xxxxx"   # Windows PowerShell
 Run `openclaw secrets audit --check` to detect any plaintext credentials in your config.
 
 > **Note**: `oc_sk_` keys have limited scope (label import only) and can be revoked instantly from your LabelMake Pro account settings.
+
+## Security notes (before installing)
+
+- **Default is local-only**: Leave `config.apiEndpoint` empty unless you want cloud preview; then label content is never sent elsewhere.
+- **Trusted endpoint only**: If you set `apiEndpoint`, use only a verified official URL (HTTPS, correct domain). The skill does not validate the endpoint.
+- **Filenames**: The skill sanitizes the label name before writing (no path traversal; safe characters only). Avoid label names containing `../` or absolute paths.
+- **Secrets**: Do not store API keys in plaintext; use SecretRef or environment variables.
+- **PII**: Generated .lmp files may contain names, addresses, barcodes. Review before sharing or uploading.
 
 ## Requirements
 

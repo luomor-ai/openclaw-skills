@@ -53,7 +53,7 @@
       "content": "示例公司 Example Co.",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 7,
+        "fontSize": 14,
         "fontWeight": "normal",
         "fontStyle": "normal",
         "color": "#888888",
@@ -112,7 +112,7 @@
       "content": "¥99.00",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 12,
+        "fontSize": 14,
         "fontWeight": "bold",
         "fontStyle": "normal",
         "color": "#CC0000",
@@ -132,7 +132,7 @@
       "content": "规格：100×50×30mm  重量：250g",
       "style": {
         "fontFamily": "Arial",
-        "fontSize": 7,
+        "fontSize": 14,
         "fontWeight": "normal",
         "fontStyle": "normal",
         "color": "#666666",
@@ -154,7 +154,7 @@
         "content": "6901234567890",
         "displayText": true,
         "textPosition": "bottom",
-        "textSize": 7,
+        "textSize": 12,
         "foregroundColor": "#000000",
         "backgroundColor": "#FFFFFF"
       }
