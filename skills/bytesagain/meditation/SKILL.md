@@ -1,13 +1,10 @@
 ---
 name: meditation
-description: >
-  Guide meditation sessions with timers, breathing exercises, and body scans.
-  Log practice sessions and view statistics. Generate audio playlists.
-  Input: session duration, exercise type, log entries.
-  Output: timed session prompts, breathing patterns, session logs,
-  practice stats, and playlist recommendations.
-version: 3.0.0
+description: "Run timed meditation sessions with breathing guides and body scans. Log sessions and view stats."
+version: "3.2.0"
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags:
   - meditation
   - mindfulness
@@ -74,6 +71,11 @@ bash scripts/script.sh playlist [--mood calm|sleep|focus|energy] [--duration <mi
 ## Output
 
 All commands print to stdout. Session logs are stored in `~/.meditation/sessions.json`. Timer and breathing commands print real-time prompts to the terminal.
+
+
+## Requirements
+- bash 4+
+- python3 (standard library only)
 
 ## Feedback
 

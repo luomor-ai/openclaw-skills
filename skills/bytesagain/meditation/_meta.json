@@ -3,11 +3,16 @@
   "slug": "meditation",
   "displayName": "Meditation",
   "latest": {
-    "version": "3.0.0",
-    "publishedAt": 1773714128683,
-    "commit": "https://github.com/openclaw/skills/commit/5c953eebd24b522713e310b30d70ae0fc38bcc10"
+    "version": "3.2.0",
+    "publishedAt": 1773716920343,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.0.0",
+      "publishedAt": 1773714128683,
+      "commit": "https://github.com/openclaw/skills/commit/5c953eebd24b522713e310b30d70ae0fc38bcc10"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1773613907842,

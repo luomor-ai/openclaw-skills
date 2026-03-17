@@ -96,18 +96,25 @@ cmd_start() {
   local session_date
   session_date=$(date +%Y-%m-%dT%H:%M:%S)
 
-  python3 -c "
-import json
-sessions = json.load(open('${SESSIONS_FILE}'))
+  SESSIONS_FILE="$SESSIONS_FILE" SESSION_DATE="$session_date" \
+  DURATION="$duration" SESSION_TYPE="$session_type" python3 << 'PYEOF'
+import json, os
+
+sessions_file = os.environ["SESSIONS_FILE"]
+session_date = os.environ["SESSION_DATE"]
+duration = int(os.environ["DURATION"])
+session_type = os.environ["SESSION_TYPE"]
+
+sessions = json.load(open(sessions_file))
 sessions.append({
-    'date': '${session_date}',
-    'duration_min': ${duration},
-    'type': '${session_type}',
+    'date': session_date,
+    'duration_min': duration,
+    'type': session_type,
     'mood': None,
     'note': 'auto-logged from timer'
 })
-json.dump(sessions, open('${SESSIONS_FILE}', 'w'), indent=2)
-"
+json.dump(sessions, open(sessions_file, 'w'), indent=2)
+PYEOF
   echo "Session auto-logged. Use 'script.sh stats' to see your history."
 }
 
@@ -275,33 +282,41 @@ cmd_log() {
   local session_date
   session_date=$(date +%Y-%m-%dT%H:%M:%S)
 
-  python3 -c "
-import json
+  SESSIONS_FILE="$SESSIONS_FILE" SESSION_DATE="$session_date" \
+  DURATION_MIN="$duration_min" SESSION_TYPE="$session_type" \
+  MOOD="$mood" NOTE="$note" python3 << 'PYEOF'
+import json, os
 
-sessions = json.load(open('${SESSIONS_FILE}'))
+sessions_file = os.environ["SESSIONS_FILE"]
+session_date = os.environ["SESSION_DATE"]
+duration_min = int(os.environ["DURATION_MIN"])
+session_type = os.environ["SESSION_TYPE"]
+mood_val = os.environ["MOOD"]
+note = os.environ["NOTE"]
 
-mood_val = '${mood}'
+sessions = json.load(open(sessions_file))
+
 mood_int = int(mood_val) if mood_val else None
 
 sessions.append({
-    'date': '${session_date}',
-    'duration_min': int('${duration_min}'),
-    'type': '${session_type}',
+    'date': session_date,
+    'duration_min': duration_min,
+    'type': session_type,
     'mood': mood_int,
-    'note': '${note}'
+    'note': note
 })
 
-json.dump(sessions, open('${SESSIONS_FILE}', 'w'), indent=2)
+json.dump(sessions, open(sessions_file, 'w'), indent=2)
 
 print('Session logged:')
-print(f'  Date:     ${session_date}')
-print(f'  Duration: ${duration_min} min')
-print(f'  Type:     ${session_type}')
+print(f'  Date:     {session_date}')
+print(f'  Duration: {duration_min} min')
+print(f'  Type:     {session_type}')
 if mood_int:
     print(f'  Mood:     {mood_int}/10')
-if '${note}':
-    print(f'  Note:     ${note}')
-"
+if note:
+    print(f'  Note:     {note}')
+PYEOF
 }
 
 # ─── stats ───────────────────────────────────────────────────────────────────
@@ -319,13 +334,15 @@ cmd_stats() {
     esac
   done
 
-  python3 -c "
-import json
+  SESSIONS_FILE="$SESSIONS_FILE" PERIOD="$period" FORMAT="$format" python3 << 'PYEOF'
+import json, os
 from datetime import datetime, timedelta
 
-sessions = json.load(open('${SESSIONS_FILE}'))
-period = '${period}'
-fmt = '${format}'
+sessions_file = os.environ["SESSIONS_FILE"]
+period = os.environ["PERIOD"]
+fmt = os.environ["FORMAT"]
+
+sessions = json.load(open(sessions_file))
 
 # Filter by period
 now = datetime.now()
@@ -404,7 +421,7 @@ else:
         pct = count / total_sessions * 100
         bar = '█' * int(pct / 2)
         print(f'  {t:<18} {count:>4}  ({pct:>5.1f}%)  {bar}')
-"
+PYEOF
 }
 
 # ─── playlist ────────────────────────────────────────────────────────────────
@@ -426,12 +443,12 @@ cmd_playlist() {
   echo "Mood: ${mood} | Target: ${duration} min | Tracks: ${count}"
   echo ""
 
-  python3 -c "
-import random
+  MOOD="$mood" DURATION="$duration" COUNT="$count" python3 << 'PYEOF'
+import random, os
 
-mood = '${mood}'
-duration = int('${duration}')
-count = int('${count}')
+mood = os.environ["MOOD"]
+duration = int(os.environ["DURATION"])
+count = int(os.environ["COUNT"])
 
 tracks = {
     'calm': [
@@ -503,7 +520,7 @@ print(f'Total playlist: {total:.1f} min | Mood: {mood}')
 print()
 print('Note: These are suggested ambient sound categories.')
 print('Search for these on your preferred music/sound platform.')
-"
+PYEOF
 }
 
 # ─── help ────────────────────────────────────────────────────────────────────
