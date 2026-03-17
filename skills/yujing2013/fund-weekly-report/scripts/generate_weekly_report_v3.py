@@ -12,21 +12,64 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.oxml.ns import qn
 from typing import Dict, List, Any, Tuple
 from datetime import datetime
+import os
 import warnings
 warnings.filterwarnings('ignore')
 
 
-def read_excel_data(fund_file: str, etf_file: str) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Any]]:
+# 敏感目录黑名单
+SENSITIVE_DIRS = [
+    '/etc/', '/root/', '/home/',
+    '.ssh', '.gnupg', '.config', '.aws', '.env',
+    'id_rsa', 'id_ed25519', 'credentials'
+]
+
+
+def validate_file_path(file_path: str) -> str:
+    """
+    验证文件路径安全性
+    返回: 验证后的绝对路径
+    异常: ValueError 如果路径不安全
+    """
+    if not file_path:
+        raise ValueError("文件路径不能为空")
+    
+    # 检查扩展名
+    ext = os.path.splitext(file_path)[1].lower()
+    if ext not in ['.xlsx', '.xls']:
+        raise ValueError(f"只允许读取Excel文件（.xlsx/.xls），当前文件扩展名: {ext}")
+    
+    # 获取绝对路径
+    abs_path = os.path.abspath(file_path)
+    
+    # 检查敏感目录
+    for sensitive in SENSITIVE_DIRS:
+        if sensitive in abs_path:
+            raise ValueError(f"禁止访问敏感路径: 包含 '{sensitive}'")
+    
+    # 检查文件是否存在
+    if not os.path.exists(abs_path):
+        raise ValueError(f"文件不存在: {abs_path}")
+    
+    return abs_path
+
+
+def read_excel_data(fund_file: str, etf_file: str = None) -> Tuple[Dict[str, pd.DataFrame], Dict[str, Any]]:
     """读取Excel数据"""
+    # 验证文件路径
+    fund_file = validate_file_path(fund_file)
+    
     fund_data = {}
     fund_excel = pd.ExcelFile(fund_file)
     for sheet in fund_excel.sheet_names:
         fund_data[sheet] = pd.read_excel(fund_file, sheet_name=sheet)
     
     etf_data = {}
-    etf_excel = pd.ExcelFile(etf_file)
-    for sheet in etf_excel.sheet_names:
-        etf_data[sheet] = pd.read_excel(etf_file, sheet_name=sheet)
+    if etf_file:
+        etf_file = validate_file_path(etf_file)
+        etf_excel = pd.ExcelFile(etf_file)
+        for sheet in etf_excel.sheet_names:
+            etf_data[sheet] = pd.read_excel(etf_file, sheet_name=sheet)
     
     return fund_data, etf_data
 
@@ -253,36 +296,48 @@ def extract_fof_data(fund_data: Dict[str, pd.DataFrame]) -> Dict[str, Any]:
     return result
 
 
-def extract_qdii_data(fund_data: Dict[str, pd.DataFrame]) -> List[Dict]:
-    """提取QDII基金数据"""
-    result = []
+def extract_qdii_data(fund_data: Dict[str, pd.DataFrame]) -> tuple:
+    """提取QDII基金数据，返回 (基金列表, 平均收益字典)"""
+    funds = []
+    avg_return = {'近一周': None, '年初以来': None}
     df = fund_data.get('QDII基金_收益top')
     if df is not None:
         for _, row in df.iterrows():
-            if pd.notna(row.get('证券简称')):
-                result.append({
-                    '基金代码': row.get('基金代码'),
-                    '证券简称': row.get('证券简称'),
-                    '近一周收益': row.get('近一周收益'),
-                    '年初以来收益': row.get('年初以来收益')
-                })
-    return result
+            name = row.get('证券简称')
+            if pd.notna(name):
+                if name == '平均收益':
+                    avg_return['近一周'] = row.get('近一周收益')
+                    avg_return['年初以来'] = row.get('年初以来收益')
+                else:
+                    funds.append({
+                        '基金代码': row.get('基金代码'),
+                        '证券简称': name,
+                        '近一周收益': row.get('近一周收益'),
+                        '年初以来收益': row.get('年初以来收益')
+                    })
+    return funds, avg_return
 
 
-def extract_reits_data(fund_data: Dict[str, pd.DataFrame]) -> List[Dict]:
-    """提取REITs基金数据"""
-    result = []
+def extract_reits_data(fund_data: Dict[str, pd.DataFrame]) -> tuple:
+    """提取REITs基金数据，返回 (基金列表, 平均收益字典)"""
+    funds = []
+    avg_return = {'近一周': None, '年初以来': None}
     df = fund_data.get('REITs基金_收益top')
     if df is not None:
         for _, row in df.iterrows():
-            if pd.notna(row.get('证券简称')):
-                result.append({
-                    '基金代码': row.get('基金代码'),
-                    '证券简称': row.get('证券简称'),
-                    '近一周收益': row.get('近一周收益'),
-                    '年初以来收益': row.get('年初以来收益')
-                })
-    return result
+            name = row.get('证券简称')
+            if pd.notna(name):
+                if name == '平均收益':
+                    avg_return['近一周'] = row.get('近一周收益')
+                    avg_return['年初以来'] = row.get('年初以来收益')
+                else:
+                    funds.append({
+                        '基金代码': row.get('基金代码'),
+                        '证券简称': name,
+                        '近一周收益': row.get('近一周收益'),
+                        '年初以来收益': row.get('年初以来收益')
+                    })
+    return funds, avg_return
 
 
 def extract_new_funds(fund_data: Dict[str, pd.DataFrame]) -> Dict[str, List]:
@@ -301,23 +356,42 @@ def extract_new_funds(fund_data: Dict[str, pd.DataFrame]) -> Dict[str, List]:
                     '基金分类': row.get('基金分类'),
                     '投资类型': row.get('投资类型(二级分类)'),
                     '发行规模': row.get('发行规模(亿元)'),
-                    '基金经理': row.get('基金经理')
+                    '基金经理': row.get('基金经理'),
+                    '基金管理人': row.get('基金管理人')
                 })
     
-    # 新发行基金
+    # 新发行基金（按类型分组）
     df_issue = fund_data.get('本周新发行的基金')
     if df_issue is not None:
         for _, row in df_issue.iterrows():
             if pd.notna(row.get('证券简称')):
+                # 从证券简称中提取基金管理人
+                name = row.get('证券简称', '')
+                manager = None
+                
+                # 常见基金公司名称匹配
+                managers = ['华夏', '易方达', '嘉实', '南方', '广发', '富国', '汇添富', '华安', '华宝', '景顺长城',
+                           '工银瑞信', '建信', '招商', '博时', '鹏华', '银华', '国泰', '中欧', '兴证全球', '永赢',
+                           '平安', '大成', '中银', '交银', '上投摩根', '摩根', '万家', '中邮', '长盛', '申万菱信',
+                           '华商', '融通', '长城', '国投瑞银', '诺安', '光大保德信', '海富通', '银河', '浦银安盛',
+                           '国联安', '东方', '信澳', '中加', '英大', '宏利', '泰康', '太平', '天弘', '鑫元']
+                
+                for m in managers:
+                    if name.startswith(m):
+                        manager = m
+                        break
+                
                 result['issued'].append({
                     '基金代码': row.get('证券代码'),
                     '证券简称': row.get('证券简称'),
+                    '基金类型': row.get('基金类型'),
                     '发行起始日': row.get('发行起始日'),
                     '投资类型': row.get('投资类型(二级分类)'),
-                    '基金经理': row.get('基金经理')
+                    '基金经理': row.get('基金经理'),
+                    '基金管理人': manager
                 })
     
-    # 新申报基金
+    # 新申报基金（按类型和管理人分组）
     df_decl = fund_data.get('本周新申报的基金')
     if df_decl is not None:
         for _, row in df_decl.iterrows():
@@ -326,6 +400,7 @@ def extract_new_funds(fund_data: Dict[str, pd.DataFrame]) -> Dict[str, List]:
                     '基金管理人': row.get('基金管理人'),
                     '基金名称': row.get('基金名称'),
                     '基金类型': row.get('基金类型1'),
+                    '基金类型2': row.get('基金类型2'),
                     '申请日期': row.get('申请材料接收日')
                 })
     
@@ -481,7 +556,7 @@ def add_h2(doc, text):
     return p
 
 
-def generate_report(fund_file: str, etf_file: str, output_file: str):
+def generate_report(fund_file: str, etf_file: str = None, output_file: str = None):
     """生成周报Word文档"""
     
     # 读取数据
@@ -494,8 +569,8 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
     fixed_income = extract_fixed_income_stats(fund_data)
     index_funds = extract_index_fund_data(fund_data)
     fof_data = extract_fof_data(fund_data)
-    qdii_data = extract_qdii_data(fund_data)
-    reits_data = extract_reits_data(fund_data)
+    qdii_funds, qdii_avg = extract_qdii_data(fund_data)
+    reits_funds, reits_avg = extract_reits_data(fund_data)
     new_funds = extract_new_funds(fund_data)
     etf_flow = extract_etf_flow_data(etf_data)
     
@@ -537,7 +612,7 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
     add_h1(doc, '1 主要市场指数周度表现回顾')
     
     # 1.1 宽基指数
-    core_index = etf_flow['core_index_flow']
+    core_index = etf_flow['core_index_flow'] if etf_flow else []
     if core_index:
         up_indices = [x for x in core_index if x['周收益率'] and x['周收益率'] > 0]
         down_indices = [x for x in core_index if x['周收益率'] and x['周收益率'] < 0]
@@ -573,6 +648,11 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         if up_indices:
             up_sorted = sorted(up_indices, key=lambda x: x['周收益率'], reverse=True)
             p.add_run(f"{up_sorted[0]['跟踪指数'].replace('指数', '')}指数微涨{format_percent(up_sorted[0]['周收益率']).replace('%', '')}%。")
+    else:
+        # 没有ETF数据时的替代内容
+        add_h2(doc, '1.1 宽基指数')
+        p = doc.add_paragraph()
+        p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），A股市场整体表现平稳，主要指数涨跌互现。")
     
     # ===== 2. 主动权益基金周度表现复盘 =====
     add_h1(doc, '2 主动权益基金周度表现复盘')
@@ -590,14 +670,42 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         max_return = weekly.get('普通股票型基金', {}).get('最高值')
         min_return = weekly.get('普通股票型基金', {}).get('最低值')
         
-        # 生成标题
-        title_parts = []
-        if median_stock and median_stock < 0:
-            title_parts.append("普通股票/偏股混合/灵活配置基金周收益中位数均为负值")
-        if min_return and min_return < -0.10:
-            title_parts.append("尾部产品周跌幅超过10%")
+        # 生成标题 - 根据中位数正负判断
+        medians = [
+            ('普通股票', median_stock),
+            ('偏股混合', median_hybrid),
+            ('灵活配置', median_flexible),
+            ('平衡混合', median_balanced)
+        ]
+        medians_valid = [(name, m) for name, m in medians if m is not None]
+        negative_list = [(name, m) for name, m in medians_valid if m < 0]
+        positive_list = [(name, m) for name, m in medians_valid if m > 0]
         
-        title_text = "、".join(title_parts) if title_parts else "周收益表现分化"
+        title_text = ""
+        
+        if len(negative_list) == len(medians_valid):
+            # 全部为负
+            title_text = "各类主动权益基金周收益中位数收负"
+        elif len(positive_list) == len(medians_valid):
+            # 全部为正
+            title_text = "各类主动权益基金周收益中位数收正"
+        elif len(negative_list) > len(positive_list):
+            # 多数为负，列出负的
+            names = '/'.join([name for name, m in negative_list])
+            title_text = f"{names}基金周收益中位数均为负值"
+        elif len(positive_list) > len(negative_list):
+            # 多数为正，列出正的
+            names = '/'.join([name for name, m in positive_list])
+            title_text = f"{names}基金周收益中位数均为正值"
+        else:
+            # 正负各半
+            title_text = "各类主动权益基金周收益中位数涨跌互现"
+        
+        # 添加尾部跌幅（如果有较大跌幅）
+        if min_return and min_return < -0.05:
+            drop_pct = int(abs(min_return) * 100)
+            title_text += f"，尾部产品周跌幅超过{drop_pct}%"
+        
         add_h2(doc, f'2.1 收益分布：{title_text}')
         
         # 近一周描述
@@ -656,36 +764,64 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         bottom_industry = sorted_industry[-1] if sorted_industry else None
         bottom2_industry = sorted_industry[-2] if len(sorted_industry) > 1 else None
         
-        # 生成标题
-        title_parts = []
-        if top_industry and top_industry['收益'] > 0:
-            title_parts.append(f"{top_industry['行业']}主题基金平均上涨{format_percent(top_industry['收益']).replace('%', '')}%")
-        if bottom_industry and bottom_industry['收益'] < -0.03:
-            title_parts.append(f"{bottom_industry['行业']}主题基金平均周跌幅近{int(abs(bottom_industry['收益']) * 100)}%")
+        # 判断涨跌情况
+        up_count = sum([1 for x in weekly_industry if x['收益'] > 0])
+        down_count = sum([1 for x in weekly_industry if x['收益'] < 0])
+        total_count = len(weekly_industry)
         
-        title_text = "、".join(title_parts) if title_parts else "行业主题基金表现分化"
+        # 判断市场状态：全部下跌/全部上涨/跌多涨少/涨多跌少/涨跌互现
+        if down_count == total_count:
+            market_status = "普遍下跌"
+        elif up_count == total_count:
+            market_status = "普遍上涨"
+        elif down_count > up_count * 1.5:
+            market_status = "跌多涨少"
+        elif up_count > down_count * 1.5:
+            market_status = "涨多跌少"
+        else:
+            market_status = "涨跌互现"
+        
+        # 生成标题
+        if top_industry and top_industry['收益'] > 0:
+            title_text = f"各类主动权益基金{market_status}，{top_industry['行业']}主题基金平均上涨{format_percent(top_industry['收益']).replace('%', '')}%"
+        elif top_industry and top_industry['收益'] < 0:
+            # 全部下跌的情况
+            title_text = f"各类主动权益基金普遍下跌，{top_industry['行业']}主题基金跌幅相对较小"
+        else:
+            title_text = f"各类主动权益基金{market_status}"
+        
         add_h2(doc, f'2.2 行业主题基金：{title_text}')
         
         # 近一周描述
         p = doc.add_paragraph()
-        p.add_run(f"分类型来看，最近一周（{date_range[0]}-{date_range[1]}）各类主动权益基金涨跌互现，")
+        p.add_run(f"分类型来看，最近一周（{date_range[0]}-{date_range[1]}）各类主动权益基金{market_status}，")
         
         if top_industry:
             if top_industry['收益'] > 0.02:
                 p.add_run(f"{top_industry['行业']}主题基金领涨，平均收益为{format_percent(top_industry['收益'])}，")
+            elif top_industry['收益'] < -0.02:
+                p.add_run(f"{top_industry['行业']}主题基金表现相对较好，平均收益为{format_percent(top_industry['收益'])}，")
             else:
                 p.add_run(f"{top_industry['行业']}主题基金领涨，平均收益为{format_percent(top_industry['收益'])}，")
         
         if second_industry and second_industry['收益'] > 0.01:
             p.add_run(f"另有{second_industry['行业']}主题基金平均涨超1%；")
+        elif second_industry and second_industry['收益'] > 0:
+            p.add_run(f"另有{second_industry['行业']}主题基金平均涨幅为{format_percent(second_industry['收益'])}；")
         else:
             p.add_run("；")
         
         if bottom_industry and bottom_industry['收益'] < -0.03:
             p.add_run(f"与之相对，{bottom_industry['行业']}、{bottom2_industry['行业']}主题基金平均周跌幅均超过{int(abs(bottom_industry['收益']) * 80)}%；")
         
-        # 全市场基金和主动量化基金
-        p.add_run("全市场基金（主动管理）和主动量化基金周收益均值分别为-0.51%和-1.18%。")
+        # 全市场基金和主动量化基金（从数据中提取）
+        all_market = next((x for x in weekly_industry if '全市场基金-主动管理' in x.get('行业', '')), None)
+        quant = next((x for x in weekly_industry if '全市场基金-主动量化' in x.get('行业', '')), None)
+        
+        if all_market and quant:
+            p.add_run(f"全市场基金（主动管理）和主动量化基金周收益均值分别为{format_percent(all_market['收益'])}和{format_percent(quant['收益'])}。")
+        else:
+            p.add_run("主动管理基金和主动量化基金收益分化明显。")
         
         # 年初以来描述
         if ytd_industry:
@@ -710,53 +846,6 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
                 
                 if bottom_ytd and bottom_ytd['收益'] < top_ytd['收益'] * 0.5:
                     p.add_run(f"{bottom_ytd['行业']}主题基金表现落后，平均涨幅为{format_percent(bottom_ytd['收益'])}。")
-        
-        # 头部绩优产品描述
-        if industry_funds.get('top_funds'):
-            top_funds_data = industry_funds['top_funds']
-            
-            # 找出近一周收益最高的行业头部产品
-            best_weekly_sector = None
-            best_weekly_fund = None
-            for sector_data in top_funds_data:
-                if sector_data['近一周TOP'] and sector_data['近一周TOP'][0]['收益']:
-                    if best_weekly_fund is None or sector_data['近一周TOP'][0]['收益'] > best_weekly_fund['收益']:
-                        best_weekly_sector = sector_data
-                        best_weekly_fund = sector_data['近一周TOP'][0]
-            
-            # 找出年初以来收益最高的行业头部产品
-            best_ytd_sector = None
-            best_ytd_fund = None
-            for sector_data in top_funds_data:
-                if sector_data['年初以来TOP'] and sector_data['年初以来TOP'][0]['收益']:
-                    if best_ytd_fund is None or sector_data['年初以来TOP'][0]['收益'] > best_ytd_fund['收益']:
-                        best_ytd_sector = sector_data
-                        best_ytd_fund = sector_data['年初以来TOP'][0]
-            
-            # 添加头部绩优产品描述
-            p = doc.add_paragraph()
-            p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）表现居前的产品包括：")
-            
-            # 近一周TOP 3
-            if best_weekly_sector:
-                for i, fund in enumerate(best_weekly_sector['近一周TOP'][:3]):
-                    if fund['收益']:
-                        p.add_run(f"{fund['名称']}（{format_percent(fund['收益'])}）")
-                        if i < 2:
-                            p.add_run("、")
-                p.add_run("等。")
-            
-            # 年初以来TOP 3
-            p = doc.add_paragraph()
-            p.add_run(f"年初以来（0101-{date_range[1]}）表现居前的产品包括：")
-            
-            if best_ytd_sector:
-                for i, fund in enumerate(best_ytd_sector['年初以来TOP'][:3]):
-                    if fund['收益']:
-                        p.add_run(f"{fund['名称']}（{format_percent(fund['收益'])}）")
-                        if i < 2:
-                            p.add_run("、")
-                p.add_run("等。")
     
     # ===== 3. 固定收益基金周度表现复盘 =====
     add_h1(doc, '3 固定收益基金周度表现复盘')
@@ -772,20 +861,44 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         median_hybrid_bond = weekly_fi.get('偏债混合型基金', {}).get('50%分位')
         
         # 生成标题
-        title_text = "收益分布：纯债基金净值稳步上涨"
-        if median_secondary and median_secondary < 0:
-            title_text += "，各类含权债基周收益中位数集体收负"
+        # 1. 判断纯债基金状态
+        if median_short and median_long:
+            if median_short > 0 and median_long > 0:
+                # 全部为正
+                bond_status = "稳步上涨"
+            elif median_short < 0 and median_long < 0:
+                # 全部为负
+                bond_status = "略有回调"
+            else:
+                # 有正有负
+                bond_status = "表现分化"
+        else:
+            bond_status = "表现稳定"
         
+        # 2. 判断含权债基状态
+        hybrid_medians = [median_primary, median_secondary, median_hybrid_bond]
+        hybrid_valid = [m for m in hybrid_medians if m is not None]
+        hybrid_negative = sum([1 for m in hybrid_valid if m < 0])
+        hybrid_positive = sum([1 for m in hybrid_valid if m > 0])
+        
+        if hybrid_negative == len(hybrid_valid):
+            hybrid_status = "集体收负"
+        elif hybrid_positive == len(hybrid_valid):
+            hybrid_status = "集体收正"
+        elif hybrid_negative > hybrid_positive:
+            hybrid_status = "负多正少"
+        elif hybrid_positive > hybrid_negative:
+            hybrid_status = "正多负少"
+        else:
+            hybrid_status = "表现分化"
+        
+        title_text = f"收益分布：纯债基金净值{bond_status}，各类含权债基周收益率中位数{hybrid_status}"
         add_h2(doc, f'3.1 {title_text}')
         
         # 近一周描述
         p = doc.add_paragraph()
-        p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），纯债基金净值稳步上涨，短期纯债和中长期纯债型基金周收益率中位数均为{format_percent(median_short)}；")
-        
-        if median_secondary and median_secondary < 0:
-            p.add_run(f"各类含权债基周收益率中位数集体收负，一级债基、二级债基和偏债混合型基金周收益率中位数分别为{format_percent(median_primary)}、{format_percent(median_secondary)}和{format_percent(median_hybrid_bond)}。")
-        else:
-            p.add_run(f"各类含权债基周收益中位数分化，一级债基、二级债基周收益率中位数分别为{format_percent(median_primary)}、{format_percent(median_secondary)}。")
+        p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），纯债基金净值{bond_status}，短期纯债和中长期纯债型基金周收益率中位数分别为{format_percent(median_short)}和{format_percent(median_long)}；")
+        p.add_run(f"各类含权债基周收益率中位数{hybrid_status}，一级债基、二级债基和偏债混合型基金周收益率中位数分别为{format_percent(median_primary)}、{format_percent(median_secondary)}和{format_percent(median_hybrid_bond)}。")
         
         # 年初以来描述
         if ytd_fi:
@@ -800,25 +913,39 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
                 p.add_run(f"年初以来（0101-{date_range[1]}），短期纯债/中长期纯债/一级债基的收益率中位数分别为{format_percent(ytd_median_short)}/{format_percent(ytd_median_long)}/{format_percent(ytd_median_primary)}；")
                 
                 if ytd_median_secondary and ytd_median_hybrid_bond:
-                    p.add_run(f"二级债基和偏债混合基金年初以来收益率中位数分别为{format_percent(ytd_median_secondary)}和{format_percent(ytd_median_hybrid_bond)}，头部绩优产品收益在15%左右。")
+                    # 判断是否跑赢货币基金（假设货币基金年化收益约1.5%，年初以来约0.12%）
+                    money_fund_return = 0.0012
+                    beat_money = ytd_median_secondary > money_fund_return and ytd_median_hybrid_bond > money_fund_return
+                    
+                    p.add_run(f"二级债基和偏债混合基金年初以来收益率中位数分别为{format_percent(ytd_median_secondary)}和{format_percent(ytd_median_hybrid_bond)}，")
+                    
+                    if beat_money:
+                        p.add_run("中位收益集体跑赢货币基金，")
+                    else:
+                        p.add_run("中位收益集体跑输货币基金，")
+                    
+                    # 头部绩优产品收益
+                    if ytd_median_secondary > 0.05 or ytd_median_hybrid_bond > 0.05:
+                        p.add_run("头部绩优产品收益在15%左右。")
+                    else:
+                        p.add_run("头部绩优产品收益在5%上下。")
     
     # ===== 4. 指数型基金周度表现复盘 =====
     add_h1(doc, '4 指数型基金周度表现复盘')
     
     # 4.1 被动指基
     # 生成ETF资金流动标题
-    core_outflow = sum([x['净申购额'] for x in etf_flow['core_index_flow'] if x['净申购额'] and x['净申购额'] < 0])
+    core_outflow = sum([x['净申购额'] for x in etf_flow['core_index_flow'] if x['净申购额'] and x['净申购额'] < 0]) if etf_flow else 0
     
     # 找出净流入板块
-    inflow_sectors = [x for x in etf_flow['sector_flow'] if x['资金流入总额'] > 50]
+    inflow_sectors = [x for x in etf_flow.get('sector_flow', []) if x['资金流入总额'] > 50] if etf_flow else []
     inflow_sector_names = [x['板块'] for x in sorted(inflow_sectors, key=lambda x: x['资金流入总额'], reverse=True)[:3]]
     
-    title_text = "被动指基：核心宽基ETF"
-    if core_outflow < -1000:
-        title_text += f"全周净流出近{int(abs(core_outflow) / 100)}00亿元"
-    
-    if inflow_sector_names:
-        title_text += f"，市场资金流入{'/'.join(inflow_sector_names[:2])}等热门主题标的"
+    title_text = "被动指基"
+    if etf_flow and core_outflow < -1000:
+        title_text += f"：核心宽基ETF全周净流出近{int(abs(core_outflow) / 100)}00亿元"
+        if inflow_sector_names:
+            title_text += f"，市场资金流入{'/'.join(inflow_sector_names[:2])}等热门主题标的"
     
     add_h2(doc, f'4.1 {title_text}')
     
@@ -843,153 +970,239 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
                 p.add_run(f"与之相对，{bottom_type['类型']}平均大跌{format_percent(abs(bottom_type['近一周收益']))}。")
     
     # ETF资金流动详细描述
-    p = doc.add_paragraph()
-    
-    if core_outflow < -1000:
-        p.add_run(f"ETF资金流动方面，跟踪沪深300/上证50/中证500/中证1000等核心宽基指数头部ETF标的集体遭遇大额赎回，大市值指数板块全周净流出额高达{format_amount(core_outflow)}亿元；")
-    
-    if inflow_sectors:
-        top_inflow_sector = sorted(inflow_sectors, key=lambda x: x['资金流入总额'], reverse=True)
-        p.add_run(f"与之相对，市场资金积极申购{top_inflow_sector[0]['板块']}等热门主题对应标的，{top_inflow_sector[0]['板块']}ETF板块全周净流入{format_amount(top_inflow_sector[0]['资金流入总额'])}亿元。")
-    
-    # 热门行业主题年初以来描述
-    if etf_flow.get('hot_theme_flow'):
-        hot_themes = etf_flow['hot_theme_flow']
+    if etf_flow:
+        p = doc.add_paragraph()
         
-        # 按年初以来收益率排序
-        themes_with_ytd = [x for x in hot_themes if x.get('年初以来收益率') and pd.notna(x['年初以来收益率'])]
-        if themes_with_ytd:
-            sorted_by_ytd = sorted(themes_with_ytd, key=lambda x: x['年初以来收益率'] if isinstance(x['年初以来收益率'], (int, float)) else 0, reverse=True)
+        if core_outflow < -1000:
+            p.add_run(f"ETF资金流动方面，跟踪沪深300/上证50/中证500/中证1000等核心宽基指数头部ETF标的集体遭遇大额赎回，大市值指数板块全周净流出额高达{format_amount(core_outflow)}亿元；")
+        
+        if inflow_sectors:
+            top_inflow_sector = sorted(inflow_sectors, key=lambda x: x['资金流入总额'], reverse=True)
+            p.add_run(f"与之相对，市场资金积极申购{top_inflow_sector[0]['板块']}等热门主题对应标的，{top_inflow_sector[0]['板块']}ETF板块全周净流入{format_amount(top_inflow_sector[0]['资金流入总额'])}亿元。")
+        
+        # 净申购TOP
+        if etf_flow.get('top_inflow'):
+            p = doc.add_paragraph()
+            top5 = etf_flow['top_inflow'][:5]
             
-            # 找出年初以来表现最好的主题
-            if sorted_by_ytd:
-                top_ytd = sorted_by_ytd[0]
-                bottom_ytd = sorted_by_ytd[-1]
-                
-                p = doc.add_paragraph()
-                p.add_run(f"年初以来（0101-{date_range[1]}），")
-                
-                if top_ytd['年初以来收益率'] > 0.05:
-                    p.add_run(f"{top_ytd['指数简称']}主题ETF强势领涨，年初以来涨幅高达{format_percent(top_ytd['年初以来收益率'])}；")
-                elif top_ytd['年初以来收益率'] > 0:
-                    p.add_run(f"{top_ytd['指数简称']}主题ETF领涨，年初以来涨幅为{format_percent(top_ytd['年初以来收益率'])}；")
-                
-                if bottom_ytd['年初以来收益率'] < -0.05:
-                    p.add_run(f"{bottom_ytd['指数简称']}主题ETF表现落后，年初以来跌幅为{format_percent(abs(bottom_ytd['年初以来收益率']))}。")
-                elif bottom_ytd['年初以来收益率'] < 0:
-                    p.add_run(f"{bottom_ytd['指数简称']}主题ETF表现不佳，年初以来收益为{format_percent(bottom_ytd['年初以来收益率'])}。")
-    
-    # 净申购TOP
-    if etf_flow['top_inflow']:
-        p = doc.add_paragraph()
-        top5 = etf_flow['top_inflow'][:5]
+            p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），")
+            
+            # 提取基金名称（去掉ETF后缀）
+            fund_names = [x['基金名称'].replace('ETF', '') for x in top5[:3]]
+            
+            p.add_run(f"{fund_names[0]}全周净申购额{format_amount(top5[0]['资金流入规模'])}亿元，")
+            p.add_run(f"{fund_names[1]}、{fund_names[2]}净申购额分别为{format_amount(top5[1]['资金流入规模'])}亿元、{format_amount(top5[2]['资金流入规模'])}亿元。")
         
-        p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），")
-        
-        # 提取基金名称（去掉ETF后缀）
-        fund_names = [x['基金名称'].replace('ETF', '') for x in top5[:3]]
-        
-        p.add_run(f"{fund_names[0]}全周净申购额{format_amount(top5[0]['资金流入规模'])}亿元，")
-        p.add_run(f"{fund_names[1]}、{fund_names[2]}净申购额分别为{format_amount(top5[1]['资金流入规模'])}亿元、{format_amount(top5[2]['资金流入规模'])}亿元。")
-    
-    # 净赎回TOP
-    if etf_flow['top_outflow']:
-        p = doc.add_paragraph()
-        
-        top5_out = etf_flow['top_outflow'][:5]
-        total_outflow = sum([x['净申赎额'] for x in etf_flow['top_outflow'][:4]])
-        
-        # 提取四大300ETF
-        etf_300 = [x for x in etf_flow['top_outflow'] if '沪深300' in x['基金名称'] or '300ETF' in x['基金名称']]
-        
-        if etf_300 and len(etf_300) >= 4:
-            p.add_run(f"净流出方面，四大300ETF周净赎回均超{int(abs(etf_300[3]['净申赎额']) / 100)}00亿元，合计净流出{format_amount(abs(total_outflow))}亿元；")
-        
-        # 其他净赎回产品
-        other_out = [x for x in etf_flow['top_outflow'] if '沪深300' not in x['基金名称'] and '300ETF' not in x['基金名称']][:3]
-        if other_out:
-            p.add_run(f"{other_out[0]['基金名称'].replace('ETF', '')}、{other_out[1]['基金名称'].replace('ETF', '')}全周净赎回额也均超过百亿元。")
+        # 净赎回TOP
+        if etf_flow.get('top_outflow'):
+            p = doc.add_paragraph()
+            
+            top5_out = etf_flow['top_outflow'][:5]
+            total_outflow = sum([x['净申赎额'] for x in etf_flow['top_outflow'][:4]])
+            
+            # 提取四大300ETF
+            etf_300 = [x for x in etf_flow['top_outflow'] if '沪深300' in x['基金名称'] or '300ETF' in x['基金名称']]
+            
+            if etf_300 and len(etf_300) >= 4:
+                p.add_run(f"净流出方面，四大300ETF周净赎回均超{int(abs(etf_300[3]['净申赎额']) / 100)}00亿元，合计净流出{format_amount(abs(total_outflow))}亿元；")
+            
+            # 其他净赎回产品
+            other_out = [x for x in etf_flow['top_outflow'] if '沪深300' not in x['基金名称'] and '300ETF' not in x['基金名称']][:3]
+            if other_out:
+                p.add_run(f"{other_out[0]['基金名称'].replace('ETF', '')}、{other_out[1]['基金名称'].replace('ETF', '')}全周净赎回额也均超过百亿元。")
     
     # 4.2 增强指基
     add_h2(doc, '4.2 增强指基')
     
-    if index_funds and index_funds.get('enhanced_top'):
-        enhanced_top = index_funds['enhanced_top'][:10]
+    # 计算超额收益均值
+    df_enhanced_weekly = fund_data.get('股票指数增强基金_收益top')
+    df_enhanced_ytd = fund_data.get('股票指数增强基金_收益top')
+    
+    # 近一周描述
+    p = doc.add_paragraph()
+    p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），")
+    
+    if df_enhanced_weekly is not None and '近一周超额收益' in df_enhanced_weekly.columns:
+        # 计算近一周超额收益均值
+        alpha_300_weekly = df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '沪深300']['近一周超额收益'].mean() if len(df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '沪深300']) > 0 else None
+        alpha_500_weekly = df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '中证500']['近一周超额收益'].mean() if len(df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '中证500']) > 0 else None
+        alpha_1000_weekly = df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '中证1000']['近一周超额收益'].mean() if len(df_enhanced_weekly[df_enhanced_weekly['四级分类'] == '中证1000']) > 0 else None
         
-        # 近一周描述
-        p = doc.add_paragraph()
-        p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}），500/1000指增产品整体跑赢对标指数。")
-        
-        if enhanced_top:
-            p.add_run(f"头部绩优产品包括：")
-            for fund in enhanced_top[:5]:
-                if fund['近一周收益']:
-                    p.add_run(f"{fund['证券简称']}（{format_percent(fund['近一周收益'])}）、")
-            p.add_run("等。")
-        
-        # 年初以来描述
-        # 计算超额收益均值
-        df_enhanced_ytd = fund_data.get('股票指数增强基金_收益top')
-        if df_enhanced_ytd is not None and '年初以来超额收益' in df_enhanced_ytd.columns:
-            # 按指数类型计算超额收益均值
-            alpha_300 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '沪深300']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '沪深300']) > 0 else None
-            alpha_500 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证500']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证500']) > 0 else None
-            alpha_1000 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证1000']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证1000']) > 0 else None
+        if alpha_300_weekly is not None and alpha_500_weekly is not None and alpha_1000_weekly is not None:
+            p.add_run(f"300/500/1000指增基金的超额收益均值分别为{format_percent(alpha_300_weekly)}/{format_percent(alpha_500_weekly)}/{format_percent(alpha_1000_weekly)}。")
             
-            p = doc.add_paragraph()
-            if alpha_300 is not None and alpha_500 is not None and alpha_1000 is not None:
-                p.add_run(f"年初以来（0101-{date_range[1]}），300/500/1000指增基金的超额收益均值分别为{format_percent(alpha_300)}/{format_percent(alpha_500)}/{format_percent(alpha_1000)}，")
-                
-                # 判断跑赢/跑输
-                if alpha_300 > 0 and alpha_1000 > 0:
-                    p.add_run(f"300/1000指增产品整体跑赢基准，500指增产品跑输对标指数，但负超额有所收敛。")
-                else:
-                    p.add_run(f"指增产品表现分化。")
-            else:
-                p.add_run(f"年初以来（0101-{date_range[1]}），300/500/1000指增产品整体跑赢对标指数。")
+            # 判断跑赢跑输
+            win_count = sum([1 for a in [alpha_300_weekly, alpha_500_weekly, alpha_1000_weekly] if a and a > 0])
+            lose_count = sum([1 for a in [alpha_300_weekly, alpha_500_weekly, alpha_1000_weekly] if a and a < 0])
+            
+            if win_count == 3:
+                p.add_run("300/500/1000指增产品整体跑赢对标指数。")
+            elif lose_count == 3:
+                p.add_run("300/500/1000指增产品整体跑输对标指数。")
+            elif win_count >= 2:
+                win_types = []
+                if alpha_300_weekly and alpha_300_weekly > 0:
+                    win_types.append('300')
+                if alpha_500_weekly and alpha_500_weekly > 0:
+                    win_types.append('500')
+                if alpha_1000_weekly and alpha_1000_weekly > 0:
+                    win_types.append('1000')
+                p.add_run(f"{'/'.join(win_types)}指增产品跑赢对标指数。")
+            elif lose_count >= 2:
+                lose_types = []
+                if alpha_300_weekly and alpha_300_weekly < 0:
+                    lose_types.append('300')
+                if alpha_500_weekly and alpha_500_weekly < 0:
+                    lose_types.append('500')
+                if alpha_1000_weekly and alpha_1000_weekly < 0:
+                    lose_types.append('1000')
+                p.add_run(f"{'/'.join(lose_types)}指增产品跑输对标指数。")
         else:
-            p = doc.add_paragraph()
-            p.add_run(f"年初以来（0101-{date_range[1]}），300/500/1000指增产品整体跑赢对标指数。")
+            p.add_run("增强指基超额收益数据不完整。")
+    else:
+        p.add_run("增强指基数据暂缺。")
+    
+    # 年初以来描述
+    p = doc.add_paragraph()
+    p.add_run(f"年初以来（0101-{date_range[1]}），")
+    
+    if df_enhanced_ytd is not None and '年初以来超额收益' in df_enhanced_ytd.columns:
+        # 按指数类型计算超额收益均值
+        alpha_300 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '沪深300']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '沪深300']) > 0 else None
+        alpha_500 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证500']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证500']) > 0 else None
+        alpha_1000 = df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证1000']['年初以来超额收益'].mean() if len(df_enhanced_ytd[df_enhanced_ytd['四级分类'] == '中证1000']) > 0 else None
         
-        if enhanced_top:
-            ytd_top = sorted(enhanced_top, key=lambda x: x['年初以来收益'] if x['年初以来收益'] else 0, reverse=True)[:5]
-            p.add_run(f"年初以来表现居前的产品包括：")
-            for fund in ytd_top:
-                if fund['年初以来收益']:
-                    p.add_run(f"{fund['证券简称']}（{format_percent(fund['年初以来收益'])}）、")
-            p.add_run("等。")
+        if alpha_300 is not None and alpha_500 is not None and alpha_1000 is not None:
+            p.add_run(f"300/500/1000指增基金的超额收益均值分别为{format_percent(alpha_300)}/{format_percent(alpha_500)}/{format_percent(alpha_1000)}。")
+            
+            # 判断跑赢跑输
+            win_count = sum([1 for a in [alpha_300, alpha_500, alpha_1000] if a and a > 0])
+            lose_count = sum([1 for a in [alpha_300, alpha_500, alpha_1000] if a and a < 0])
+            
+            if win_count == 3:
+                p.add_run("300/500/1000指增产品整体跑赢对标指数。")
+            elif lose_count == 3:
+                p.add_run("300/500/1000指增产品整体跑输对标指数。")
+            elif win_count >= 2:
+                win_types = []
+                if alpha_300 and alpha_300 > 0:
+                    win_types.append('300')
+                if alpha_500 and alpha_500 > 0:
+                    win_types.append('500')
+                if alpha_1000 and alpha_1000 > 0:
+                    win_types.append('1000')
+                p.add_run(f"{'/'.join(win_types)}指增产品跑赢对标指数。")
+            elif lose_count >= 2:
+                lose_types = []
+                if alpha_300 and alpha_300 < 0:
+                    lose_types.append('300')
+                if alpha_500 and alpha_500 < 0:
+                    lose_types.append('500')
+                if alpha_1000 and alpha_1000 < 0:
+                    lose_types.append('1000')
+                p.add_run(f"{'/'.join(lose_types)}指增产品跑输对标指数。")
+        else:
+            p.add_run("增强指基年初以来超额收益数据不完整。")
+    else:
+        p.add_run("增强指基年初以来数据暂缺。")
     
     # ===== 5. FOF基金周度表现复盘 =====
     add_h1(doc, '5 FOF基金周度表现复盘')
     
     # 读取FOF数据
     df_fof = fund_data.get('FOF近一周收益')
+    df_fof_ytd = fund_data.get('FOF年初以来收益')
+    
     if df_fof is not None:
         # 计算平均收益
         avg_return = df_fof['近一周收益'].mean() if '近一周收益' in df_fof.columns else 0
         
+        # 判断涨跌
+        is_up = avg_return > 0.001
+        is_down = avg_return < -0.001
+        
         title_text = "收益分布：各类FOF基金净值"
-        if avg_return > 0.005:
+        if is_up:
             title_text += "集体上涨"
-        elif avg_return < -0.005:
+        elif is_down:
             title_text += "集体下跌"
         else:
             title_text += "表现分化"
         
         add_h2(doc, f'5.1 {title_text}')
         
+        # 提取各类型FOF近一周收益
+        fof_weekly_data = {}
+        for _, row in df_fof.iterrows():
+            if pd.notna(row.get('投资类型')) and pd.notna(row.get('近一周收益')):
+                fof_weekly_data[row['投资类型']] = row['近一周收益']
+        
         # 近一周描述
         p = doc.add_paragraph()
         
-        if avg_return < -0.005:
-            p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）各类FOF基金净值集体下跌。")
+        # 名称映射
+        name_map = {
+            '普通FOF_偏股型': '普通FOF-偏股',
+            '目标日期_[2045年,2060年]': '目标日期-[2045年,2060年]',
+            '目标风险_积极型': '目标风险-积极',
+            '普通FOF_偏债型': '普通FOF-偏债',
+            '目标风险_稳健型': '目标风险-稳健',
+            '目标日期_[2025年,2035年)': '目标日期-[2025年,2035年)'
+        }
+        
+        if is_up:
+            p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）各类FOF基金净值集体上涨。分类型来看，高权益仓位FOF基金涨幅居前，")
+            
+            # 高权益仓位FOF：按涨幅绝对值从大到小排序
+            high_types = ['目标风险_积极型', '普通FOF_偏股型', '目标日期_[2045年,2060年]']
+            high_data = [(t, fof_weekly_data.get(t)) for t in high_types if t in fof_weekly_data and fof_weekly_data.get(t) is not None]
+            high_data_sorted = sorted(high_data, key=lambda x: abs(x[1]), reverse=True)
+            
+            if high_data_sorted:
+                names = '/'.join([name_map.get(t, t) for t, r in high_data_sorted])
+                returns = '/'.join([format_percent(r) for t, r in high_data_sorted])
+                p.add_run(f"{names}基金平均涨幅分别为{returns}；")
+            
+            p.add_run("低权益仓位FOF基金净值稳步上涨，")
+            
+            # 低权益仓位FOF：按涨幅绝对值从大到小排序
+            low_types = ['目标日期_[2025年,2035年)', '目标风险_稳健型', '普通FOF_偏债型']
+            low_data = [(t, fof_weekly_data.get(t)) for t in low_types if t in fof_weekly_data and fof_weekly_data.get(t) is not None]
+            low_data_sorted = sorted(low_data, key=lambda x: abs(x[1]), reverse=True)
+            
+            if low_data_sorted:
+                names = '/'.join([name_map.get(t, t) for t, r in low_data_sorted])
+                max_low = max([abs(r) for t, r in low_data_sorted])
+                p.add_run(f"{names}基金平均涨幅均在{format_percent(max_low)}以内。")
+                
+        elif is_down:
+            p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）各类FOF基金净值集体下跌。分类型来看，高权益仓位FOF基金跌幅相对较大，")
+            
+            # 高权益仓位FOF：按跌幅绝对值从大到小排序
+            high_types = ['普通FOF_偏股型', '目标日期_[2045年,2060年]', '目标风险_积极型']
+            high_data = [(t, fof_weekly_data.get(t)) for t in high_types if t in fof_weekly_data and fof_weekly_data.get(t) is not None]
+            high_data_sorted = sorted(high_data, key=lambda x: abs(x[1]), reverse=True)
+            
+            if high_data_sorted:
+                names = '/'.join([name_map.get(t, t) for t, r in high_data_sorted])
+                returns = '/'.join([format_percent(abs(r)) for t, r in high_data_sorted])
+                p.add_run(f"{names}基金平均跌幅分别为{returns}；")
+            
+            p.add_run("低权益仓位FOF基金弹性偏弱，")
+            
+            # 低权益仓位FOF：同样按跌幅绝对值从大到小排序
+            low_types = ['普通FOF_偏债型', '目标风险_稳健型', '目标日期_[2025年,2035年)']
+            low_data = [(t, fof_weekly_data.get(t)) for t in low_types if t in fof_weekly_data and fof_weekly_data.get(t) is not None]
+            low_data_sorted = sorted(low_data, key=lambda x: abs(x[1]), reverse=True)
+            
+            if low_data_sorted:
+                names = '/'.join([name_map.get(t, t) for t, r in low_data_sorted])
+                max_low = max([abs(r) for t, r in low_data_sorted])
+                p.add_run(f"{names}基金平均跌幅均在{format_percent(max_low)}以内。")
         else:
             p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）各类FOF基金净值表现分化。")
         
-        p.add_run("分类型来看，高权益仓位FOF基金弹性较大，低权益仓位FOF基金弹性偏弱。")
-        
         # 年初以来描述
-        df_fof_ytd = fund_data.get('FOF年初以来收益')
         if df_fof_ytd is not None and len(df_fof_ytd) > 0:
             # 提取各类型FOF年初以来收益
             fof_ytd_data = {}
@@ -998,50 +1211,62 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
                     fof_ytd_data[row['投资类型']] = row['年初以来收益']
             
             p = doc.add_paragraph()
-            p.add_run(f"年初以来（0101-{date_range[1]}），各类FOF基金平均收益均为正值，高权益仓位FOF涨幅领先，")
+            p.add_run(f"年初以来（0101-{date_range[1]}），各类FOF基金平均收益均为正值，")
             
-            # 详细描述各类型FOF收益
-            if fof_ytd_data:
-                # 高权益仓位FOF
-                high_equity_types = ['普通FOF_偏股型', '目标风险_积极型', '目标日期_[2045年,2060年]']
-                high_returns = [fof_ytd_data.get(t) for t in high_equity_types if t in fof_ytd_data]
-                if high_returns:
-                    high_str = '/'.join([format_percent(r) for r in high_returns[:3]])
-                    p.add_run(f"普通FOF-偏股/目标风险-积极/目标日期-[2045年,2060年]基金平均涨幅分别为{high_str}；")
+            if is_up:
+                # 第一种话术
+                p.add_run("高权益仓位FOF涨幅领先，")
                 
-                # 低权益仓位FOF
-                low_equity_types = ['普通FOF_偏债型', '目标风险_稳健型']
-                low_returns = [fof_ytd_data.get(t) for t in low_equity_types if t in fof_ytd_data]
+                high_types = ['普通FOF_偏股型', '目标风险_积极型', '目标日期_[2045年,2060年]']
+                high_returns = [fof_ytd_data.get(t) for t in high_types if t in fof_ytd_data]
+                if high_returns and all(r is not None for r in high_returns[:3]):
+                    p.add_run(f"普通FOF-偏股/目标风险-积极/目标日期-[2045年,2060年]基金平均涨幅分别为{format_percent(high_returns[0])}/{format_percent(high_returns[1])}/{format_percent(high_returns[2])}；")
+                
+                p.add_run("普通FOF-偏债/目标风险-稳健两类低权益仓位FOF基金年初以来平均涨幅在3%以内。")
+            else:
+                # 第二种话术
+                high_types = ['普通FOF_偏股型']
+                high_returns = [fof_ytd_data.get(t) for t in high_types if t in fof_ytd_data]
+                if high_returns and high_returns[0] is not None:
+                    p.add_run(f"普通FOF-偏股型基金涨幅领先，年初以来平均上涨{format_percent(high_returns[0])}，")
+                
+                other_high = ['目标风险_积极型', '目标日期_[2045年,2060年]']
+                other_returns = [fof_ytd_data.get(t) for t in other_high if t in fof_ytd_data]
+                if other_returns and all(r is not None for r in other_returns[:2]):
+                    p.add_run(f"目标风险-积极/目标日期-[2045年,2060年]基金平均涨幅近{format_percent(min(other_returns[:2]))}；")
+                
+                low_types = ['普通FOF_偏债型', '目标风险_稳健型', '目标日期_[2025年,2035年)']
+                low_returns = [fof_ytd_data.get(t) for t in low_types if t in fof_ytd_data]
                 if low_returns:
-                    p.add_run(f"普通FOF-偏债/目标风险-稳健两类低权益仓位FOF基金年初以来平均涨幅在3%以内。")
+                    max_low = max([r for r in low_returns if r is not None]) if low_returns else 0
+                    p.add_run(f"普通FOF-偏债/目标风险-稳健/目标日期-[2025年,2035年)三类低权益仓位FOF基金年初以来平均涨幅均在{format_percent(max_low)}以内。")
     
     # ===== 6. 其他类型基金周度表现复盘 =====
     add_h1(doc, '6 其他类型基金周度表现复盘')
     
     # 6.1 QDII基金
-    add_h2(doc, '6.1 QDII基金')
-    
-    if qdii_data:
-        # 近一周描述
-        avg_return = sum([x['近一周收益'] for x in qdii_data if x['近一周收益']]) / len(qdii_data) if qdii_data else 0
+    if qdii_funds:
+        # 使用Excel中的平均收益，而不是计算TOP基金平均值
+        avg_return = qdii_avg.get('近一周', 0) or 0
+        ytd_avg_return = qdii_avg.get('年初以来', 0) or 0
+        
+        add_h2(doc, f'6.1 QDII基金：主动QDII基金平均收益{format_percent(avg_return)}')
         
         p = doc.add_paragraph()
         p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）主动QDII基金平均收益为{format_percent(avg_return)}，")
         
         # 头部产品
-        top_qdii = sorted(qdii_data, key=lambda x: x['近一周收益'] if x['近一周收益'] else 0, reverse=True)[:5]
+        top_qdii = sorted(qdii_funds, key=lambda x: x['近一周收益'] if x['近一周收益'] else 0, reverse=True)[:5]
         
         if top_qdii:
             p.add_run(f"{top_qdii[0]['证券简称']}、{top_qdii[1]['证券简称']}、{top_qdii[2]['证券简称']}近一周涨幅居前。")
         
         # 年初以来描述
-        ytd_avg_return = sum([x['年初以来收益'] for x in qdii_data if x['年初以来收益']]) / len(qdii_data) if qdii_data else 0
-        
         p = doc.add_paragraph()
         p.add_run(f"年初以来（0101-{date_range[1]}）主动QDII基金平均收益为{format_percent(ytd_avg_return)}，")
         
         # 年初以来头部产品
-        ytd_top_qdii = sorted(qdii_data, key=lambda x: x['年初以来收益'] if x['年初以来收益'] else 0, reverse=True)[:5]
+        ytd_top_qdii = sorted(qdii_funds, key=lambda x: x['年初以来收益'] if x['年初以来收益'] else 0, reverse=True)[:5]
         
         if ytd_top_qdii:
             # 检查是否有超过20%的产品
@@ -1050,28 +1275,36 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
                 p.add_run(f"{high_return_funds[0]['证券简称']}、{high_return_funds[1]['证券简称'] if len(high_return_funds) > 1 else ytd_top_qdii[1]['证券简称']}、{high_return_funds[2]['证券简称'] if len(high_return_funds) > 2 else ytd_top_qdii[2]['证券简称']}等黄金及商品主题产品年初以来收益均超20%。")
             else:
                 p.add_run(f"{ytd_top_qdii[0]['证券简称']}、{ytd_top_qdii[1]['证券简称']}、{ytd_top_qdii[2]['证券简称']}年初以来涨幅居前。")
+    else:
+        add_h2(doc, '6.1 QDII基金')
     
     # 6.2 REITs基金
-    add_h2(doc, '6.2 REITs基金')
-    
-    if reits_data:
-        # 近一周描述
-        avg_return = sum([x['近一周收益'] for x in reits_data if x['近一周收益']]) / len(reits_data) if reits_data else 0
+    if reits_funds:
+        # 使用Excel中的平均收益，而不是计算TOP基金平均值
+        avg_return = reits_avg.get('近一周', 0) or 0
+        ytd_avg_return = reits_avg.get('年初以来', 0) or 0
+        
+        add_h2(doc, f'6.2 REITs基金：REITs基金平均收益为{format_percent(avg_return)}')
         
         p = doc.add_paragraph()
         p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）REITs基金收益均值为{format_percent(avg_return)}，")
         
         # 头部产品
-        top_reits = sorted(reits_data, key=lambda x: x['近一周收益'] if x['近一周收益'] else 0, reverse=True)[:3]
+        top_reits = sorted(reits_funds, key=lambda x: x['近一周收益'] if x['近一周收益'] else 0, reverse=True)[:3]
         
         if top_reits and top_reits[0]['近一周收益']:
             p.add_run(f"{top_reits[0]['证券简称']}周涨幅{format_percent(top_reits[0]['近一周收益'])}，表现居前。")
         
         # 年初以来描述
-        ytd_avg_return = sum([x['年初以来收益'] for x in reits_data if x['年初以来收益']]) / len(reits_data) if reits_data else 0
-        
-        p = doc.add_paragraph()
-        p.add_run(f"年初以来（0101-{date_range[1]}）REITs基金收益均值为{format_percent(ytd_avg_return)}。")
+        if ytd_avg_return:
+            p = doc.add_paragraph()
+            p.add_run(f"年初以来（0101-{date_range[1]}）REITs基金平均收益为{format_percent(ytd_avg_return)}，")
+            
+            ytd_top_reits = sorted(reits_funds, key=lambda x: x['年初以来收益'] if x['年初以来收益'] else 0, reverse=True)[:3]
+            if ytd_top_reits:
+                p.add_run(f"{ytd_top_reits[0]['证券简称']}年初以来涨幅居前。")
+    else:
+        add_h2(doc, '6.2 REITs基金')
     
     # ===== 7. 基金成立与发行回顾 =====
     add_h1(doc, '7 基金成立与发行回顾')
@@ -1133,17 +1366,136 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         
         # 按类型统计
         type_counts = {}
+        type_funds = {}
         for fund in issued:
-            fund_type = fund.get('投资类型', '其他')
+            fund_type = fund.get('基金类型', '其他')
             type_counts[fund_type] = type_counts.get(fund_type, 0) + 1
+            if fund_type not in type_funds:
+                type_funds[fund_type] = []
+            type_funds[fund_type].append(fund)
         
-        add_h2(doc, '7.2 基金发行')
+        add_h2(doc, f'7.2 基金发行：全市场新发行基金{len(issued)}只')
         
         p = doc.add_paragraph()
         p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）全市场新发行基金{len(issued)}只，")
         
         if type_counts:
-            p.add_run(f"主动权益/含权债基/指数型基金新发数量分别为{type_counts.get('偏股混合型基金', 0)}只/{type_counts.get('混合债券型二级基金', 0)}只/{type_counts.get('被动指数型基金', 0)}只。")
+            # 按类型输出数量
+            type_str = '/'.join([f"{v}只" for v in list(type_counts.values())[:5]])
+            p.add_run(f"主动权益/固定收益/含权债基/指数型/量化策略/FOF基金新发数量分别为{type_str}。")
+        
+        # 指数型基金详细描述
+        if type_funds.get('指数型基金'):
+            p = doc.add_paragraph()
+            index_funds = type_funds['指数型基金']
+            
+            # 按主题分组（从基金名称中提取主题关键词）
+            theme_funds = {}
+            other_index = []
+            
+            for fund in index_funds:
+                name = fund.get('证券简称', '')
+                manager = fund.get('基金管理人') or ''
+                
+                # 提取主题关键词
+                themes = {
+                    '新能源': ['新能源', '电池', '光伏', '风电'],
+                    '电力': ['电力', '电网'],
+                    '云计算': ['云计算', '大数据'],
+                    '生物科技': ['生物科技', '生物医药'],
+                    '消费': ['消费'],
+                    '科技': ['科技'],
+                    '医药': ['医药', '医疗'],
+                    '红利': ['红利'],
+                    '央企': ['央企', '国企']
+                }
+                
+                matched_theme = None
+                for theme, keywords in themes.items():
+                    for kw in keywords:
+                        if kw in name:
+                            matched_theme = theme
+                            break
+                    if matched_theme:
+                        break
+                
+                if matched_theme:
+                    if matched_theme not in theme_funds:
+                        theme_funds[matched_theme] = []
+                    theme_funds[matched_theme].append((manager, name))
+                else:
+                    other_index.append((manager, name))
+            
+            p.add_run("指数型基金方面，")
+            
+            # 输出按主题分组的基金
+            first = True
+            for theme, funds in theme_funds.items():
+                if not first:
+                    p.add_run("；")
+                first = False
+                
+                if len(funds) == 1:
+                    manager, name = funds[0]
+                    if manager:
+                        p.add_run(f"{manager}新发行{name}")
+                    else:
+                        p.add_run(f"新发行{name}")
+                else:
+                    # 多家公司发行同一主题
+                    managers = '、'.join([f[0] for f in funds if f[0]])
+                    if managers:
+                        p.add_run(f"{managers}各新发行一只{theme}主题ETF")
+                    else:
+                        p.add_run(f"新发行{len(funds)}只{theme}主题ETF")
+            
+            if other_index:
+                if theme_funds:
+                    p.add_run("；")
+                for i, (manager, name) in enumerate(other_index[:3]):
+                    if i > 0:
+                        p.add_run("、")
+                    if manager:
+                        p.add_run(f"{manager}新发行{name}")
+                    else:
+                        p.add_run(f"新发行{name}")
+            
+            p.add_run("。")
+        
+        # FOF基金详细描述
+        if type_funds.get('FOF基金'):
+            p = doc.add_paragraph()
+            fof_funds = type_funds['FOF基金']
+            p.add_run(f"FOF基金方面，")
+            
+            # 列出具体基金
+            descriptions = []
+            for fund in fof_funds[:3]:
+                manager = fund.get('基金管理人')
+                name = fund.get('证券简称', '')
+                if manager:
+                    descriptions.append(f"{manager}新发行{name}")
+                else:
+                    descriptions.append(f"新发行{name}")
+            p.add_run("、".join(descriptions))
+            p.add_run("。")
+        
+        # 其他类型基金
+        if type_funds.get('其他类型基金') or type_funds.get('QDII基金'):
+            p = doc.add_paragraph()
+            other_funds = type_funds.get('其他类型基金', []) + type_funds.get('QDII基金', [])
+            p.add_run(f"其他类型基金方面，")
+            
+            descriptions = []
+            for fund in other_funds[:3]:
+                manager = fund.get('基金管理人')
+                name = fund.get('证券简称', '')
+                if manager:
+                    descriptions.append(f"{manager}新发行{name}")
+                else:
+                    descriptions.append(f"新发行{name}")
+            p.add_run("、".join(descriptions))
+            p.add_run("。")
     
     # 7.3 基金申报
     if new_funds and new_funds.get('declared'):
@@ -1151,18 +1503,151 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
         
         # 按类型统计
         type_counts = {}
+        type_funds = {}
         for fund in declared:
             fund_type = fund.get('基金类型', '其他')
             type_counts[fund_type] = type_counts.get(fund_type, 0) + 1
+            if fund_type not in type_funds:
+                type_funds[fund_type] = []
+            type_funds[fund_type].append(fund)
         
-        add_h2(doc, '7.3 基金申报')
+        # 识别集中上报的主题（用于标题）
+        index_funds = type_funds.get('指数', []) + type_funds.get('指数型基金', []) + type_funds.get('指数型', [])
+        theme_funds = {}
+        for fund in index_funds:
+            name = fund.get('基金名称', '')
+            manager = fund.get('基金管理人', '')
+            
+            # 提取主题关键词
+            themes = {
+                '有色金属': ['有色金属', '黄金', '贵金属'],
+                '新能源': ['新能源', '电池', '光伏', '风电'],
+                '人工智能': ['人工智能', 'AI', '智能'],
+                '芯片': ['芯片', '半导体', '集成电路'],
+                '电力': ['电力', '电网'],
+                '红利': ['红利', '高股息'],
+                '央企': ['央企', '国企'],
+                '医药': ['医药', '医疗', '生物'],
+                '消费': ['消费'],
+                '科技': ['科技']
+            }
+            
+            matched_theme = None
+            for theme, keywords in themes.items():
+                for kw in keywords:
+                    if kw in name:
+                        matched_theme = theme
+                        break
+                if matched_theme:
+                    break
+            
+            if matched_theme:
+                if matched_theme not in theme_funds:
+                    theme_funds[matched_theme] = []
+                theme_funds[matched_theme].append((manager, name))
+        
+        # 生成标题（如果有集中上报的主题）
+        title_suffix = ""
+        if theme_funds:
+            top_theme = max(theme_funds.items(), key=lambda x: len(x[1]))
+            if len(top_theme[1]) >= 3:
+                title_suffix = f"，{len(top_theme[1])}家机构集中上报{top_theme[0]}主题基金"
+        
+        add_h2(doc, f'7.3 基金申报：全市场新申报基金{len(declared)}只{title_suffix}')
         
         p = doc.add_paragraph()
         p.add_run(f"最近一周（{date_range[0]}-{date_range[1]}）全市场新申报基金共{len(declared)}只，")
         
         if type_counts:
-            type_str = '、'.join([f"{k}{v}只" for k, v in list(type_counts.items())[:5]])
+            type_str = '、'.join([f"{k}基金{v}只" for k, v in list(type_counts.items())[:5]])
             p.add_run(f"包括{type_str}。")
+        
+        # 指数型基金详细描述（按主题分组）
+        index_funds = type_funds.get('指数', []) + type_funds.get('指数型基金', []) + type_funds.get('指数型', [])
+        if index_funds:
+            p = doc.add_paragraph()
+            p.add_run("指数型基金方面，")
+            
+            # 重新计算主题分组（用于正文）
+            theme_funds_text = {}
+            for fund in index_funds:
+                name = fund.get('基金名称', '')
+                manager = fund.get('基金管理人', '')
+                
+                themes = {
+                    '新能源': ['新能源', '电池', '光伏', '风电'],
+                    '电力': ['电力', '电网'],
+                    '红利': ['红利', '高股息'],
+                    '芯片': ['芯片', '半导体', '集成电路'],
+                    '医药': ['医药', '医疗', '生物', '创新药'],
+                    '科技': ['科技'],
+                    '消费': ['消费'],
+                    '证券': ['证券'],
+                    '红利低波': ['红利低波'],
+                }
+                
+                matched_theme = None
+                for theme, keywords in themes.items():
+                    for kw in keywords:
+                        if kw in name:
+                            matched_theme = theme
+                            break
+                    if matched_theme:
+                        break
+                
+                if matched_theme:
+                    if matched_theme not in theme_funds_text:
+                        theme_funds_text[matched_theme] = []
+                    theme_funds_text[matched_theme].append(fund)
+            
+            # 输出按主题分组的基金
+            first = True
+            for theme, funds in theme_funds_text.items():
+                if not first:
+                    p.add_run("；")
+                first = False
+                
+                if len(funds) >= 3:
+                    # 集中上报主题
+                    managers = '、'.join([f.get('基金管理人', '') for f in funds[:5] if f.get('基金管理人')])
+                    p.add_run(f"{managers}等共计{len(funds)}家基金公司集中上报{theme}主题ETF/指数基金")
+                elif len(funds) == 2:
+                    managers = '、'.join([f.get('基金管理人', '') for f in funds if f.get('基金管理人')])
+                    p.add_run(f"{managers}各新上报一只{theme}主题ETF/指数基金")
+                else:
+                    manager = funds[0].get('基金管理人', '')
+                    name = funds[0].get('基金名称', '')[:25]
+                    if manager:
+                        p.add_run(f"{manager}新上报{name}")
+            
+            # 其他指数基金
+            other_index = [f for f in index_funds if f not in [item for sublist in theme_funds_text.values() for item in sublist]]
+            if other_index:
+                if theme_funds_text:
+                    p.add_run("；")
+                for i, fund in enumerate(other_index[:5]):
+                    if i > 0:
+                        p.add_run("，")
+                    manager = fund.get('基金管理人', '')
+                    name = fund.get('基金名称', '')[:20]
+                    if manager:
+                        p.add_run(f"{manager}新申报{name}")
+                    else:
+                        p.add_run(f"新申报{name}")
+            
+            p.add_run("。")
+        
+        # FOF基金详细描述
+        if type_funds.get('FOF基金') or type_funds.get('FOF'):
+            p = doc.add_paragraph()
+            fof_funds = type_funds.get('FOF基金', []) + type_funds.get('FOF', [])
+            p.add_run(f"FOF基金方面，")
+            
+            for i, fund in enumerate(fof_funds[:3]):
+                if i > 0:
+                    p.add_run("；")
+                p.add_run(f"{fund.get('基金管理人', '')}新申报{fund.get('基金名称', '')[:25]}")
+            p.add_run("。")
     
     # ===== 8. 附注及风险提示 =====
     add_h1(doc, '8 附注及风险提示')
@@ -1187,12 +1672,17 @@ def generate_report(fund_file: str, etf_file: str, output_file: str):
 if __name__ == '__main__':
     import sys
     
-    if len(sys.argv) < 3:
-        print("Usage: python generate_weekly_report_v3.py <fund_excel> <etf_excel> [output_file]")
+    if len(sys.argv) < 2:
+        print("Usage: python generate_weekly_report_v3.py <fund_excel> [etf_excel] [output_file]")
         sys.exit(1)
     
     fund_file = sys.argv[1]
-    etf_file = sys.argv[2]
-    output_file = sys.argv[3] if len(sys.argv) > 3 else '基金周报_v3.docx'
+    etf_file = sys.argv[2] if len(sys.argv) > 2 and sys.argv[2].endswith('.xlsx') else None
+    output_file = sys.argv[3] if len(sys.argv) > 3 else f'基金周报_{datetime.now().strftime("%Y%m%d")}.docx'
+    
+    # 如果只有一个参数且第二个参数不是Excel文件，则第二个参数是输出文件名
+    if len(sys.argv) == 3 and not sys.argv[2].endswith('.xlsx'):
+        output_file = sys.argv[2]
+        etf_file = None
     
     generate_report(fund_file, etf_file, output_file)
