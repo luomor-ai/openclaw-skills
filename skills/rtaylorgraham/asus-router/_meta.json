@@ -1,0 +1,11 @@
+{
+  "owner": "rtaylorgraham",
+  "slug": "asus-router",
+  "displayName": "Asus Router",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773641642041,
+    "commit": null
+  },
+  "history": []
+}
