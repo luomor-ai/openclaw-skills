@@ -1,0 +1,11 @@
+{
+  "owner": "songrat",
+  "slug": "bilibili-search",
+  "displayName": "Bilibili Search",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773765461926,
+    "commit": null
+  },
+  "history": []
+}
