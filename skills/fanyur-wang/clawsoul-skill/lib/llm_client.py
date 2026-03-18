@@ -13,8 +13,8 @@ DEFAULT_PROVIDER = "ollama"
 # LLM 配置
 LLM_CONFIGS = {
     "ollama": {
-        "api_base": "http://192.168.31.228:11434",
-        "model": "qwen2.5:latest",  # 使用可用的模型
+        "api_base": os.getenv("OLLAMA_API_BASE", "http://localhost:11434"),
+        "model": os.getenv("OLLAMA_MODEL", "qwen2.5:latest"),
     },
     "qwen": {
         "api_base": "https://dashscope.aliyuncs.com/compatible-mode/v1",
