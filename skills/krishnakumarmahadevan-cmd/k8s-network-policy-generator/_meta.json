@@ -1,0 +1,11 @@
+{
+  "owner": "krishnakumarmahadevan-cmd",
+  "slug": "k8s-network-policy-generator",
+  "displayName": "Kubernetes Network Policy Generator",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773809907668,
+    "commit": null
+  },
+  "history": []
+}
