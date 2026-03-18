@@ -3,9 +3,15 @@
   "slug": "full-page-translate",
   "displayName": "Full Page Translate",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773776863805,
-    "commit": "https://github.com/openclaw/skills/commit/e5f2b7785145b83c663867df98caa2c3e6512c45"
+    "version": "1.0.2",
+    "publishedAt": 1773777196693,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773776863805,
+      "commit": "https://github.com/openclaw/skills/commit/e5f2b7785145b83c663867df98caa2c3e6512c45"
+    }
+  ]
 }
