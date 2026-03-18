@@ -1,0 +1,11 @@
+{
+  "owner": "codekungfu",
+  "slug": "toutiao-trending",
+  "displayName": "Toutiao",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773736056745,
+    "commit": null
+  },
+  "history": []
+}
