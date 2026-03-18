@@ -1,6 +1,6 @@
 ---
 name: overleaf
-description: Access Overleaf projects via CLI. Use for reading/writing LaTeX files, syncing local .tex files to Overleaf, downloading projects, and managing Overleaf project structure. Triggers on Overleaf, LaTeX sync, or tex file uploads to Overleaf.
+description: Access Overleaf projects via CLI. Use for reading/writing LaTeX files, syncing local .tex files to Overleaf, downloading projects, managing Overleaf project structure, and accepting project invitations. Triggers on Overleaf, LaTeX sync, tex file uploads to Overleaf, or Overleaf invite acceptance.
 ---
 
 # Overleaf
@@ -99,6 +99,86 @@ api.project_upload_file(project_id, root.id, "main.tex", content)
 
 **Why direct overwrite?** This method preserves Overleaf's version history. Users can see exactly what changed via Overleaf's History feature, making it easy to review agent edits and revert if needed.
 
+## Accept Project Invites
+
+The agent can accept Overleaf project invitations programmatically using browser cookies — no manual clicking required.
+
+### How it works
+
+1. Fetch pending invite notifications from Overleaf's `/notifications` API
+2. Extract the invite token from the notification
+3. Fetch the invite page to get a CSRF token
+4. POST to the accept endpoint with the CSRF token
+
+### Python snippet
+
+```python
+import pyoverleaf
+import re
+
+api = pyoverleaf.Api()
+api.login_from_browser()
+session = api._get_session()
+
+# Step 1: Get pending invites
+r = session.get('https://www.overleaf.com/notifications',
+                headers={'Accept': 'application/json'})
+notifications = r.json()
+
+# Filter for project invites
+invites = [n for n in notifications
+           if n.get('templateKey') == 'notification_project_invite']
+
+for invite in invites:
+    opts = invite['messageOpts']
+    project_id = opts['projectId']
+    token = opts['token']
+    project_name = opts['projectName']
+    inviter = opts['userName']
+    print(f"Invite: '{project_name}' from {inviter}")
+
+    # Step 2: Get CSRF token from invite page
+    r_page = session.get(
+        f'https://www.overleaf.com/project/{project_id}/invite/token/{token}')
+    csrf_match = re.search(
+        r'name="ol-csrfToken" content="([^"]+)"', r_page.text)
+    if not csrf_match:
+        print(f"  Could not find CSRF token, skipping")
+        continue
+    csrf = csrf_match.group(1)
+
+    # Step 3: Accept the invite
+    r_accept = session.post(
+        f'https://www.overleaf.com/project/{project_id}/invite/token/{token}/accept',
+        headers={
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+            'x-csrf-token': csrf,
+        },
+        json={})
+    if r_accept.status_code == 200:
+        print(f"  ✅ Accepted '{project_name}'")
+    else:
+        print(f"  ❌ Failed ({r_accept.status_code})")
+```
+
+### Accept a specific invite by project URL
+
+```python
+# Given: https://www.overleaf.com/project/XXXXXXXXXXXXXXXXXXXXXXXX
+target_project_id = "XXXXXXXXXXXXXXXXXXXXXXXX"
+matching = [n for n in invites
+            if n['messageOpts']['projectId'] == target_project_id]
+# Then follow steps 2-3 above for the matching invite
+```
+
+### Notes
+
+- Only works if the user is logged into Overleaf in their browser (cookie auth)
+- Invites expire (check the `expires` field in the notification)
+- After accepting, the project appears in `pyoverleaf ls` / `api.get_projects()`
+- For self-hosted Overleaf, replace `www.overleaf.com` with your host
+
 ## Self-hosted Overleaf
 
 ```bash
@@ -109,26 +189,6 @@ pyoverleaf ls
 # Via flag
 pyoverleaf --host overleaf.mycompany.com ls
 ```
-
-## Eason's Workflow Requirements
-
-**When pulling from Overleaf:**
-1. Download Overleaf version to `/tmp/`
-2. Compare with local version using `diff`
-3. Report differences to Eason (summarize what changed)
-4. Ask: merge? overwrite local? overwrite Overleaf? or other?
-5. Only proceed after Eason confirms
-
-**Push rules (from TOOLS.md):**
-- ❌ 禁止自行推送到 Overleaf
-- ✅ 只能從 Overleaf 拉到 local
-- ⚠️ 推送需要 Eason 明確授權，每次授權只能推一次
-
-## Example
-
-Here's an example of using the Overleaf skill to remove em dashes (a common AI writing artifact) from a paper and push the changes:
-
-![Example: Remove em dashes and push to Overleaf](example-em-dash.jpg)
 
 ## Troubleshooting
 
