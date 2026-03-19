@@ -1,10 +1,10 @@
 # Alan voice reference (auto)
 
-Generated: 2026-03-17T09:55:30.704Z
+Generated: 2026-03-19T09:55:31.593Z
 Sample size (sent snippets): 50
 
 ## High-level style (heuristics)
-- Concise snippets (<=180 chars): 28%
+- Concise snippets (<=180 chars): 26%
 - Greeting present: 12%
 - Gratitude language: 40%
 
@@ -15,6 +15,7 @@ Sample size (sent snippets): 50
 - Avoid filler.
 
 ## Representative micro-snippets (snippets only)
+- “Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] [phone] [link] ---------- Forwarded message ---------- From: Financial Aid <[email]> Date: Mar 18, 2026 at 3:47 PM -0400 To: [email] <[email]> Cc: [e…”
 - “Hello, Due to the heavy rain today, I will pick it up tomorrow. Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] [phone] [link]”
 - “Thank you so much for your help. I have submitted everything to Certiphi. Warm regards, Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] [phone] [link]”
 - “Dear Robin, I just called Certiphi support, and they said the only way to bypass this would be to put on the form that I already graduated (with your permission). Once I submit the completed form, you should be able to c…”
@@ -29,4 +30,3 @@ Sample size (sent snippets): 50
 - “Approved! Thank you so much! Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] [phone] [link]”
 - “Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] [phone] [link] ---------- Forwarded message ---------- From: SFS Mail <[email]> Date: Mar 13, 2026 at 11:15 AM -0400 To: [email] <[email]> Subject: R…”
 - “Dear Evolution Signs and Print, I called earlier today to order a 21x45 inch paper print. Here is the design file. Thank you so much! Warm regards, Alan Alwakeel Stanton College Preparatory School Class of 2026 [email] […”
-- “Dear UPenn Office of Student Financial Services, My Financial Aid portal states that my parents' 2024 Tax Return was "Received Incomplete." Could you please let me know what was missing so we can upload it? Thank you for…”
