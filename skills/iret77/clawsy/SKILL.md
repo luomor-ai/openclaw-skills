@@ -7,60 +7,15 @@ description: Clawsy is a native macOS menu bar app that gives your OpenClaw agen
 
 Clawsy connects your OpenClaw agent to a Mac via secure WebSocket (with SSH tunnel fallback). This skill file tells you everything you need to use it.
 
-**Current version:** v0.9.34  
+**Current version:** v0.9.37  
 **Download:** https://github.com/iret77/clawsy/releases/latest  
 **Platform:** macOS 14+ (Sonoma/Sequoia), Apple Silicon + Intel
 
 ---
 
-## 🎯 First Connect — Targeted Onboarding via setupState
-
-When a Clawsy node connects for the first time (or after reinstall), the `hello` payload includes a `setupState` object telling you exactly what's still missing on the Mac:
-
-```json
-{
-  "setupState": {
-    "sharedFolderConfigured": true,
-    "sharedFolderPath": "~/Documents/Clawsy",
-    "finderSyncEnabled": false,
-    "accessibilityGranted": false,
-    "screenRecordingGranted": true,
-    "firstLaunch": false
-  }
-}
-```
-
-**On first connect, send your human a targeted message** (don't list everything generically):
-
-```python
-# After node connects, read setupState from the hello event in clawsy-service
-history = sessions_history(sessionKey="clawsy-service", limit=5)
-# Parse setupState from the hello envelope, then:
-
-missing = []
-if not setup["sharedFolderConfigured"]:
-    missing.append("• Shared Folder: set a folder in Clawsy Settings → Shared Folder")
-if not setup["finderSyncEnabled"]:
-    missing.append("• FinderSync: System Settings → Privacy → Extensions → Finder → enable Clawsy")
-if not setup["accessibilityGranted"]:
-    missing.append("• Accessibility: System Settings → Privacy → Accessibility → enable Clawsy")
-if not setup["screenRecordingGranted"]:
-    missing.append("• Screen Recording: System Settings → Privacy → Screen Recording → enable Clawsy")
-
-if missing:
-    msg = "✅ Clawsy connected! A few things still need your attention:\n" + "\n".join(missing)
-else:
-    msg = "✅ Clawsy is fully set up and ready!"
-# Send msg to user via your channel
-```
-
-> **Note:** `setupState` is available as of v0.9.29. On older versions, `setupState` will be absent — fall back to the generic permissions table below.
-
----
-
 ## ⚡ Auto-Setup (Clawsy Just Installed?)
 
-If you loaded this skill because Clawsy was **just installed** on a Mac and pairing is still pending (no Clawsy node shows up in `nodes list`), run this first:
+If you loaded this skill because Clawsy was **just installed** on a Mac and pairing is still pending (no Clawsy node shows up in `openclaw nodes status`), run this first:
 
 ```bash
 curl -sL https://raw.githubusercontent.com/iret77/clawsy/main/server/install.sh | bash
@@ -70,7 +25,7 @@ The script auto-detects the network situation (6 scenarios: preconfigured, Tails
 
 > **Note:** The install script is fetched directly from the [Clawsy GitHub repo](https://github.com/iret77/clawsy). No executable files are included in this skill package.
 
-> Skip this section if Clawsy is already paired and a node with `platform="macos"` appears in `nodes list`.
+> Skip this section if Clawsy is already paired and a node with `platform="macos"` appears in `openclaw nodes status`.
 
 ---
 
@@ -97,14 +52,16 @@ Clawsy opens and auto-configures the connection.
 
 ### Step 3 — Approve the Pairing Request
 
-Wait ~30 seconds, then check for pending requests:
+Wait ~30 seconds, then check for pending device pairing requests:
 ```bash
-openclaw nodes list
+openclaw devices list
 ```
-Look for a new entry. Copy its `requestId`, then approve:
+Look for a pending entry. Copy its `requestId`, then approve:
 ```bash
-openclaw nodes approve <requestId>
+openclaw devices approve <requestId>
 ```
+
+> **⚠️ Important:** Use `openclaw devices` (device pairing), NOT `openclaw nodes` (legacy node pairing). Clawsy connects as a WS node with `role: node` and requires device pairing. The legacy `openclaw nodes pending/approve` API uses a separate store and will NOT show Clawsy pairing requests.
 
 ### Step 4 — Update Your Workspace
 
@@ -126,8 +83,8 @@ cp "$(dirname $(which openclaw))/../lib/node_modules/openclaw/skills/clawsy-serv
 ### Step 5 — Verify
 
 ```bash
-openclaw nodes list
-# → Should show a node with platform="macos"
+openclaw nodes status
+# → Should show a node with platform="macos", connected=true
 ```
 
 Done! Clawsy is connected. Read the rest of this SKILL.md to learn what you can do.
@@ -159,6 +116,12 @@ curl -sL https://raw.githubusercontent.com/iret77/clawsy/main/tools/clawsy-pair.
 | **File Write** | `file.set` | Write a file to the shared folder |
 | **File Mkdir** | `file.mkdir` | Create a directory (with intermediate parents) |
 | **File Delete/Rmdir** | `file.delete` / `file.rmdir` | Delete a file or directory (including non-empty) |
+| **File Move** | `file.move` | Move/rename files (supports glob patterns) |
+| **File Copy** | `file.copy` | Copy files (supports glob patterns) |
+| **File Rename** | `file.rename` | Rename a file (name only, same directory) |
+| **File Stat** | `file.stat` | Get file metadata (size, dates, type; supports glob) |
+| **File Exists** | `file.exists` | Check if a file or directory exists |
+| **File Batch** | `file.batch` | Execute multiple file operations in one call |
 | **Location** | `location.get` | Get device location |
 | **Mission Control** | via `agent.status` | Show live task progress in Clawsy UI |
 | **Quick Send** | incoming | Receive text from user via `⌘⇧K` hotkey |
@@ -210,11 +173,33 @@ nodes(action="invoke", invokeCommand="file.mkdir",
 nodes(action="invoke", invokeCommand="file.delete",
       invokeParamsJson='{"name": "old-file.txt"}')                                        # works for files and directories
 
+nodes(action="invoke", invokeCommand="file.move",
+      invokeParamsJson='{"source": "old/path.txt", "destination": "new/path.txt"}')       # supports glob patterns in source
+
+nodes(action="invoke", invokeCommand="file.copy",
+      invokeParamsJson='{"source": "original.txt", "destination": "backup.txt"}')         # supports glob patterns in source
+
+nodes(action="invoke", invokeCommand="file.rename",
+      invokeParamsJson='{"path": "old-name.txt", "newName": "new-name.txt"}')             # name change only (no path)
+
+nodes(action="invoke", invokeCommand="file.stat",
+      invokeParamsJson='{"path": "report.pdf"}')                                          # returns size, dates, type; supports glob
+
+nodes(action="invoke", invokeCommand="file.exists",
+      invokeParamsJson='{"path": "report.pdf"}')                                          # returns {"exists": true/false}
+
+nodes(action="invoke", invokeCommand="file.batch",
+      invokeParamsJson='{"ops": [{"op": "copy", "source": "a.txt", "destination": "b.txt"}, {"op": "move", "source": "c.txt", "destination": "d.txt"}]}')
+
 # Location
 nodes(action="invoke", invokeCommand="location.get")
 ```
 
-> **Note:** All commands that access user data (screenshot, clipboard, camera, files) require user approval on the Mac side. The user sees a permission dialog and can allow once, allow for 1 hour, or deny.
+> **Note:** Most commands that access user data (screenshot, clipboard write, camera, files) require user approval on the Mac side. The user sees a permission dialog and can allow once, allow for 1 hour, or deny.
+>
+> **Agent identity in dialogs (v0.9.36+):** In multi-agent setups, permission dialogs show the requesting agent's name (e.g. "CyberClaw wants to read your clipboard"). In single-agent setups, the generic "The agent" fallback is used. The agent name is derived from the selected session in the Agent Picker.
+>
+> **Known issue:** `clipboard.read` currently does NOT show an approval dialog — the clipboard content is sent silently. This is a bug and violates the transparency principle. Fix pending.
 
 ---
 
@@ -330,31 +315,21 @@ When the user presses `⌘⇧K` and sends a message:
 
 Clawsy configures a shared folder (default: `~/Documents/Clawsy`). Use `file.list`, `file.get`, `file.set` to interact with it.
 
-### ⚠️ Large File Transfers (>50 KB)
+### ⚠️ Large File Transfers (> 200 KB)
 
-The `nodes` tool passes parameters as JSON strings — this limits `file.set` to roughly 50 KB base64 payload. For larger files, use the `openclaw nodes invoke` CLI directly:
+The `nodes` tool has limitations for large payloads. For files larger than ~200KB, use the built-in chunking mechanism for reliable transfers.
 
-```bash
-# Find the node ID first
-openclaw nodes list
+**`file.get.chunk` / `file.set.chunk`**
 
-# Send a large file to the shared folder
-PARAMS=$(python3 -c "
-import base64, json
-with open('/path/to/file.png', 'rb') as f:
-    content = base64.b64encode(f.read()).decode()
-print(json.dumps({'name': 'filename.png', 'content': content}))
-")
-openclaw nodes invoke \
-  --node <NODE_ID> \
-  --command file.set \
-  --params "$PARAMS" \
-  --invoke-timeout 30000
-```
+These commands handle splitting large files into smaller chunks and reassembling them on the other side. This is the recommended way to transfer large files.
 
-This works for files up to several MB. For the best avatar/image quality, resize to 512×512 px JPEG before sending (~37 KB).
+**Example flow for uploading a large file:**
+1. Read the file in chunks on the agent side.
+2. For each chunk, call `nodes(action="invoke", invokeCommand="file.set.chunk", ...)` with the chunk data and index.
+3. Clawsy will save the chunks and assemble the final file when the last chunk is received.
 
-**Reading large files** from the shared folder works fine via the `nodes` tool — `file.get` returns base64 content that the tool handles correctly.
+A helper script `tools/clawsy_file_transfer.py` is available in the workspace to automate this process.
+
 
 
 ### .clawsy Manifest Files
