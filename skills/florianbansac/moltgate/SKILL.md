@@ -87,7 +87,13 @@ curl -s -H "Authorization: Bearer $MOLTGATE_API_KEY" \
 
 - `GET /api/inbox/messages/` returns a JSON array.
 - List items include `id`, `subject`, `sender_name`, `sender_email`, `lane_name`, `amount_cents`, `status`, `inbox_status`, `is_read`, `triage_output`, `created_at`.
-- Detail payload includes `sanitized_body`, `lane`, and `receipt`.
+- Detail payload includes `sanitized_body`, `sender_url`, `lane`, and `receipt`.
+- `sender_url` is present when the sender submitted a URL via a lane that has `allow_sender_url: true`. May be empty string if no URL was provided.
+- `GET /api/lanes/` returns lanes with `id`, `name`, `slug`, `description`, `price_cents`, `allow_sender_url`, `sender_url_label`, `sender_url_required`, `availability`, `is_active`.
+- `slug` is the lane's public URL segment: each lane has its own page at `/{handle}/{slug}/`.
+- `allow_sender_url` — Pro/Ultra feature: when true, the lane form shows an extra URL input for senders.
+- `sender_url_label` — custom label for that URL field (e.g. "Portfolio URL"). Default is "One URL".
+- `sender_url_required` — when true, senders must fill in the URL field to submit.
 
 ## Recommended Agent Workflow
 
@@ -106,6 +112,7 @@ from: {sender_name} ({sender_email or "guest"})
 lane: {lane_name}
 paid: ${amount_cents/100}
 subject: {subject}
+url: {sender_url if sender_url else "none"}
 created_at: {created_at}
 triage: {triage_output or "none"}
 ```
