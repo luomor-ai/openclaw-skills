@@ -1,7 +1,11 @@
 ---
+version: "2.0.0"
 name: Baby Guide
-description: >-
+description: "育儿指南。按月龄发育指标、辅食添加、早教建议、疫苗提醒。. Use when you need baby guide capabilities. Triggers on: baby guide."
   育儿指南助手。新生儿护理、辅食添加、疫苗接种、早教启蒙、睡眠训练、亲子互动。Baby care guide with feeding, vaccination, sleep training, early education. 育儿百科、宝宝成长、母婴护理。Use when parents need baby care advice.
+author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # baby-guide
@@ -38,3 +42,9 @@ bash scripts/baby.sh vaccine "3"
 ```
 
 将脚本输出作为参考，提醒用户具体情况请咨询儿科医生。
+---
+💬 Feedback & Feature Requests: https://bytesagain.com/feedback
+Powered by BytesAgain | bytesagain.com
+
+- Run `baby-guide help` for all commands
+
