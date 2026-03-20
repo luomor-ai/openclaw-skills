@@ -1,6 +1,6 @@
 ---
 name: lmp-label-generator
-version: 1.5.4
+version: 1.5.5
 author: LabelMake Pro Team
 description: Generate professional labels in LMP format from natural language descriptions. By default saves only locally; cloud preview (one-click link) runs only when the user explicitly sets config.apiEndpoint — no data is sent externally unless configured.
 triggers:
@@ -60,13 +60,30 @@ triggers:
 tools: [filesystem, http]
 # 默认不向任何外部服务发送数据；仅当用户显式填写 apiEndpoint 时才 POST 到该地址获取预览链接
 config:
-  apiEndpoint: ""   # 留空 = 仅本地保存。需云端预览时由用户在技能配置中填写，如 https://labelmakepro.com/api/v1/oc/preview
+  # 云端预览（一键在浏览器打开标签）：需云端预览时填写下方地址，无需 API Key。留空 = 仅本地保存 .lmp。
+  # 推荐值：https://labelmakepro.com/api/v1/oc/preview  （详见文档「如何配置云端预览链接」与「预览链接安全性说明与实现原理」）
+  apiEndpoint: ""
   frontendUrl: ""   # 可选，用于展示「打开设计器」等链接的域名
 ---
 
 # LMP Label Generator
 
 You are a professional label design assistant. Generate valid LMP-format label JSON from natural language descriptions, supporting two output modes.
+
+---
+
+## 如何配置云端预览链接（用户必读）
+
+多数用户希望生成标签后**在浏览器里一键打开预览**，无需安装软件。按下面配置即可：
+
+1. **在技能配置中**找到 `config.apiEndpoint`。
+2. **填入官方预览 API 地址**（可直接复制）：
+   ```yaml
+   apiEndpoint: "https://labelmakepro.com/api/v1/oc/preview"
+   ```
+3. 保存后，每次生成标签时技能会向该地址发送**本次生成的 LMP 数据**，并返回一个可点击的预览链接；用户点击即可在浏览器中打开在线设计器查看/编辑。
+
+**安全说明**：该链接**不会上传您的账号或身份信息**，仅将**当次生成的标签内容（LMP JSON）**发送到上述地址，用于生成一次性预览链接。服务端仅做临时存储（约 24 小时后自动过期），不写入用户数据库、不关联任何账号。详见下方「预览链接安全性说明与实现原理」。
 
 **字体规范**：
 - **一般标签**：所有文本与条码下方数字 **最小 14pt**（`style.fontSize`、条码 `textSize`、表格 `fontSize` 均 ≥ 14）。内容放不下时减少字段或换行，不要缩小字号。
@@ -165,6 +182,37 @@ When the user's question or request contains keywords related to **compliance** 
 ```
 
 **当 apiEndpoint 未配置时**：仍输出 1、3、4；第 2 项改为提示：「💡 需要云端预览链接？在技能配置中设置 apiEndpoint 为 LabelMake Pro 预览 API 地址（如 https://labelmakepro.com/api/v1/oc/preview），无需 API Key。」
+
+---
+
+## 预览链接安全性说明与实现原理
+
+便于用户和审计方理解：预览链接**不会上传用户账号/身份**，仅用于当次标签的一次性展示。
+
+### 安全承诺（官方预览服务 labelmakepro.com）
+
+- **不收集用户身份**：无需登录、无需 API Key；请求中不包含账号、密码、Cookie 等。
+- **仅当次标签数据**：仅接收并临时保存本次生成的 LMP JSON（标签版面与内容），用于生成一个可访问的 URL。
+- **临时存储、自动过期**：服务端将 LMP 存入 Redis（或进程内兜底），TTL 约 24 小时，过期后自动删除；**不写入用户数据库**，不与任何账号绑定。
+- **预览链接即一次性取回**：返回的 `openUrl`（如 `https://labelmakepro.com/designer?ocPreviewId=xxx`）仅用于从服务端按 `previewId` 取回该份 LMP 并在前端设计器中渲染；任何人持有该链接均可查看，故请勿将链接视为私密。
+
+### 实现原理（服务端逻辑简述）
+
+以下为 LabelMake Pro 后端预览接口的典型实现逻辑，便于安全审计或二次开发参考：
+
+1. **POST /api/v1/oc/preview**（创建预览）
+   - 请求体：`{ "lmpData": { ... } }`，仅包含当次生成的 LMP 完整 JSON。
+   - 服务端：生成随机 `previewId`（如 32 位 hex）；将 `lmpData` 以 key `oc_preview:{previewId}` 写入 Redis，TTL=24 小时；若 Redis 不可用则写入进程内内存（同样 TTL）。**不落库、不关联用户。**
+   - 响应：`{ "data": { "previewId": "...", "openUrl": "https://域名/designer?ocPreviewId=..." } }`。
+
+2. **GET /api/v1/oc/preview/:id**（按 ID 取回 LMP，供前端加载）
+   - 前端设计器打开 `?ocPreviewId=xxx` 时，会请求此接口获取 LMP JSON。
+   - 服务端：从 Redis 或内存中读取 `oc_preview:{id}`，若存在则返回 LMP，否则 404。**不记录访问者身份。**
+
+3. **前端**
+   - 用户点击技能返回的 `openUrl` → 打开 `/designer?ocPreviewId=xxx` → 页面请求 `GET /oc/preview/xxx` → 拿到 LMP 后在浏览器内渲染；数据仅在当次会话中用于展示/编辑，不自动保存到任何账号。
+
+用户若使用自建或第三方预览 endpoint，请以该服务的隐私政策为准；本说明仅针对 LabelMake Pro 官方预览服务。
 
 ---
 
@@ -371,7 +419,8 @@ All elements must include:
 > - CODE128 / CODE39 (standard symbologies): `size.height` is effective, recommend ≥ **10mm**
 > - QR Code: `size.height` is effective, recommend ≥ **14mm** (square)
 
-Supported barcode types: `EAN13` `EAN8` `CODE128` `CODE39` `QR` `QRCODE` `DATAMATRIX` `PDF417` `ITF14`
+Supported barcode types: `EAN13` `EAN8` `CODE128` `CODE39` `QR` `QRCODE` `DATAMATRIX` `PDF417` `ITF14`  
+> **与系统一致**：条码类型大小写不敏感。系统内部使用小写（如 `datamatrix`、`pdf417`），LMP 中写 `DATAMATRIX` 或 `datamatrix` 均可正确渲染。界面「条码类型」下拉中的「Data Matrix」对应值 `datamatrix`。
 
 #### qrcode — QR Code
 

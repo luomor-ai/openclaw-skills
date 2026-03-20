@@ -3,11 +3,16 @@
   "slug": "lmp-label-generator",
   "displayName": "LMP Label Generator",
   "latest": {
-    "version": "1.5.4",
-    "publishedAt": 1773577818533,
-    "commit": "https://github.com/openclaw/skills/commit/e0ba83e1982445fecaf2c07d95d512468fdc6eaa"
+    "version": "1.5.5",
+    "publishedAt": 1773718240005,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.5.4",
+      "publishedAt": 1773577818533,
+      "commit": "https://github.com/openclaw/skills/commit/e0ba83e1982445fecaf2c07d95d512468fdc6eaa"
+    },
     {
       "version": "1.4.8",
       "publishedAt": 1773401440649,
