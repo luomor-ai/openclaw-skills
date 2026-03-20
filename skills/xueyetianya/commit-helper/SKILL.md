@@ -3,6 +3,8 @@ version: "2.0.0"
 name: commit-helper
 description: "Cz Cli — Commitizen — conventional commit helper. Automated tool for cz-cli tasks. Use when you need Cz Cli capabilities. Triggers on: commit helper."
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # Cz Cli
