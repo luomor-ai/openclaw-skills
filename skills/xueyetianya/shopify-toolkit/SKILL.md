@@ -1,10 +1,13 @@
 ---
+version: "2.0.0"
 name: shopify-toolkit
-description: "Error: --action required. Use when you need shopify toolkit capabilities. Triggers on: shopify toolkit, store, token, product-id, order-id, customer-id."
+description: "Manage Shopify products, orders, inventory, and collections via API. Use when syncing catalogs, monitoring orders, automating stock, notifying events."
+author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 
 # Shopify Toolkit
-
 
 A full-featured Shopify store management toolkit for listing and managing products, orders, customers, inventory, collections, and shop settings — all from the command line using the Shopify Admin REST API. Provides complete e-commerce store management capabilities for automation and reporting.
 
@@ -44,7 +47,6 @@ Shopify Toolkit gives you programmatic control over your Shopify store. List and
 | `list-customers` | List Customers |
 | `count-products` | Count Products |
 | `count-orders` | Count Orders |
-
 
 ## Examples
 
