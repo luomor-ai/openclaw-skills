@@ -33,6 +33,7 @@ For higher assurance, clone the repo and build from source: `git clone https://g
 7. **Workspaces** — manage multiple workspaces (like GitHub repos for your backups)
 8. **Status** — check connection, workspace, file count, and schedule info
 9. **Secret scanning** — pre-backup scan for API keys, tokens, and private keys
+10. **Encryption** — AES-256-GCM encryption for local and cloud backups (`--encrypt`)
 
 ## How to Use
 
@@ -55,9 +56,11 @@ npx clawon local backup --tag "description"
 npx clawon local backup --include-memory-db  # Include SQLite memory index
 npx clawon local backup --include-sessions   # Include chat history
 npx clawon local backup --include-secrets     # Include credentials and auth files
+npx clawon local backup --encrypt            # Encrypt with AES-256-GCM
+npx clawon local backup --include-secrets --encrypt  # Encrypted with secrets
 npx clawon local backup --no-secret-scan     # Skip secret scanning
 ```
-After a successful backup, tell the user the file is saved in `~/.clawon/backups/`. Mention they can list backups with `npx clawon local list`.
+After a successful backup, tell the user the file is saved in `~/.clawon/backups/`. Encrypted backups have `.tar.gz.enc` extension. Mention they can list backups with `npx clawon local list`.
 
 ### Local Restore
 ```bash
@@ -74,10 +77,13 @@ npx clawon local schedule on --max-snapshots 10        # keep only 10 most recen
 npx clawon local schedule on --include-memory-db       # include SQLite index
 npx clawon local schedule on --include-sessions        # include chat history
 npx clawon local schedule on --include-secrets          # include credentials
+npx clawon local schedule on --encrypt                 # encrypted (needs CLAWON_ENCRYPT_PASSPHRASE)
 npx clawon local schedule off
 
 # Cloud schedule (requires Hobby or Pro account)
 npx clawon schedule on
+npx clawon schedule on --encrypt                       # encrypted cloud backups
+npx clawon schedule on --encrypt --include-secrets     # with secrets
 npx clawon schedule off
 
 # Check status
@@ -123,7 +129,9 @@ npx clawon backup --tag "stable config"  # with tag
 npx clawon backup --include-memory-db    # requires Hobby or Pro
 npx clawon backup --include-sessions     # requires Hobby or Pro
 npx clawon backup --no-secret-scan       # Skip secret scanning
-npx clawon restore                       # cloud restore
+npx clawon backup --encrypt              # Encrypt before uploading
+npx clawon backup --include-secrets --encrypt  # Secrets + encryption
+npx clawon restore                       # cloud restore (decrypts if encrypted)
 npx clawon list                          # list cloud snapshots
 ```
 
@@ -132,8 +140,9 @@ npx clawon list                          # list cloud snapshots
 - Always run `discover` first if the user hasn't seen what gets backed up
 - Never ask for or handle API keys directly — direct the user to https://clawon.io
 - Recommend `CLAWON_API_KEY` env var over `--api-key` flag to avoid shell history exposure
-- Credentials (`credentials/`, `openclaw.json`, `agents/*/agent/auth.json`, `agents/*/agent/auth-profiles.json`) are excluded by default — can be included with `--include-secrets` for local backups only. Explain what gets included: API keys, tokens, OAuth access/refresh tokens, and auth profiles
-- `--include-secrets` is **not supported for cloud backups** — it will error. Future `--encrypt` support will enable this
+- Credentials (`credentials/`, `openclaw.json`, `agents/*/agent/auth.json`, `agents/*/agent/auth-profiles.json`) are excluded by default — can be included with `--include-secrets`. For local backups, `--include-secrets` works standalone. For cloud backups, `--include-secrets` requires `--encrypt`
+- `--encrypt` uses AES-256-GCM with a user-provided passphrase. Available for both local and cloud backups. **Warning: no passphrase recovery** — forgotten passphrase means unrecoverable data
+- For scheduled encrypted backups, the `CLAWON_ENCRYPT_PASSPHRASE` environment variable is required (no interactive prompt in cron)
 - If a command fails, show the error and suggest `npx clawon status` to diagnose
 - Use `--dry-run` when the user wants to preview without making changes
 - `--include-memory-db` for cloud backups requires a Hobby or Pro account; it's free for local backups
@@ -170,7 +179,7 @@ npx clawon list                          # list cloud snapshots
 |---------|------|
 | `agents/*/sessions/**` | Chat history (~30MB typical). Excluded by default because sessions grow large. Use flag to include when migrating between machines. Free for local, Hobby+-only for cloud. |
 
-**Excluded by default (override with `--include-secrets` for local backups only):**
+**Excluded by default (override with `--include-secrets` — requires `--encrypt` for cloud):**
 
 | Pattern | Why |
 |---------|-----|
@@ -189,4 +198,6 @@ npx clawon list                          # list cloud snapshots
 
 **Pre-backup secret scanning:** Every backup is scanned for leaked secrets using 221 detection rules (API keys, tokens, private keys, JWTs). Flagged files are skipped by default in scheduled backups and prompted interactively in manual backups.
 
-**Credentials are excluded by default.** Use `--include-secrets` for local backups when migrating between machines. Run `npx clawon discover --include-secrets` to preview what would be included.
+**Encryption (`--encrypt`):** AES-256-GCM encryption using PBKDF2-derived keys. Local archives become `.tar.gz.enc` with a `CLWN` binary header. Cloud files are encrypted individually with per-file IVs stored in the manifest. No passphrase recovery — warn users to store their passphrase securely.
+
+**Credentials are excluded by default.** Use `--include-secrets` when migrating between machines. For cloud backups, `--include-secrets` requires `--encrypt`. Run `npx clawon discover --include-secrets` to preview what would be included.
