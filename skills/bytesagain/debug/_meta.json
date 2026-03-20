@@ -3,11 +3,16 @@
   "slug": "debug",
   "displayName": "Debug",
   "latest": {
-    "version": "3.2.0",
-    "publishedAt": 1773716960081,
-    "commit": "https://github.com/openclaw/skills/commit/fc711ac6f8b6135d250fa592f76b94ffbddb9570"
+    "version": "3.4.2",
+    "publishedAt": 1773830445912,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.2.0",
+      "publishedAt": 1773716960081,
+      "commit": "https://github.com/openclaw/skills/commit/fc711ac6f8b6135d250fa592f76b94ffbddb9570"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773581685915,
