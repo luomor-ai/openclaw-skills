@@ -99,13 +99,14 @@ cmd_decision() {
 
 cmd_end() {
     local id=$(_get_current)
-    python3 -c "
-import json
-with open('$MEETINGS/$id/meta.json') as f: d = json.load(f)
+    META_FILE="$MEETINGS/$id/meta.json" ENDED="$(date '+%Y-%m-%d %H:%M')" python3 << 'PYEOF'
+import json, os
+meta_file = os.environ["META_FILE"]
+with open(meta_file) as f: d = json.load(f)
 d['status'] = 'closed'
-d['ended'] = '$(date '+%Y-%m-%d %H:%M')'
-with open('$MEETINGS/$id/meta.json','w') as f: json.dump(d, f)
-"
+d['ended'] = os.environ["ENDED"]
+with open(meta_file, 'w') as f: json.dump(d, f)
+PYEOF
     local notes=$(wc -l < "$MEETINGS/$id/notes.md" 2>/dev/null || echo 0)
     local actions=$(wc -l < "$MEETINGS/$id/actions.jsonl" 2>/dev/null || echo 0)
     echo "  Meeting $id closed."
@@ -119,12 +120,12 @@ cmd_list() {
         [ -d "$dir" ] || continue
         local id=$(basename "$dir")
         if [ -f "$dir/meta.json" ]; then
-            python3 -c "
-import json
-with open('$dir/meta.json') as f: d = json.load(f)
+            META_FILE="$dir/meta.json" python3 << 'PYEOF' 2>/dev/null
+import json, os
+with open(os.environ["META_FILE"]) as f: d = json.load(f)
 status = '●' if d.get('status') == 'active' else '○'
 print('  {} {} {}'.format(status, d.get('id','?'), d.get('title','?')))
-" 2>/dev/null
+PYEOF
         fi
     done
 }
@@ -141,24 +142,24 @@ cmd_show() {
     local dir="$MEETINGS/$id"
     [ -d "$dir" ] || { echo "Not found: $id"; return; }
     
-    python3 -c "
-import json
-with open('$dir/meta.json') as f: d = json.load(f)
+    META_FILE="$dir/meta.json" python3 << 'PYEOF'
+import json, os
+with open(os.environ["META_FILE"]) as f: d = json.load(f)
 print('  Meeting: {} — {}'.format(d['id'], d['title']))
 print('  Date: {} | Status: {}'.format(d.get('date','?'), d.get('status','?')))
-"
+PYEOF
     echo ""
     [ -f "$dir/agenda.md" ] && { echo "  Agenda:"; sed 's/^/  /' "$dir/agenda.md"; echo ""; }
     [ -s "$dir/notes.md" ] && { echo "  Notes:"; sed 's/^/  /' "$dir/notes.md"; echo ""; }
     [ -s "$dir/actions.jsonl" ] && {
         echo "  Actions:"
         while IFS= read -r line; do
-            echo "$line" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
+            echo "$line" | python3 << 'PYEOF'
+import json, sys
+d = json.load(sys.stdin)
 due = ' (due: {})'.format(d['due']) if d.get('due') else ''
 print('    [{}] {} → {}{}'.format(d.get('status','?'), d['who'], d['what'], due))
-" 2>/dev/null
+PYEOF
         done < "$dir/actions.jsonl"
     }
 }
@@ -169,13 +170,14 @@ cmd_actions() {
     for dir in "$MEETINGS"/*/; do
         [ -f "$dir/actions.jsonl" ] || continue
         while IFS= read -r line; do
-            local status=$(echo "$line" | python3 -c "import json,sys; print(json.load(sys.stdin).get('status','?'))" 2>/dev/null)
+            local status
+            status=$(echo "$line" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("status","?"))' 2>/dev/null)
             if [ "$filter" = "--open" ] && [ "$status" != "open" ]; then continue; fi
-            echo "$line" | python3 -c "
-import json,sys
-d=json.load(sys.stdin)
+            echo "$line" | python3 << 'PYEOF'
+import json, sys
+d = json.load(sys.stdin)
 print('    [{}] {} → {}'.format(d.get('status','?'), d['who'], d['what']))
-" 2>/dev/null
+PYEOF
         done < "$dir/actions.jsonl"
     done
 }
