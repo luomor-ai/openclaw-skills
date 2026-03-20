@@ -83,15 +83,27 @@ node ~/.openclaw/skills/hsciq-mcp/hsciq-client.js search-unified --keywords "食
 → 调用 search_instance，返回历史归类案例
 ```
 
-## API 端点示例
+## API 端点说明
+
+所有工具调用统一使用以下端点：
 
 | 端点 | 说明 |
 |------|------|
-| `https://www.hsciq.com/mcp/tools/list` | 列出可用工具 |
-| `https://www.hsciq.com/mcp/tools/search_code` | 搜索海关编码 |
-| `https://www.hsciq.com/mcp/tools/get_code_detail` | 获取编码详情 |
-| `https://www.hsciq.com/mcp/tools/search_instance` | 搜索归类实例 |
-| `https://www.hsciq.com/mcp/tools/search_unified` | 统一搜索 |
+| `POST https://www.hsciq.com/mcp/tools/list` | 列出可用工具 |
+| `POST https://www.hsciq.com/mcp/tools/call` | 调用任意工具（通过 `toolName` 参数区分） |
+
+**调用格式示例**：
+```json
+{
+  "toolName": "search_code",
+  "arguments": {
+    "keywords": "塑料软管",
+    "country": "CN",
+    "pageIndex": 1,
+    "pageSize": 10
+  }
+}
+```
 
 ## API 文档
 

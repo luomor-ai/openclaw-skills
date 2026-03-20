@@ -56,9 +56,18 @@ class HSCIQClient:
                 pass
         return {}
     
-    def _request(self, endpoint: str, params: Dict[str, Any]) -> Dict[str, Any]:
-        """发送 API 请求"""
-        url = f"{self.base_url}{endpoint}"
+    def _request(self, tool_name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        发送 API 请求到统一端点 /mcp/tools/call
+        
+        Args:
+            tool_name: 工具名称（search_code, get_code_detail, search_instance, search_unified）
+            arguments: 工具参数
+        
+        Returns:
+            API 响应结果
+        """
+        url = f"{self.base_url}/mcp/tools/call"
         
         headers = {
             "Content-Type": "application/json",
@@ -67,7 +76,13 @@ class HSCIQClient:
         if self.api_key:
             headers[self.auth_header] = self.api_key
         
-        data = json.dumps(params).encode('utf-8')
+        # 根据最新文档，请求体格式为：{"toolName": "...", "arguments": {...}}
+        payload = {
+            "toolName": tool_name,
+            "arguments": arguments
+        }
+        
+        data = json.dumps(payload).encode('utf-8')
         req = urllib.request.Request(url, data=data, headers=headers, method='POST')
         
         try:
@@ -81,20 +96,25 @@ class HSCIQClient:
         except json.JSONDecodeError as e:
             raise Exception(f"响应解析失败：{e}")
     
-    def search_code(self, keywords: str, country: str = "CN") -> Dict[str, Any]:
+    def search_code(self, keywords: str, country: str = "CN", 
+                    pageIndex: int = 1, pageSize: int = 10) -> Dict[str, Any]:
         """
         搜索海关编码
         
         Args:
             keywords: 搜索关键词（商品名称）
             country: 国家代码（CN/JP/US）
+            pageIndex: 页码（从 1 开始）
+            pageSize: 每页条数
         
         Returns:
             海关编码列表及税率信息
         """
-        return self._request("/mcp/tools/search_code", {
+        return self._request("search_code", {
             "keywords": keywords,
-            "country": country
+            "country": country,
+            "pageIndex": pageIndex,
+            "pageSize": pageSize
         })
     
     def get_code_detail(self, code: str, country: str = "CN") -> Dict[str, Any]:
@@ -108,46 +128,76 @@ class HSCIQClient:
         Returns:
             编码详情（税率、申报要素、监管条件等）
         """
-        return self._request("/mcp/tools/get_code_detail", {
+        return self._request("get_code_detail", {
             "code": code,
             "country": country
         })
     
-    def search_instance(self, keywords: str, country: str = "CN") -> Dict[str, Any]:
+    def search_instance(self, keywords: str, country: str = "CN",
+                        pageIndex: int = 1, pageSize: int = 10) -> Dict[str, Any]:
         """
         搜索归类实例
         
         Args:
             keywords: 商品名称关键词
             country: 国家代码
+            pageIndex: 页码
+            pageSize: 每页条数
         
         Returns:
             历史归类案例
         """
-        return self._request("/mcp/tools/search_instance", {
+        return self._request("search_instance", {
             "keywords": keywords,
-            "country": country
+            "country": country,
+            "pageIndex": pageIndex,
+            "pageSize": pageSize
         })
     
-    def search_unified(self, keywords: str, search_type: str = "ciq") -> Dict[str, Any]:
+    def search_unified(self, keywords: str, search_type: str = "ciq",
+                       pageIndex: int = 1, pageSize: int = 10) -> Dict[str, Any]:
         """
         统一搜索（CIQ/危化品/港口）
         
         Args:
             keywords: 搜索关键词
-            search_type: 搜索类型（ciq/chemical/port）
+            search_type: 搜索类型（ciq/hazardous/port）
+            pageIndex: 页码
+            pageSize: 每页条数
         
         Returns:
             搜索结果
         """
-        return self._request("/mcp/tools/search_unified", {
+        return self._request("search_unified", {
             "keywords": keywords,
-            "type": search_type
+            "unifiedType": search_type,
+            "pageIndex": pageIndex,
+            "pageSize": pageSize
         })
     
     def list_tools(self) -> Dict[str, Any]:
         """列出可用的 API 工具"""
-        return self._request("/mcp/tools/list", {})
+        url = f"{self.base_url}/mcp/tools/list"
+        
+        headers = {
+            "Content-Type": "application/json",
+        }
+        
+        if self.api_key:
+            headers[self.auth_header] = self.api_key
+        
+        req = urllib.request.Request(url, data=b'{}', headers=headers, method='POST')
+        
+        try:
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode('utf-8'))
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode('utf-8') if e.fp else ""
+            raise Exception(f"API 请求失败 (HTTP {e.code}): {error_body}")
+        except urllib.error.URLError as e:
+            raise Exception(f"网络连接失败：{e.reason}")
+        except json.JSONDecodeError as e:
+            raise Exception(f"响应解析失败：{e}")
 
 
 def format_output(data: Dict[str, Any], indent: int = 2) -> str:
