@@ -3,9 +3,15 @@
   "slug": "image-prompt",
   "displayName": "Image Prompt",
   "latest": {
-    "version": "2.4.5",
-    "publishedAt": 1773666244394,
-    "commit": "https://github.com/openclaw/skills/commit/4b29bd47cba97dab9451ce79e56314e023ddc411"
+    "version": "2.1.0",
+    "publishedAt": 1773879271501,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.4.5",
+      "publishedAt": 1773666244394,
+      "commit": "https://github.com/openclaw/skills/commit/4b29bd47cba97dab9451ce79e56314e023ddc411"
+    }
+  ]
 }
