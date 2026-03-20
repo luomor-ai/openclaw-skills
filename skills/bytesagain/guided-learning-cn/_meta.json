@@ -3,11 +3,16 @@
   "slug": "guided-learning-cn",
   "displayName": "Guided Learning Cn",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773666149780,
-    "commit": "https://github.com/openclaw/skills/commit/ca8acc9c9e4c9718471061b855cd5950ae5e1907"
+    "version": "2.0.1",
+    "publishedAt": 1773831317093,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773666149780,
+      "commit": "https://github.com/openclaw/skills/commit/ca8acc9c9e4c9718471061b855cd5950ae5e1907"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773421374865,
