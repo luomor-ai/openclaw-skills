@@ -4,6 +4,8 @@ name: Journal Prompt
 description: "Journal Prompts. Use when you need journal prompt capabilities. Triggers on: journal prompt."
   日记引导助手。每日写作引导、感恩日记、反思日记、晨间日记、晚间总结、周总结模板。Journal prompts for daily writing, gratitude, reflection, morning pages, evening review, weekly summary. 日记、写作、反思、感恩。
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Journal Prompt
 

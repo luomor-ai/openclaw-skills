@@ -3,11 +3,16 @@
   "slug": "journal-prompt",
   "displayName": "Journal Prompt",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773666303246,
-    "commit": "https://github.com/openclaw/skills/commit/724878c5a5aec722990de7bfec12c2f263a11b05"
+    "version": "2.3.6",
+    "publishedAt": 1773772827796,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773666303246,
+      "commit": "https://github.com/openclaw/skills/commit/724878c5a5aec722990de7bfec12c2f263a11b05"
+    },
     {
       "version": "2.3.0",
       "publishedAt": 1773446907924,
