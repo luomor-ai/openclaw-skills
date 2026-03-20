@@ -1,9 +1,11 @@
 ---
 version: "2.0.0"
 name: Taobao Listing
-description: "淘宝商品文案。宝贝标题、详情页文案、主图文案、促销活动、关键词挖掘、大促文案。Taobao listing generator with product titles, detail pages, k. Use when you need taobao listing capabilities. Triggers on: taobao listing."
+description: "淘宝商品文案。宝贝标题、详情页文案、主图文案、促销活动、关键词挖掘、大促文案。Taobao listing generator with product titles, detail pages."
   淘宝商品文案。宝贝标题、详情页文案、主图文案、促销活动、关键词挖掘、大促文案。Taobao listing generator with product titles, detail pages, keyword mining, promotion copy. 淘宝运营、天猫文案、商品标题优化、关键词挖掘、双11文案、618文案、聚划算。Use when listing products on Taobao.
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Taobao Listing
 

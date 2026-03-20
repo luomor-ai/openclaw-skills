@@ -3,11 +3,16 @@
   "slug": "taobao-listing",
   "displayName": "Taobao Listing",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1773673979943,
-    "commit": "https://github.com/openclaw/skills/commit/1901ab84839678aa753ef117ab56303b5af95910"
+    "version": "2.0.0",
+    "publishedAt": 1773773901945,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1773673979943,
+      "commit": "https://github.com/openclaw/skills/commit/1901ab84839678aa753ef117ab56303b5af95910"
+    },
     {
       "version": "1.0.3",
       "publishedAt": 1773611849617,
