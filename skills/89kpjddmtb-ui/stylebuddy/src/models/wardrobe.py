@@ -278,8 +278,9 @@ class WardrobeManager:
             import shutil
             import uuid
             
-            # 创建保存目录
-            save_dir = "/Users/mac/.openclaw/workspace/stylebuddy_item_images"
+            # 创建保存目录（使用相对路径）
+            script_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+            save_dir = os.path.join(script_dir, 'assets', 'images', 'items')
             os.makedirs(save_dir, exist_ok=True)
             
             # 如果是文件路径

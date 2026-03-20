@@ -151,7 +151,14 @@ for category, count in categories.items():
         idx += 1
 
 # 保存
-with open('/Users/mac/.openclaw/workspace/stylebuddy_v3/assets/data/templates.json', 'w', encoding='utf-8') as f:
+import os
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(script_dir, 'assets', 'data', 'templates.json')
+
+# 确保目录存在
+os.makedirs(os.path.dirname(output_path), exist_ok=True)
+
+with open(output_path, 'w', encoding='utf-8') as f:
     json.dump(templates, f, ensure_ascii=False, indent=2)
 
 print(f"已生成 {len(templates)} 条搭配模板")

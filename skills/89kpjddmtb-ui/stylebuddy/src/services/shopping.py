@@ -147,8 +147,9 @@ class ShoppingConsultant:
     
     def add_to_wishlist(self, image_path: str, analysis: Dict, reason: str = "") -> str:
         """添加到种草清单"""
-        # 保存图片到 workspace
-        save_dir = "/Users/mac/.openclaw/workspace/stylebuddy_wishlist_images"
+        # 保存图片到 assets 目录（使用相对路径）
+        script_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        save_dir = os.path.join(script_dir, 'assets', 'images', 'wishlist')
         os.makedirs(save_dir, exist_ok=True)
         
         import uuid

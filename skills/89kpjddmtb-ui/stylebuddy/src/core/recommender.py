@@ -318,7 +318,8 @@ class OutfitRecommender:
         
         if images:
             selected = random.choice(images)
-            workspace_dir = '/Users/mac/.openclaw/workspace/stylebuddy_images'
+            # 使用相对路径存储图片
+            workspace_dir = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'assets', 'images', 'outfits')
             os.makedirs(workspace_dir, exist_ok=True)
             filename = os.path.basename(selected)
             workspace_path = os.path.join(workspace_dir, filename)
