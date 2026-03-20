@@ -1,311 +1,125 @@
----
-name: prism-gen-demo
-title: "PRISM-Gen Demo: Drug Discovery Pre-result Analysis / 药物发现预计算结果展示"
-description: |
-  English: Retrieve, filter, sort, merge, and visualize multiple CSV result files from PRISM-Gen molecular generation/screening. Provides portable query-based skills. No HPC connection required, directly analyze pre-calculated results.
-  中文: 对PRISM-Gen分子生成/筛选的多个CSV结果文件进行检索、过滤、排序、合并和可视化，提供可移植的查询型技能。无需HPC连接，直接分析预计算结果。
-author: "May"
-version: "1.0.2"
-license: "MIT"
-tags: ["drug-discovery", "chemistry", "data-analysis", "visualization", "csv", "molecular", "screening", "药物发现", "化学", "数据分析", "可视化"]
-categories: ["science", "data-analysis", "chemistry", "科学", "数据分析", "化学"]
-openclaw:
-  emoji: "🧪"
-  min_version: "0.10.0"
-  dependencies: ["pandas", "numpy", "matplotlib", "seaborn", "scipy", "scikit-learn"]
-  platforms: ["linux", "macos", "wsl"]
-  skill_type: "analysis"
-  requires_data: true
-clawhub:
-  published: true
-  featured: false
-  verified: false
-  downloads: 0
-  rating: 0
-  last_updated: "2026-03-09"
-  repository: ""
-  issues: ""
-  documentation: ""
----
-# PRISM-Gen Demo Skill
+# PRISM-Gen Demo
 
-**English**: PRISM-Gen pre-calculation result display demo: Provides retrieval, filtering, sorting, merging, and visualization of multiple CSV result files from molecular generation/screening, offering portable query-based skills.
+## Description
 
-**中文**: PRISM-Gen预计算结果展示Demo：对分子生成/筛选的多个CSV结果文件进行检索、过滤、排序、合并和可视化，提供可移植的查询型技能。
+PRISM-Gen Demo is a read-only data analysis skill for exploring pre-calculated molecular screening results from the PRISM-Gen broad-spectrum coronavirus Mpro inhibitor discovery pipeline.
 
----
+All analysis is performed locally on CSV files bundled with the skill. No network access, no external API calls, no credential requirements.
 
-## English Section
+## What This Skill Does
 
-### Overview
-PRISM-Gen Demo is a portable skill for analyzing pre-calculated molecular screening results. It provides query-based data retrieval, filtering, sorting, merging, and visualization capabilities without requiring HPC connections or computational workflows.
+- **Retrieve** data from any of 10 pipeline stage CSV files (step3a through step5b)
+- **Filter** molecules by property thresholds (pIC50, QED, MW, LogP, gap_ev, hERG_Prob, etc.)
+- **Sort** and rank molecules by any numeric column
+- **Merge** data across pipeline stages using SMILES as join keys
+- **Score** molecules with composite scoring, worst-case multi-target analysis, summary statistics, and Pareto front identification
+- **Plot** property distributions, scatter plots, docking score heatmaps, pipeline attrition funnels, and Pareto fronts
+- **Summarize** the full pipeline with attrition statistics and key findings
 
-### Design Goals
-- **Portability**: Does not trigger HPC computation workflows, only processes existing CSV files
-- **Stability**: Core functions work offline; Python dependencies optional for advanced visualization
-- **Query-based**: Provides retrieval, filtering, sorting, and merging functions
-- **Structured**: Returns results in a clear structured format
-- **Visualization**: Provides data visualization and profile summarization (requires Python)
+## What This Skill Does NOT Do
 
-### Usage Scenarios
-✅ **Use this skill when:**
-- "Show PRISM Demo results"
-- "Retrieve molecular data" / "Filter CSV results"
-- "Sort molecules" / "Top N screening"
-- "Merge multiple stage results" / "Profile summarization"
-- "Visualization analysis" / "Chart display"
-- "Export results" / "Format conversion"
+- Does NOT run any computational chemistry calculations (no DFT, no docking, no MD)
+- Does NOT access any network or external services
+- Does NOT require or use any credentials, API keys, or tokens
+- Does NOT modify any files outside its own output directory
+- Does NOT contain any shell scripts
+- Does NOT use hardcoded absolute paths
 
-### Core Function Architecture
+## Commands
 
-#### 1. Data Source Management
-- **List data sources**: Display all available CSV files
-- **Source information**: Show file structure and statistics
-- **Data preview**: Quick view of sample data
-
-#### 2. Data Query
-- **Conditional filtering**: Single or multi-column condition screening
-- **Top N selection**: Sort by specified column to get best molecules
-- **Range queries**: Support numerical ranges and string matching
-
-#### 3. Data Analysis
-- **Correlation analysis**: Calculate Pearson, Spearman correlation coefficients
-- **Regression analysis**: Linear regression and trend lines
-- **Distribution analysis**: Histograms, box plots, Q-Q plots
-
-#### 4. Data Visualization
-- **Distribution plots**: Univariate distribution visualization
-- **Scatter plots**: Bivariate correlation analysis
-- **Statistical charts**: Publication-quality statistical charts
-
-#### 5. Data Export
-- **CSV export**: Save filtered and sorted results
-- **Chart export**: PNG, PDF, SVG formats
-- **Report generation**: Structured analysis reports
-
-### Supported CSV Files
-- `step3a_optimized_molecules.csv` - Surrogate model optimized molecules
-- `step3b_dft_results.csv` - xTB+DFT electronic screening results
-- `step3c_dft_refined.csv` - GEM re-ranking results
-- `step4a_admet_final.csv` - ADMET filtering results
-- `step4b_top_molecules_pyscf.csv` - DFT validation (PySCF) results
-- `step4c_master_summary.csv` - Master summary table
-- `step5a_broadspectrum_docking.csv` - Broad-spectrum docking results
-- `step5b_final_candidates.csv` - Final candidate molecules
-
-### Key Molecular Properties
-- **Identifiers**: smiles, molecule_id, name
-- **Activity**: pIC50, reward, broad
-- **Physicochemical properties**: LogP, MW, TPSA, HBD, HBA
-- **Safety**: hERG_Prob, AMES, hepatotoxicity
-- **Drug-likeness**: QED, SA, Lipinski
-- **Electronic properties**: gap, energy, dipole
-- **Docking results**: docking_score, binding_energy
-
-### Quick Start Examples
-
-#### Example 1: List Data Sources
-```bash
-bash scripts/demo_list_sources.sh
+### retrieve
+Retrieve and display data from any pipeline stage.
+```
+python3 scripts/retrieve.py --stage step5b --columns name,pIC50,Broad_Spectrum_Score --max_rows 10
+python3 scripts/retrieve.py --list_stages
+python3 scripts/retrieve.py --stage step4a --list_columns
+python3 scripts/retrieve.py --stage step5b --name mol_16
 ```
 
-#### Example 2: Filter High-Activity Molecules
-```bash
-# Filter molecules with pIC50 > 7.0
-bash scripts/demo_filter.sh step4a_admet_final.csv pIC50 '>' 7.0
+### filter
+Filter molecules by property thresholds. Multiple conditions are combined with AND.
+```
+python3 scripts/filter.py --stage step4a --where "pIC50>7.5" "QED>0.7" "hERG_Prob<0.5"
+python3 scripts/filter.py --stage step5b --where "Broad_Spectrum_Score<-7.0" "Is_Final_Top==True"
 ```
 
-#### Example 3: Get Top 10 Active Molecules
-```bash
-bash scripts/demo_top.sh step4a_admet_final.csv pIC50 10
+### sort
+Sort and rank molecules by any column.
+```
+python3 scripts/sort.py --stage step5b --by Broad_Spectrum_Score --ascending --top 10
+python3 scripts/sort.py --stage step4c --by R_global --top 20
 ```
 
-#### Example 4: Generate Distribution Plot
-```bash
-bash scripts/demo_plot_distribution.sh step4a_admet_final.csv pIC50
+### merge
+Merge data across pipeline stages on SMILES keys.
+```
+python3 scripts/merge.py --stages step3c,step4a --on smiles --columns pIC50,gap_ev,Lipinski_Pass,hERG_Prob
 ```
 
-#### Example 5: Correlation Analysis
-```bash
-bash scripts/demo_plot_scatter.sh step4a_admet_final.csv pIC50 QED --trendline --correlation
+### score
+Compute composite scores, worst-case analysis, statistics, and Pareto fronts.
+```
+python3 scripts/score.py --mode worst_case --stage step5a --top 10
+python3 scripts/score.py --mode composite --stage step4c --weights "pIC50:1.0,QED:0.5,R_ADMET:2.0"
+python3 scripts/score.py --mode stats --stage step5b --columns pIC50,QED,Broad_Spectrum_Score
+python3 scripts/score.py --mode pareto --stage step5b --obj1 pIC50 --obj2 QED
 ```
 
-### Technical Requirements
-
-#### Basic Functions (No Installation Required, Fully Offline)
-- ✅ Bash shell environment
-- ✅ Standard Unix tools (awk, sed, grep)
-- ✅ File read/write permissions
-- 🚫 **No network connection required**
-- 🚫 **No Python installation required**
-
-#### Advanced Functions (Requires Python, Works Offline After Installation)
-- 🐍 Python 3.10+
-- 📦 Core packages: pandas, numpy, matplotlib, seaborn
-- 🔬 Scientific computing: scipy, scikit-learn (optional)
-- ⚠️ **Network required for installation only**
-- ✅ **Offline usage after installation**
-
-#### Compatibility
-- ✅ Linux / macOS / WSL2
-- ✅ Local file system
-- ✅ Basic functions: Fully offline
-- ⚠️ Advanced functions: Network required for installation only
-
-### Project Structure
+### plot
+Generate visualizations (requires matplotlib).
 ```
-prism-gen-demo/
-├── README.md                    # This document
-├── SKILL.md                     # OpenClaw skill definition
-├── requirements.txt             # Python dependencies
-├── data/                        # Pre-calculation result CSV files
-├── scripts/                     # Core scripts
-├── config/                      # Configuration files
-├── examples/                    # Usage examples
-├── docs/                        # Documentation
-├── output/                      # Output directory
-└── plots/                       # Chart output
+python3 scripts/plot.py --mode histogram --stage step4a --column pIC50 --output hist.png
+python3 scripts/plot.py --mode scatter --stage step5b --x pIC50 --y Broad_Spectrum_Score --output scatter.png
+python3 scripts/plot.py --mode heatmap --stage step5a --output heatmap.png
+python3 scripts/plot.py --mode funnel --output funnel.png
+python3 scripts/plot.py --mode pareto --stage step5b --x pIC50 --y QED --output pareto.png
 ```
 
----
-
-## 中文部分
-
-### 概述
-PRISM-Gen Demo 是一个用于分析预计算分子筛选结果的可移植技能。它提供基于查询的数据检索、过滤、排序、合并和可视化功能，无需HPC连接或计算工作流。
-
-### 设计目标
-- **可移植性**: 不触发HPC计算流程，只处理既有CSV文件
-- **稳定性**: 核心功能离线工作；Python依赖仅用于高级可视化（可选）
-- **查询型**: 提供检索、过滤、排序、合并功能
-- **结构化**: 以清晰的结构化方式返回结果
-- **可视化**: 提供数据可视化和profile汇总（需要Python）
-
-### 使用场景
-✅ **使用此技能当：**
-- "查看PRISM Demo结果" / "展示预计算结果"
-- "检索分子数据" / "过滤CSV结果"
-- "排序分子" / "Top N筛选"
-- "合并多个阶段结果" / "Profile汇总"
-- "可视化分析" / "图表展示"
-- "导出结果" / "格式转换"
-
-### 核心功能架构
-
-#### 1. 数据源管理
-- **列出数据源**: 显示所有可用CSV文件
-- **数据源信息**: 显示文件结构和统计信息
-- **数据预览**: 快速查看样本数据
-
-#### 2. 数据查询
-- **条件过滤**: 基于单列或多列条件筛选分子
-- **Top N筛选**: 按指定列排序获取最佳分子
-- **范围查询**: 支持数值范围和字符串匹配
-
-#### 3. 数据分析
-- **相关性分析**: 计算Pearson、Spearman相关系数
-- **回归分析**: 线性回归和趋势线
-- **分布分析**: 直方图、箱线图、Q-Q图
-
-#### 4. 数据可视化
-- **分布图**: 单变量分布可视化
-- **散点图**: 双变量相关性分析
-- **统计图表**: 论文质量的统计图表
-
-#### 5. 数据导出
-- **CSV导出**: 保存过滤和排序结果
-- **图表导出**: PNG、PDF、SVG格式
-- **报告生成**: 结构化分析报告
-
-### 支持的CSV文件
-- `step3a_optimized_molecules.csv` - 代理模型优化分子
-- `step3b_dft_results.csv` - xTB+DFT电子筛选结果
-- `step3c_dft_refined.csv` - GEM重排序结果
-- `step4a_admet_final.csv` - ADMET过滤结果
-- `step4b_top_molecules_pyscf.csv` - DFT验证(PySCF)结果
-- `step4c_master_summary.csv` - 主汇总表
-- `step5a_broadspectrum_docking.csv` - 广谱对接结果
-- `step5b_final_candidates.csv` - 最终候选分子
-
-### 关键分子属性
-- **标识符**: smiles, molecule_id, name
-- **活性**: pIC50, reward, broad
-- **物化性质**: LogP, MW, TPSA, HBD, HBA
-- **安全性**: hERG_Prob, AMES, hepatotoxicity
-- **药物相似性**: QED, SA, Lipinski
-- **电子性质**: gap, energy, dipole
-- **对接结果**: docking_score, binding_energy
-
-### 快速开始示例
-
-#### 示例1：列出数据源
-```bash
-bash scripts/demo_list_sources.sh
+### summary
+Generate a full pipeline summary report.
+```
+python3 scripts/summary.py
+python3 scripts/summary.py --detailed
 ```
 
-#### 示例2：筛选高活性分子
-```bash
-# 筛选pIC50 > 7.0的分子
-bash scripts/demo_filter.sh step4a_admet_final.csv pIC50 '>' 7.0
-```
+## Available Pipeline Stages
 
-#### 示例3：获取Top 10活性分子
-```bash
-bash scripts/demo_top.sh step4a_admet_final.csv pIC50 10
-```
+| Stage Key | Description | Rows | Columns |
+|-----------|-------------|------|---------|
+| step3a | RL-optimized molecules (generation + surrogate scoring) | 200 | 10 |
+| step3a_top | Top 200 molecules by Reward | 200 | 10 |
+| step3b | GFN2-xTB electronic structure results | 200 | 6 |
+| step3c | xTB-refined ranking with GEM scoring | 200 | 24 |
+| step4a | ADMET filtering (Lipinski, hERG, QED) | 200 | 38 |
+| step4b | B3LYP/6-31G* DFT validation (PySCF) | 46 | 34 |
+| step4c | Master summary (all stages merged) | 200 | 65 |
+| step5a | Broad-spectrum docking (3 targets) | 36 | 13 |
+| step5b | Final candidates with full annotations | 36 | 75 |
+| step5b_master | Master summary with docking | 200 | 74 |
 
-#### 示例4：生成分布图
-```bash
-bash scripts/demo_plot_distribution.sh step4a_admet_final.csv pIC50
-```
+## Dependencies
 
-#### 示例5：相关性分析
-```bash
-bash scripts/demo_plot_scatter.sh step4a_admet_final.csv pIC50 QED --trendline --correlation
-```
+- **Required:** Python 3.7+ (core functionality uses only Python standard library: csv, json, argparse, math, os, sys)
+- **Optional:** matplotlib (for visualization commands only; all non-plot commands work without it)
 
-### 技术要求
+## Security
 
-#### 基础功能（无需安装，完全离线）
-- ✅ Bash shell环境
-- ✅ 标准Unix工具 (awk, sed, grep)
-- ✅ 文件读写权限
-- 🚫 **无需网络连接**
-- 🚫 **无需Python安装**
+- Pure Python implementation — no shell scripts, no subprocess calls, no os.system calls
+- No hardcoded paths — all file paths are resolved relative to the skill root directory
+- No network access — all data is bundled locally in the data/ directory
+- No credentials — no environment variables, API keys, or tokens required
+- Read-only on input data — CSV files in data/ are never modified
+- Output isolation — generated plots are written only to user-specified paths
 
-#### 高级功能（需要Python，安装后离线工作）
-- 🐍 Python 3.10+
-- 📦 核心包: pandas, numpy, matplotlib, seaborn
-- 🔬 科学计算包: scipy, scikit-learn (可选)
-- ⚠️ **仅安装需要网络**
-- ✅ **安装后可离线使用**
+## License
 
-#### 兼容性
-- ✅ Linux / macOS / WSL2
-- ✅ 本地文件系统
-- ✅ 基础功能：完全离线
-- ⚠️ 高级功能：仅安装需要网络
+MIT-0 — Free to use, modify, and redistribute. No attribution required.
 
-### 项目结构
-```
-prism-gen-demo/
-├── README.md                    # 本文档
-├── SKILL.md                     # OpenClaw技能定义
-├── requirements.txt             # Python依赖
-├── data/                        # 预计算结果CSV文件
-├── scripts/                     # 核心脚本
-├── config/                      # 配置文件
-├── examples/                    # 使用示例
-├── docs/                        # 文档
-├── output/                      # 输出目录
-└── plots/                       # 图表输出
-```
+## Author
 
----
+@SenaZeng
 
-## License / 许可证
-MIT License - See [LICENSE](LICENSE) file for details. / MIT许可证 - 详见[LICENSE](LICENSE)文件。
+## Related
 
-## Contact / 联系方式
-For questions or suggestions, please refer to the documentation or contact the skill author. / 如有问题或建议，请参考文档或联系技能作者。
-
+- GitHub: https://github.com/SenaZeng/PRISM-Gen
+- Zenodo: https://doi.org/10.5281/zenodo.18764996
