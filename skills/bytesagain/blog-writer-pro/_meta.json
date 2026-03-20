@@ -3,11 +3,16 @@
   "slug": "blog-writer-pro",
   "displayName": "Blog Writer Pro",
   "latest": {
-    "version": "1.0.6",
-    "publishedAt": 1773664829884,
-    "commit": "https://github.com/openclaw/skills/commit/1c2ab92116adf27e0b029ac2cdead5189f3d1343"
+    "version": "2.1.0",
+    "publishedAt": 1773879186016,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.6",
+      "publishedAt": 1773664829884,
+      "commit": "https://github.com/openclaw/skills/commit/1c2ab92116adf27e0b029ac2cdead5189f3d1343"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1773579334072,
