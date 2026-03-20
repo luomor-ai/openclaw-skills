@@ -3,9 +3,15 @@
   "slug": "wechat-mini-app",
   "displayName": "Wechat Mini App",
   "latest": {
-    "version": "2.3.5",
-    "publishedAt": 1773667263045,
-    "commit": "https://github.com/openclaw/skills/commit/001a0e07ed40b92286e2671666b301345f21f854"
+    "version": "2.3.6",
+    "publishedAt": 1773773555103,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.3.5",
+      "publishedAt": 1773667263045,
+      "commit": "https://github.com/openclaw/skills/commit/001a0e07ed40b92286e2671666b301345f21f854"
+    }
+  ]
 }

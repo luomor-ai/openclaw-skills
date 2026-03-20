@@ -4,6 +4,8 @@ name: WeChat Mini App Helper
 description: "WeChat Mini App Developer Tool. Use when you need wechat mini app capabilities. Triggers on: wechat mini app."
   微信小程序开发助手。项目脚手架、页面生成、组件开发、API调用、配置、部署发布。WeChat mini program dev helper. 微信小程序、开发。
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # WeChat Mini App Helper
 
