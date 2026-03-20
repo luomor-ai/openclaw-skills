@@ -3,11 +3,16 @@
   "slug": "content-calendar-scheduler",
   "displayName": "Content Calendar Scheduler",
   "latest": {
-    "version": "2.4.6",
-    "publishedAt": 1773665438173,
-    "commit": "https://github.com/openclaw/skills/commit/04f8829d6411c98afc722edde011cfd40b07230d"
+    "version": "2.0.1",
+    "publishedAt": 1773830350475,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.4.6",
+      "publishedAt": 1773665438173,
+      "commit": "https://github.com/openclaw/skills/commit/04f8829d6411c98afc722edde011cfd40b07230d"
+    },
     {
       "version": "2.4.2",
       "publishedAt": 1773572482741,
