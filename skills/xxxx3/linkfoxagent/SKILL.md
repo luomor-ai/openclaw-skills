@@ -1,12 +1,12 @@
 ---
 name: linkfoxagent
-description: "Cross-border e-commerce AI Agent with 41 specialized tools for Amazon/TikTok/eBay/Walmart product research, competitor analysis, keyword tracking, review insights, patent detection, trend analysis, and 1688 sourcing. Use when: (1) product selection and market analysis, (2) competitor research and ASIN lookup, (3) keyword and traffic analysis, (4) review mining and consumer insights, (5) patent/trademark/copyright detection, (6) Google/TikTok trend research, (7) 1688 supplier sourcing, (8) data aggregation and report generation, (9) cross-platform product search (Amazon/Walmart/eBay/TikTok), (10) product image analysis and similarity grouping."
-metadata: {"clawdbot":{"emoji":"🦊","requires":{"env":["LINKFOXAGENT_API_KEY"]}}}
+description: "Cross-border e-commerce AI Agent with 41 specialized tools for Amazon/TikTok/eBay/Walmart product research, competitor analysis, keyword tracking, review insights, patent detection, trend analysis, 1688 sourcing, and AI image generation. Use when: (1) product selection and market analysis, (2) competitor research and ASIN lookup, (3) keyword and traffic analysis, (4) review mining and consumer insights, (5) patent/trademark/copyright detection, (6) Google/TikTok trend research, (7) 1688 supplier sourcing, (8) data aggregation and report generation, (9) cross-platform product search (Amazon/Walmart/eBay/TikTok), (10) product image analysis and similarity grouping, (11) AI product image generation."
+metadata: {"LinkFoxAgent":{"emoji":"🦊","homepage":"https://agent.linkfox.com/","requires":{"env":["LINKFOXAGENT_API_KEY"]}}}
 ---
 
 # LinkFoxAgent - Cross-border E-commerce AI Agent
 
-LinkFoxAgent is a specialized AI agent for cross-border e-commerce with 41 built-in tools covering product research, competitor analysis, keyword tracking, review insights, patent detection, and more.
+LinkFoxAgent is a specialized AI agent for cross-border e-commerce with 42 built-in tools covering product research, competitor analysis, keyword tracking, review insights, patent detection, AI image generation, and more.
 
 ## Setup
 
@@ -19,19 +19,44 @@ LinkFoxAgent is a specialized AI agent for cross-border e-commerce with 41 built
 
 ### How to Dispatch a Task
 
+**Before calling sessions_spawn**, tell the user in the main session:
+> 「正在向 LinkFox Agent 提交任务，请稍候（通常需要 1-5 分钟）...」
+
+Then dispatch the sub-agent:
+
 ```
 sessions_spawn:
   task: |
     Run the following LinkFoxAgent task and report the results back.
 
-    Command:
-    <skill>/scripts/linkfox.py --wait --timeout 600 '<TASK_PROMPT>'
+    Command (use heredoc to avoid shell injection):
+    python3 <skill>/scripts/linkfox.py --wait --timeout 600 --stdin <<'__LINKFOX_TASK_END__'
+    <TASK_PROMPT>
+    __LINKFOX_TASK_END__
 
-    After the command completes:
-    1. Parse the output — it contains a status line, a reflection summary, and result entries (HTML URLs or JSON data).
-    2. If the status is "error" or "cancel", report the error clearly.
-    3. If the status is "finished", summarize the reflection and list all result URLs/data.
-    4. If results contain HTML report URLs, include them so the user can open them directly.
+    The script prints to stderr: "Task submitted. messageId: <id>" if submission succeeds,
+    or an error message and exits with code 1 if submission fails.
+
+    After running the command, follow these rules strictly:
+
+    ## If the command exits with a non-zero code OR stderr contains "Error" before any messageId:
+    - The task submission FAILED. Report back:
+      「任务发起失败。请检查 LINKFOXAGENT_API_KEY 是否已正确配置：
+        1. 确认环境变量已设置：export LINKFOXAGENT_API_KEY=your-key-here
+        2. 获取 API Key：https://yxgb3sicy7.feishu.cn/wiki/IlkawdQP9ifKv9k22xcc7rjmnkb
+        3. 重启 OpenClaw 网关使环境变量生效
+      错误详情：<stderr 内容>」
+
+    ## If stderr contains "Task submitted. messageId: <id>":
+    - Submission SUCCEEDED. Do NOT send any intermediate message — the main agent has already told the user the task is dispatched. Wait silently for the command to finish (stdout).
+
+    ## After the command completes (stdout):
+    1. Parse stdout — it contains a status line, an optional ShareURL, a reflection summary, and result entries.
+    2. If status is "error" or "cancel", report the error clearly.
+    3. If status is "finished", summarize the reflection and list all results.
+    4. HTML report URLs in results are available for your reference. Decide autonomously whether to share them with the user based on context — do not forward them blindly.
+    5. **ShareURL:** If the output contains a line `ShareURL: <url>`, always forward it to the user verbatim. This is the full conversation share link for this LinkFoxAgent run — the user can open it to review the complete execution process and download all related files from that page.
+    6. **CSV output (JSON results with columns):** When a result line says `CSV saved to: <path>`, the script has already converted the JSON data to a CSV file with Chinese column headers at that local path. Report the path to the user. Do NOT attempt to read or display the CSV contents unless the user explicitly asks. If the user wants to receive the file, send it using the file-sending skill.
   label: "LinkFox: <short description>"
   mode: "run"
   runTimeoutSeconds: 600
@@ -40,22 +65,85 @@ sessions_spawn:
 
 ### Dispatching Multiple Independent Tasks
 
-When the user's request involves multiple independent lookups (e.g., "search both Amazon US and Amazon JP"), spawn one sub-agent per task in parallel:
+When the user's request involves multiple independent lookups (e.g., "search both Amazon US and Amazon JP"), spawn one sub-agent per task in parallel.
+
+**Before spawning**, tell the user:
+> 「正在同时向 LinkFox Agent 提交 N 个任务，请稍候...」
 
 ```
 # Sub-agent 1
 sessions_spawn:
-  task: "Run: <skill>/scripts/linkfox.py --wait '<task A>' ..."
+  task: |
+    Run (use heredoc to avoid shell injection):
+    python3 <skill>/scripts/linkfox.py --wait --timeout 600 --stdin <<'__LINKFOX_TASK_END__'
+    <task A>
+    __LINKFOX_TASK_END__
+    Apply the same submission success/failure reporting rules as the single-task template above.
   label: "LinkFox: task A"
   mode: "run"
   runTimeoutSeconds: 600
 
 # Sub-agent 2
 sessions_spawn:
-  task: "Run: <skill>/scripts/linkfox.py --wait '<task B>' ..."
+  task: |
+    Run (use heredoc to avoid shell injection):
+    python3 <skill>/scripts/linkfox.py --wait --timeout 600 --stdin <<'__LINKFOX_TASK_END__'
+    <task B>
+    __LINKFOX_TASK_END__
+    Apply the same submission success/failure reporting rules as the single-task template above.
   label: "LinkFox: task B"
   mode: "run"
   runTimeoutSeconds: 600
+```
+
+### Multi-Step Tasks That Require Post-Processing
+
+When the user's request requires **multiple sequential LinkFoxAgent calls** (e.g., fetch data from two platforms then merge), follow this pattern:
+
+1. **Run each LinkFoxAgent call as a separate `sessions_spawn`**, one after another (or in parallel if independent). Collect the CSV paths returned by each.
+2. **After all data tasks finish**, spawn one final `sessions_spawn` to process or merge the CSVs using Python. Pass the absolute CSV paths as arguments.
+
+```
+# Final merge/processing step — spawned after all data tasks complete
+sessions_spawn:
+  task: |
+    Run the following Python script to process/merge the CSV files and report results.
+
+    python3 - <<'PYEOF'
+    import csv, sys, os
+
+    # Paths passed in from the data tasks above
+    csv_paths = [
+        "/absolute/path/to/result_1_xxx.csv",
+        "/absolute/path/to/result_2_yyy.csv",
+    ]
+
+    # TODO: implement merge / analysis logic here
+    # Example: read all rows and write a combined CSV
+    all_rows = []
+    headers = None
+    for path in csv_paths:
+        with open(path, encoding="utf-8-sig") as f:
+            reader = csv.DictReader(f)
+            if headers is None:
+                headers = reader.fieldnames
+            for row in reader:
+                all_rows.append(row)
+
+    out_path = os.path.join(os.path.dirname(csv_paths[0]), "merged_output.csv")
+    with open(out_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        writer.writerows(all_rows)
+
+    print(f"Merged CSV saved to: {out_path}")
+    PYEOF
+
+    Report the output path back to the user. If the user wants the file, send it using the file-sending skill.
+  label: "LinkFox: merge/process CSVs"
+  mode: "run"
+  runTimeoutSeconds: 120
+  cleanup: "keep"
 ```
 
 ### What Happens Under the Hood
@@ -68,14 +156,20 @@ sessions_spawn:
 ### Script Reference
 
 ```bash
-# The sub-agent uses --wait mode (blocking, used inside sessions_spawn only)
-<skill>/scripts/linkfox.py --wait "task description"
+# The sub-agent uses --wait + --stdin mode (heredoc avoids shell injection)
+python3 <skill>/scripts/linkfox.py --wait --stdin <<'__LINKFOX_TASK_END__'
+task description here
+__LINKFOX_TASK_END__
 
 # Custom timeout (default 300s)
-<skill>/scripts/linkfox.py --wait --timeout 600 "task description"
+python3 <skill>/scripts/linkfox.py --wait --timeout 600 --stdin <<'__LINKFOX_TASK_END__'
+task description here
+__LINKFOX_TASK_END__
 
 # JSON output for structured parsing
-<skill>/scripts/linkfox.py --wait --format json "task description"
+python3 <skill>/scripts/linkfox.py --wait --format json --stdin <<'__LINKFOX_TASK_END__'
+task description here
+__LINKFOX_TASK_END__
 ```
 
 ## Writing Task Prompts
@@ -104,16 +198,15 @@ Chain multiple tools in numbered steps. LinkFoxAgent handles data flow between s
 
 When the user does not specify a tool, follow these rules:
 
-**Querying Amazon product data** — prefer in this order:
-1. **Keepa** — historical/structured data, most efficient
-2. **卖家精灵** — product discovery and competitor lookup
-3. **亚马逊前台** — only when real-time data is needed, or when the user wants the actual ranking order as displayed on Amazon's storefront (slower)
+**Querying Amazon product data** — all three tools are fast; choose by use case:
+1. **Keepa** — best overall: richest fields, strong real-time accuracy. Default choice for most queries.
+2. **卖家精灵** — optimized for product discovery and competitor lookup by keyword.
+3. **亚马逊前台** — best real-time fidelity (live storefront data); ~10% slower than Keepa and fewer fields, but the only option when you need exact live ranking order or real-time storefront display.
 
 **Aggregating / statistics** (e.g., group by brand, price tier, sales rank):
 1. **@智能数据查询** — first choice for dynamic aggregation
-2. **@Python沙箱** — fallback when custom logic is needed
+2. **@Python沙箱** — fallback when custom logic is needed; also the go-to tool for any sandbox-execution need (has built-in LLM)
 
-**@网页解析** — opens a remote browser session, takes the longest time of all tools. Use only when no other tool can retrieve the target content.
 
 ## Available Tools (41)
 
@@ -140,8 +233,7 @@ When the user does not specify a tool, follow these rules:
 | **谷歌趋势** | @谷歌趋势-关键词趋势信息 | Keyword trend over time |
 | **店雷达(1688)** | @店雷达-1688商品榜单 | 1688 product rankings |
 | **店雷达(1688)** | @店雷达-1688选品库 | 1688 product sourcing |
-| **实时与全网检索** | @网页检索 | Real-time web search |
-| **实时与全网检索** | @网页解析 | URL content extraction |
+| **实时与全网检索** | @网页检索 | Real-time web search(powered by Tavily Search; for any internet search outside specialized tools like Amazon/Walmart/eBay — including general web and WeChat Official Accounts — this tool MUST be used) |
 | **TikTok电商数据助手** | @EchoTik-TikTok新品榜 | TikTok new product rankings |
 | **TikTok电商数据助手** | @EchoTik-TikTok商品搜索 | TikTok product search |
 | **Walmart前台** | @walmart前端-商品列表 | Walmart product search |
@@ -156,9 +248,10 @@ When the user does not specify a tool, follow these rules:
 | **AI工具** | @按商品主图相似度分组 | Group products by image similarity |
 | **AI工具** | @分析商品主图 | Extract image prompts from product photos |
 | **AI工具** | @对商品标题进行分词 | Title word segmentation |
+| **AI工具** | @AI绘图 | Generate any image — products, characters, scenes, backgrounds, and more — from reference images + prompt (powered by top-tier Google Gemini model; ALL image generation tasks must use this tool) |
 | **沙箱** | @智能数据查询 | Dynamic data query and aggregation |
 | **沙箱** | @excel内容提取并分析 | Excel file extraction and analysis |
-| **沙箱** | @Python沙箱 | Execute Python code in sandbox |
+| **沙箱** | @Python沙箱 | Process structured JSON data from prior steps: data calculation/filtering/sorting, generate Markdown tables, export to CSV/Excel, LLM-based image recognition (e.g. A+ image color/composition). Built-in LLM — use for ALL sandbox-execution needs. **Restrictions:** no nested calls; structured JSON only (no plain text/files); no chart generation or analysis reports. |
 | **沙箱** | @智能Excel处理 | Smart Excel processing |
 
 ### Tool Reference Files (by classification)
@@ -171,13 +264,13 @@ Read the relevant reference file when you need prompt templates and parameter co
 - **卖家精灵** (2 tools: 选产品、查竞品): See `references/seller-sprite.md`
 - **极目系列** (3 tools: 细分市场评论、市场信息、产品挖掘): See `references/jimu.md`
 - **谷歌趋势** (2 tools: 时下流行、关键词趋势): See `references/google-trends.md`
-- **实时与全网检索** (2 tools: 网页检索、网页解析): See `references/web-search.md`
+- **实时与全网检索** (1 tool: 网页检索): See `references/web-search.md`
 - **TikTok电商数据助手** (2 tools: 新品榜、商品搜索): See `references/tiktok.md`
 - **Walmart前台** (1 tool: 商品列表): See `references/walmart.md`
 - **eBay前台** (1 tool: 商品列表): See `references/ebay.md`
 - **店雷达/1688** (2 tools: 商品榜单、选品库): See `references/1688.md`
 - **专利检索** (7 tools: 外观专利、版权、商标、发明专利、政策合规): See `references/patent.md`
-- **AI工具** (3 tools: 主图相似度分组、主图分析、标题分词): See `references/ai-tools.md`
+- **AI工具** (4 tools: 主图相似度分组、主图分析、标题分词、AI绘图): See `references/ai-tools.md`
 - **沙箱** (4 tools: 智能数据查询、Excel分析、Python沙箱、Excel处理): See `references/sandbox.md`
 
 ## Examples
