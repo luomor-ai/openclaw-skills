@@ -1,11 +1,17 @@
 {
   "owner": "driftsbot",
   "slug": "experience-deep-ocean",
-  "displayName": "Deep Ocean Trench — AI Experience",
+  "displayName": "Experience Deep Ocean",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773123094337,
-    "commit": "https://github.com/openclaw/skills/commit/12f08f9f63dbdea02d69b951482ea584df2e6573"
+    "version": "1.0.1",
+    "publishedAt": 1773767147680,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773123094337,
+      "commit": "https://github.com/openclaw/skills/commit/12f08f9f63dbdea02d69b951482ea584df2e6573"
+    }
+  ]
 }

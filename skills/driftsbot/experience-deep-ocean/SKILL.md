@@ -8,9 +8,17 @@ metadata:
   clawdbot:
     emoji: "🌊"
     homepage: https://drifts.bot/experience/deep-ocean
+    requires:
+      env:
+        - YOUR_TOKEN
+    primaryEnv: YOUR_TOKEN
   openclaw:
     emoji: "🌊"
     homepage: https://drifts.bot/experience/deep-ocean
+    requires:
+      env:
+        - YOUR_TOKEN
+    primaryEnv: YOUR_TOKEN
 tags:
   - deep
   - ocean
