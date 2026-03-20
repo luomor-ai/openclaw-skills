@@ -46,34 +46,47 @@ This skill covers 5 sub-categories:
 
 ## Signal Logic
 
-### Default Signal: GitHub + On-Chain Data Divergence
+### Default Signal: Conviction-Based Sizing with Hype-Cycle Bias
 
 1. Discover markets matching emerging tech keywords
-2. Pull GitHub commit/release activity for relevant projects (IBM Qiskit, Boston Dynamics, etc.)
-3. Check on-chain data via DeFiLlama for DeFi-related markets
-4. Compare observable technical progress vs market's implied probability
-5. When visible technical milestones have been achieved but market hasn't repriced, enter
+2. Compute base conviction from distance to threshold (0% at boundary → 100% at p=0/p=1)
+3. Apply `domain_bias()` multiplier — boost underappreciated domains, dampen hype-prone ones
+4. Size = `max(MIN_TRADE, conviction × bias × MAX_POSITION)` — capped at MAX_POSITION
+5. Skip markets with spread > MAX_SPREAD or fewer than MIN_DAYS to resolution
+
+### Domain Bias (built-in, no API required)
+
+Different emerging tech categories have systematic mispricing patterns. `domain_bias()` adjusts conviction based on known retail behavior in each domain:
+
+| Domain | Bias | Why |
+|---|---|---|
+| Metaverse / NFT | **0.70x** | Media hype cycles inflate YES; most milestones miss |
+| Humanoid robots | **0.75x** | YouTube demos precede real deployments by 6–18 months |
+| Quantum computing | **1.30x** | arXiv progress is systematic; markets lag by weeks |
+| Synthetic biology | **1.25x** | Regulatory filings are public; market underweights precedent |
+| DeFi / TVL | **1.20x** | On-chain data is real-time; market repricing lags 2–6h |
+| Other | **1.00x** | No systematic bias detected |
+
+Example: quantum market at 25% → conviction 34% × 1.3x = 44% → $11 position. Metaverse market at same price → 34% × 0.7x = 24% → $6 (conservative).
 
 ### Remix Ideas
 
-- **DeFiLlama API**: https://defillama.com/docs/api — TVL, protocol metrics
-- **GitHub API**: Activity on IBM/Google quantum repos, robotics company repos
-- **CoinGlass**: NFT floor prices and volume tracking
-- **The Good Food Institute**: Lab-grown meat regulatory tracker
-- **IDC / Gartner** research: Technology adoption curve positioning
+- **DeFiLlama API**: Replace `market.current_probability` with TVL-implied probability — trade the divergence between on-chain data and market price
+- **GitHub API**: Measure commit velocity on IBM Qiskit / Google Cirq repos as quantum progress signal
+- **CoinGlass / OpenSea**: NFT floor and volume data as leading indicator for NFT milestone markets
+- **The Good Food Institute**: Lab-grown meat regulatory tracker for synthetic biology markets
+- **arXiv API**: Monitor quantum/ML paper releases as leading signal before market repricing
 
 ## Market Categories Tracked
 
 ```python
-EMERGING_TECH_KEYWORDS = [
-    "Web3", "DeFi", "NFT", "blockchain", "metaverse", "VR", "AR",
-    "Meta Horizon", "virtual reality", "headset",
-    "robot", "humanoid", "autonomous", "Boston Dynamics",
-    "Tesla Optimus", "Figure", "warehouse automation",
-    "quantum", "qubit", "IBM quantum", "Google quantum",
-    "synthetic biology", "lab-grown", "precision fermentation",
-    "CRISPR bacteria", "bioreactor", "engineered organism",
-    "Solana", "Ethereum", "prediction market TVL"
+KEYWORDS = [
+    'Web3', 'DeFi', 'NFT', 'blockchain', 'metaverse', 'VR', 'AR',
+    'robot', 'humanoid', 'autonomous delivery', 'Boston Dynamics',
+    'Tesla Optimus', 'Figure robot', 'warehouse automation',
+    'quantum', 'qubit', 'IBM quantum', 'Google quantum',
+    'synthetic biology', 'lab-grown meat', 'cultivated meat',
+    'precision fermentation', 'Solana', 'Ethereum', 'TVL',
 ]
 ```
 
@@ -141,11 +154,14 @@ All risk parameters are declared in `clawhub.json` as `tunables` and adjustable 
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `SIMMER_ETECH_MAX_POSITION` | `25` | Max USDC per trade |
-| `SIMMER_ETECH_MIN_VOLUME` | `2000` | Min market volume filter (USD) |
-| `SIMMER_ETECH_MAX_SPREAD` | `0.15` | Max bid-ask spread (0.10 = 10%) |
-| `SIMMER_ETECH_MIN_DAYS` | `14` | Min days until market resolves |
-| `SIMMER_ETECH_MAX_POSITIONS` | `8` | Max concurrent open positions |
+| `SIMMER_MAX_POSITION` | `25` | Max USDC per trade (reached at 100% conviction) |
+| `SIMMER_MIN_VOLUME` | `2000` | Min market volume filter (USD) |
+| `SIMMER_MAX_SPREAD` | `0.15` | Max bid-ask spread (0.15 = 15%) |
+| `SIMMER_MIN_DAYS` | `14` | Min days until market resolves |
+| `SIMMER_MAX_POSITIONS` | `8` | Max concurrent open positions |
+| `SIMMER_YES_THRESHOLD` | `0.38` | Buy YES if market price ≤ this value |
+| `SIMMER_NO_THRESHOLD` | `0.62` | Sell NO if market price ≥ this value |
+| `SIMMER_MIN_TRADE` | `5` | Floor for any trade (min USDC regardless of conviction) |
 
 ## Dependency
 
