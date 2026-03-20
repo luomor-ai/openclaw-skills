@@ -3,11 +3,16 @@
   "slug": "signalradar",
   "displayName": "Signalradar",
   "latest": {
-    "version": "0.9.931",
-    "publishedAt": 1773596089847,
-    "commit": "https://github.com/openclaw/skills/commit/89854b471a84ea5dd561818a6b6600fa90c3dff7"
+    "version": "1.0.8",
+    "publishedAt": 1773685448180,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.9.931",
+      "publishedAt": 1773596089847,
+      "commit": "https://github.com/openclaw/skills/commit/89854b471a84ea5dd561818a6b6600fa90c3dff7"
+    },
     {
       "version": "0.9.1",
       "publishedAt": 1773315060913,

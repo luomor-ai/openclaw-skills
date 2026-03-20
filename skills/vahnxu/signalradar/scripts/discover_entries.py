@@ -50,15 +50,13 @@ def as_percent(value: Any) -> float | None:
 
 
 def extract_probability(item: dict[str, Any]) -> float | None:
-    """Extract Yes outcome probability as percentage (0-100) from API response."""
-    val = first_non_null(
-        item,
-        ["probability", "current", "price", "lastPrice", "yesPrice", "lastTradePrice"],
-    )
-    p = as_percent(val)
-    if p is not None:
-        return p
-    # Fallback: parse outcomePrices JSON string
+    """Extract Yes outcome probability as percentage (0-100) from API response.
+
+    Priority: outcomePrices (most accurate real-time price) > other fields.
+    lastTradePrice is the last executed trade, NOT the current market price —
+    it can be stale and misleading.
+    """
+    # 1. outcomePrices is the most accurate source (real-time order book mid-price)
     outcome_prices = item.get("outcomePrices")
     if isinstance(outcome_prices, str) and outcome_prices.startswith("["):
         try:
@@ -66,8 +64,20 @@ def extract_probability(item: dict[str, Any]) -> float | None:
         except (json.JSONDecodeError, ValueError):
             outcome_prices = None
     if isinstance(outcome_prices, list) and outcome_prices:
-        return as_percent(outcome_prices[0])
-    return None
+        p = as_percent(outcome_prices[0])
+        if p is not None:
+            return p
+    # 2. Fallback: other probability fields (excluding lastTradePrice which is stale)
+    val = first_non_null(
+        item,
+        ["probability", "current", "price", "lastPrice", "yesPrice"],
+    )
+    p = as_percent(val)
+    if p is not None:
+        return p
+    # 3. Last resort: lastTradePrice (may be stale, but better than nothing)
+    val = first_non_null(item, ["lastTradePrice"])
+    return as_percent(val)
 
 
 def slugify(text: str) -> str:

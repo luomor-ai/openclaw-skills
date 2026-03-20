@@ -34,7 +34,7 @@ metadata:
         description: "Override config file path. Defaults to ~/.signalradar/config/signalradar_config.json."
         howToGet: "Set to absolute path of your config JSON, e.g. export SIGNALRADAR_CONFIG=/tmp/signalradar/config/signalradar_config.json"
   author: vahnxu
-  version: 0.9.931
+  version: 1.0.8
 ---
 
 # SignalRadar

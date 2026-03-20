@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""SignalRadar v0.9.931 unified CLI entrypoint.
+"""SignalRadar unified CLI entrypoint.
 
 Commands: doctor, add, list, show, remove, run, config, schedule, digest, onboard
 Single source of truth: ~/.signalradar/config/watchlist.json
 """
 
 from __future__ import annotations
+
+__version__ = "1.0.8"
 
 import argparse
 import json
@@ -290,8 +292,11 @@ def _is_dynamic_config_key(key: str) -> bool:
     dynamic_prefixes = (
         "threshold.per_category_abs_pp.",
         "threshold.per_entry_abs_pp.",
-        "delivery.primary.",
     )
+    # Whitelist specific delivery keys instead of allowing arbitrary delivery.primary.*
+    delivery_whitelist = {"delivery.primary.channel", "delivery.primary.target"}
+    if key in delivery_whitelist:
+        return True
     return any(key.startswith(prefix) for prefix in dynamic_prefixes)
 
 
@@ -557,6 +562,15 @@ def _validate_config_value(key: str, value: Any) -> str | None:
             return "digest.top_n must be an integer."
         if numeric < 1 or numeric > 50:
             return "digest.top_n must be between 1 and 50."
+    if key == "check_interval_minutes":
+        try:
+            numeric = int(value)
+        except (TypeError, ValueError):
+            return "check_interval_minutes must be an integer."
+        if numeric < 5:
+            return "Minimum interval is 5 minutes."
+        if numeric > 10080:
+            return "Maximum interval is 10080 minutes (1 week)."
     return None
 
 
@@ -1084,21 +1098,31 @@ def _format_digest_text(report: dict[str, Any], config: dict[str, Any]) -> str:
     error_entries = report.get("error_entries", []) or []
     new_entries = report.get("new_entries", []) or []
 
-    lines = [f"{_digest_title(frequency)} ({generated_display})", ""]
+    _num_emoji = [
+        "\u0031\ufe0f\u20e3", "\u0032\ufe0f\u20e3", "\u0033\ufe0f\u20e3",
+        "\u0034\ufe0f\u20e3", "\u0035\ufe0f\u20e3", "\u0036\ufe0f\u20e3",
+        "\u0037\ufe0f\u20e3", "\u0038\ufe0f\u20e3", "\u0039\ufe0f\u20e3",
+        "\U0001f51f",
+    ]
+    _sep = "\u2500" * 19
+
+    lines = [
+        f"\U0001f4ca {_digest_title(frequency)}",
+        f"\U0001f4c5 {generated_display}",
+        "",
+    ]
     if report.get("first_report"):
         lines.append("Note: this is the first digest. No previous digest snapshot is available yet.")
         lines.append("")
 
-    # Overview line
     active = int(summary.get("active", 0))
     changed = int(summary.get("changed", 0))
     settled_count = int(summary.get("settled", 0))
     stable = active - changed
-    lines.append(f"Overview: {active} markets monitored, {changed} changed, {settled_count} settled, {stable} stable")
+    lines.append(f"\U0001f522 {active} markets \u00b7 {changed} changed \u00b7 {settled_count} settled \u00b7 {stable} stable")
     lines.append("")
 
-    # --- Classify rows by event and assign to blocks ---
-    # Build event groups: event_title -> list of rows
+    # Classify rows by event
     event_map: dict[str, list[dict[str, Any]]] = {}
     standalone_changed: list[dict[str, Any]] = []
     for row in all_rows:
@@ -1108,127 +1132,165 @@ def _format_digest_text(report: dict[str, Any], config: dict[str, Any]) -> str:
         else:
             standalone_changed.append(row)
 
-    # Determine event block assignment (highest priority wins)
-    # Priority: Changes > Minor changes > No changes
-    event_block: dict[str, str] = {}  # event_title -> "changes" | "minor"
+    event_block: dict[str, str] = {}
     for et, rows in event_map.items():
         has_major = any(abs(float(r.get("week_abs_pp", 0) or 0)) >= digest_threshold for r in rows)
         event_block[et] = "changes" if has_major else "minor"
 
-    # Add unchanged rows to event_map for no-changes block
+    # --- 1. Changes ---
+    major_items: list[dict[str, Any]] = []
+    for et, block in event_block.items():
+        if block == "changes":
+            for r in event_map[et]:
+                if abs(float(r.get("week_abs_pp", 0) or 0)) >= digest_threshold:
+                    major_items.append(r)
+    for r in standalone_changed:
+        if abs(float(r.get("week_abs_pp", 0) or 0)) >= digest_threshold:
+            major_items.append(r)
+    major_items.sort(key=lambda r: abs(float(r.get("week_abs_pp", 0) or 0)), reverse=True)
+
+    changes_lines: list[str] = []
+    for idx, r in enumerate(major_items):
+        delta = float(r.get("week_abs_pp", 0) or 0)
+        direction = "\U0001f4c8" if delta >= 0 else "\U0001f4c9"
+        sign = "+" if delta >= 0 else ""
+        num = _num_emoji[idx] if idx < 10 else f"{idx + 1}."
+        changes_lines.append(f"{num} {r.get('question', r.get('entry_id', '?'))}")
+        changes_lines.append(f"  {r.get('previous_probability')}% \u2192 {r.get('current')}% ({direction} {sign}{delta}pp)")
+
+    if changes_lines:
+        lines.extend([_sep, "\U0001f4c8 Changes", _sep])
+        lines.extend(changes_lines)
+        lines.append("")
+
+    minor_lines: list[str] = []
+    for et, block in sorted(event_block.items()):
+        rows = event_map[et]
+        if block == "changes":
+            minor_in = [r for r in rows if abs(float(r.get("week_abs_pp", 0) or 0)) < digest_threshold]
+            if minor_in:
+                top_row = max(minor_in, key=lambda r: float(r.get("current", 0) or 0))
+                minor_lines.append(f"  \u2022 {et} ({len(minor_in)} more markets, top: {top_row.get('question', '?')} at {top_row.get('current', '?')}%)")
+        elif block == "minor":
+            if len(rows) > 1:
+                top_row = max(rows, key=lambda r: float(r.get("current", 0) or 0))
+                minor_lines.append(f"  \u2022 {et} ({len(rows)} markets, top: {top_row.get('question', '?')} at {top_row.get('current', '?')}%)")
+            else:
+                r = rows[0]
+                minor_lines.append(f"  \u2022 {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
+    for r in standalone_changed:
+        if abs(float(r.get("week_abs_pp", 0) or 0)) < digest_threshold:
+            minor_lines.append(f"  \u2022 {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
+
+    if minor_lines:
+        lines.append(f"\U0001f4c9 Minor changes (< {int(digest_threshold)}pp)")
+        lines.extend(minor_lines)
+        lines.append("")
+
+    # --- 2. Stable ---
     unchanged_event_map: dict[str, list[dict[str, Any]]] = {}
     standalone_unchanged: list[dict[str, Any]] = []
     for row in unchanged_rows:
         et = str(row.get("event_title", "") or "")
-        if et and et not in event_block:  # only if event not already in changes/minor
+        if et:
             unchanged_event_map.setdefault(et, []).append(row)
-        elif not et:
+        else:
             standalone_unchanged.append(row)
 
-    # --- Changes block ---
-    changes_lines: list[str] = []
-    for et, block in sorted(event_block.items(), key=lambda x: x[0]):
-        if block != "changes":
+    seen_ids: set[str] = set()
+    deduped_stable: list[dict[str, Any]] = []
+    for r in sorted(unchanged_rows + standalone_unchanged, key=lambda x: float(x.get("current", 0) or 0), reverse=True):
+        rid = str(r.get("entry_id", ""))
+        if rid and rid not in seen_ids:
+            deduped_stable.append(r)
+            seen_ids.add(rid)
+
+    stable_lines: list[str] = []
+    shown = 0
+    shown_ids: set[str] = set()
+    for r in deduped_stable:
+        if shown >= 20:
+            break
+        rid = str(r.get("entry_id", ""))
+        if rid in shown_ids:
             continue
-        rows = event_map[et]
-        major = [r for r in rows if abs(float(r.get("week_abs_pp", 0) or 0)) >= digest_threshold]
-        minor_in_event = [r for r in rows if abs(float(r.get("week_abs_pp", 0) or 0)) < digest_threshold]
-        # Show event title if multiple markets
-        if len(rows) > 1:
-            changes_lines.append(f"  {et}")
-            for r in major:
-                delta = float(r.get("week_abs_pp", 0) or 0)
-                sign = "+" if delta >= 0 else ""
-                changes_lines.append(f"    {r.get('question', r.get('entry_id', '?'))}")
-                changes_lines.append(f"      {r.get('previous_probability')}% \u2192 {r.get('current')}% ({sign}{delta}pp)")
+        et = str(r.get("event_title", "") or "")
+        if et and et in unchanged_event_map and len(unchanged_event_map[et]) > 1:
+            event_rows = unchanged_event_map[et]
+            total_stable = len(event_rows)
+            total_in_event = total_stable + len([cr for cr in all_rows if str(cr.get("event_title", "")) == et])
+            stable_lines.append(f"  \u2022 {et} ({total_stable} of {total_in_event} stable)")
+            for er in sorted(event_rows, key=lambda x: float(x.get("current", 0) or 0), reverse=True):
+                if shown >= 20:
+                    break
+                erid = str(er.get("entry_id", ""))
+                if erid not in shown_ids:
+                    stable_lines.append(f"    \u00b7 {er.get('question', '?')} \u2014 {er.get('current', '?')}%")
+                    shown_ids.add(erid)
+                    shown += 1
+            for er in event_rows:
+                shown_ids.add(str(er.get("entry_id", "")))
         else:
-            for r in major:
-                delta = float(r.get("week_abs_pp", 0) or 0)
-                sign = "+" if delta >= 0 else ""
-                changes_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}")
-                changes_lines.append(f"    {r.get('previous_probability')}% \u2192 {r.get('current')}% ({sign}{delta}pp)")
-        changes_lines.append("")
-    # Standalone major changes
-    for r in standalone_changed:
-        delta = float(r.get("week_abs_pp", 0) or 0)
-        if abs(delta) >= digest_threshold:
-            sign = "+" if delta >= 0 else ""
-            changes_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}")
-            changes_lines.append(f"    {r.get('previous_probability')}% \u2192 {r.get('current')}% ({sign}{delta}pp)")
-            changes_lines.append("")
+            stable_lines.append(f"  \u2022 {r.get('question', r.get('entry_id', '?'))} \u2014 {r.get('current', '?')}%")
+            shown_ids.add(rid)
+            shown += 1
 
-    if changes_lines:
-        lines.append("Changes")
-        lines.extend(changes_lines)
+    remaining_stable = len(deduped_stable) - len(shown_ids)
+    if remaining_stable > 0:
+        stable_lines.append(f"  (+{remaining_stable} more stable markets)")
 
-    # --- Minor changes block ---
-    minor_lines: list[str] = []
-    for et, block in sorted(event_block.items(), key=lambda x: x[0]):
-        rows = event_map[et]
-        if block == "changes":
-            # Fold remaining minor rows from this event
-            minor_in_event = [r for r in rows if abs(float(r.get("week_abs_pp", 0) or 0)) < digest_threshold]
-            if minor_in_event:
-                top_row = max(minor_in_event, key=lambda r: float(r.get("current", 0) or 0))
-                top_name = top_row.get("question", top_row.get("entry_id", "?"))
-                top_prob = top_row.get("current", "?")
-                minor_lines.append(f"  {et} ({len(minor_in_event)} more markets, top: {top_name} at {top_prob}%)")
-        elif block == "minor":
-            if len(rows) > 1:
-                top_row = max(rows, key=lambda r: float(r.get("current", 0) or 0))
-                top_name = top_row.get("question", top_row.get("entry_id", "?"))
-                top_prob = top_row.get("current", "?")
-                minor_lines.append(f"  {et} ({len(rows)} markets, top: {top_name} at {top_prob}%)")
-            else:
-                r = rows[0]
-                minor_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
-    # Standalone minor changes
-    for r in standalone_changed:
-        delta = float(r.get("week_abs_pp", 0) or 0)
-        if abs(delta) < digest_threshold:
-            minor_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
-
-    if minor_lines:
-        lines.append(f"Minor changes (< {int(digest_threshold)}pp)")
-        lines.extend(minor_lines)
+    if stable_lines:
+        lines.extend([_sep, "\U0001f4a4 Stable", _sep])
+        lines.extend(stable_lines)
         lines.append("")
 
-    # --- No changes block ---
-    no_change_lines: list[str] = []
-    for et, rows in sorted(unchanged_event_map.items()):
-        if len(rows) > 1:
-            top_row = max(rows, key=lambda r: float(r.get("current", 0) or 0))
-            top_name = top_row.get("question", top_row.get("entry_id", "?"))
-            top_prob = top_row.get("current", "?")
-            no_change_lines.append(f"  {et} ({len(rows)} markets, top: {top_name} at {top_prob}%)")
-        else:
-            r = rows[0]
-            no_change_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
-    for r in standalone_unchanged:
-        no_change_lines.append(f"  {r.get('question', r.get('entry_id', '?'))}  ({r.get('current', '?')}%)")
-
-    if no_change_lines:
-        lines.append("No changes")
-        lines.extend(no_change_lines)
-        lines.append("")
-
-    # --- New entries ---
+    # --- 3. New entries ---
     if new_entries:
-        lines.append("New entries")
+        lines.extend([_sep, "\U0001f195 New entries", _sep])
         for row in new_entries:
-            lines.append(f"  {row.get('question', row.get('entry_id', '?'))}")
+            lines.append(f"  \u2022 {row.get('question', row.get('entry_id', '?'))}")
         lines.append("")
 
-    # --- Settled ---
-    if settled_entries:
-        lines.append("Settled (recommend removal)")
-        for row in settled_entries:
-            lines.append(f"  {row.get('question', row.get('entry_id', '?'))}")
+    # --- 4. Expiring soon ---
+    expiring_lines: list[str] = []
+    now_date = datetime.now(timezone.utc).date()
+    for row in (report.get("snapshot_rows", []) or []):
+        if row.get("state") == "settled":
+            continue
+        end_str = str(row.get("end_date", "") or "")
+        if not end_str:
+            continue
+        try:
+            end_dt = datetime.fromisoformat(end_str.replace("Z", "+00:00")).date()
+        except (ValueError, TypeError):
+            try:
+                end_dt = datetime.strptime(end_str[:10], "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                continue
+        days_left = (end_dt - now_date).days
+        if 0 <= days_left <= 30:
+            expiring_lines.append(f"  \u2022 {row.get('question', row.get('entry_id', '?'))} ({days_left} days)")
+
+    if expiring_lines:
+        lines.extend([_sep, "\u23f3 Expiring soon", _sep])
+        lines.extend(expiring_lines)
         lines.append("")
 
-    # --- Errors ---
+    # --- 5. Errors ---
     if error_entries:
-        lines.append(f"Note: {len(error_entries)} markets could not be fetched this period.")
+        lines.append("\u26a0\ufe0f Errors")
+        for row in error_entries:
+            lines.append(f"  \u2022 {row.get('question', row.get('entry_id', '?'))} \u2014 API fetch failed")
+        lines.append("")
+
+    # --- 6. Settled ---
+    if settled_entries:
+        lines.append("\U0001f3c1 Settled")
+        max_show = 5
+        for row in settled_entries[:max_show]:
+            lines.append(f"  \u2022 {row.get('question', row.get('entry_id', '?'))}")
+        if len(settled_entries) > max_show:
+            lines.append(f"  (+{len(settled_entries) - max_show} more)")
         lines.append("")
 
     lines.append("\u2014 Powered by SignalRadar")
@@ -1831,14 +1893,14 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         _json_print(payload)
     else:
         if ok:
-            print(f"HEALTHY — check_interval_minutes={interval}")
+            print(f"✅ HEALTHY — check_interval_minutes={interval}")
             print(f"data_directory: {data_root}  (exists: {data_root.exists()}, writable: {os.access(data_root, os.W_OK)})")
         else:
-            print("WARN")
+            print("⚠️ WARN")
             print(f"data_directory: {data_root}  (exists: {data_root.exists()}, writable: {os.access(data_root, os.W_OK)})")
             for item in checks:
                 if not item["ok"]:
-                    print(f"  - {item['name']}: {item['detail']}")
+                    print(f"  ⚠️ {item['name']}: {item['detail']}")
     return 0 if ok else 1
 
 
@@ -2057,16 +2119,16 @@ def cmd_add(args: argparse.Namespace) -> int:
 
     # Show results
     if added and not output_json:
-        print(f"\nAdded {len(added)} market(s):")
+        print(f"\n🆕 Added {len(added)} market(s):")
         for entry in added:
             prob = ""
             m = market_by_entry_id.get(entry["entry_id"])
             if m is not None:
                 prob = f"  {m['probability']:.0f}% (baseline)"
-            print(f"  {entry['question']}{prob}")
+            print(f"  ✅ {entry['question']}{prob}")
 
     if skipped and not output_json:
-        print(f"\nSkipped {len(skipped)} (already in watchlist):")
+        print(f"\n⚠️ Skipped {len(skipped)} (already in watchlist):")
         for entry in skipped:
             print(f"  {entry['question']}")
 
@@ -2142,9 +2204,9 @@ def cmd_config(args: argparse.Namespace) -> int:
             set_nested_value(user_cfg, "delivery.primary.channel", "webhook")
             set_nested_value(user_cfg, "delivery.primary.target", url)
             save_json_config(cfg_path, user_cfg)
-            print(f"Set delivery.primary.channel = webhook")
-            print(f"Set delivery.primary.target = {url}")
-            print(f"Saved to {cfg_path}")
+            print(f"🔄 Set delivery.primary.channel = webhook")
+            print(f"🔄 Set delivery.primary.target = {url}")
+            print(f"✅ Saved to {cfg_path}")
             return 0
 
     # No value specified: show current value for that key
@@ -2172,10 +2234,17 @@ def cmd_config(args: argparse.Namespace) -> int:
     set_nested_value(user_cfg, key, parsed_value)
     save_json_config(cfg_path, user_cfg)
 
-    print(f"Set {key} = {parsed_value}")
-    print(f"Saved to {cfg_path}")
+    print(f"🔄 Set {key} = {parsed_value}")
+    print(f"✅ Saved to {cfg_path}")
     if key == "check_interval_minutes":
-        print("Note: this updates the display value only. Use 'signalradar.py schedule N' to change actual monitoring frequency.")
+        print("📎 Note: this updates the display value only. Use 'signalradar.py schedule N' to change actual monitoring frequency.")
+    if key == "delivery.primary.channel" and str(parsed_value).strip().lower() == "webhook":
+        # Warn if webhook target is not a valid URL
+        reloaded = deep_merge(DEFAULT_CONFIG, load_json_config(cfg_path))
+        target = str(reloaded.get("delivery", {}).get("primary", {}).get("target", "") or "").strip()
+        if not target.startswith("http://") and not target.startswith("https://"):
+            print("⚠️ Warning: delivery.primary.target is not set to a valid URL. "
+                  "Use 'signalradar.py config delivery.primary.target <URL>' to set it.")
     return 0
 
 
@@ -2641,7 +2710,7 @@ def cmd_remove(args: argparse.Namespace) -> int:
         return 1
 
     question = entry.get("question", entry.get("entry_id", "?"))
-    print(f"\nRemoving #{args.number}: {question}")
+    print(f"\n🗑️ Removing #{args.number}: {question}")
 
     if not args.yes:
         answer = input("Confirm removal? (y/N): ").strip().lower()
@@ -2672,7 +2741,7 @@ def cmd_remove(args: argparse.Namespace) -> int:
     )
 
     if archived:
-        print(f"Archived: {question}")
+        print(f"🗑️ Archived: {question}")
     else:
         print("Error: Entry not found during archive.")
         return 1
@@ -2685,7 +2754,8 @@ def cmd_remove(args: argparse.Namespace) -> int:
 # ---------------------------------------------------------------------------
 
 def _write_last_run(status: str, checked: int, hits_count: int,
-                    delivery: dict[str, Any] | None = None) -> None:
+                    delivery: dict[str, Any] | None = None,
+                    delivery_errors: list[dict[str, Any]] | None = None) -> None:
     """Write ~/.signalradar/cache/last_run.json after each run."""
     lr_path = _last_run_path()
     lr_path.parent.mkdir(parents=True, exist_ok=True)
@@ -2700,6 +2770,8 @@ def _write_last_run(status: str, checked: int, hits_count: int,
         lr_data["delivery_sent"] = delivery.get("sent", False)
         lr_data["delivery_status"] = delivery.get("status", "skipped")
         lr_data["delivery_error"] = delivery.get("error", "")
+    if delivery_errors:
+        lr_data["delivery_errors"] = delivery_errors
     lr_path.write_text(
         json.dumps(lr_data, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
@@ -2759,6 +2831,7 @@ def cmd_run(args: argparse.Namespace) -> int:
     run_ts = _utc_now()
     hits: list[dict[str, Any]] = []
     errors: list[dict[str, Any]] = []
+    delivery_errors: list[dict[str, Any]] = []
     observations: list[dict[str, Any]] = []
     settled_entries: list[dict[str, Any]] = []
     digest_snapshot_rows: list[dict[str, Any]] = []
@@ -2908,10 +2981,112 @@ def cmd_run(args: argparse.Namespace) -> int:
         )
 
         if result["decision"] == "HIT" and result["event"] is not None:
+            # Attach threshold for ⚡ marker
+            result["event"]["_effective_threshold"] = threshold
             hits.append(result["event"])
-            # Deliver
-            if not args.dry_run and not (platform_announce_mode and primary_channel == "openclaw"):
-                deliver_hit(result["event"], config, dry_run=False)
+
+    # --- Multi-HIT merged delivery ---
+    if hits and not args.dry_run and not (platform_announce_mode and primary_channel == "openclaw"):
+        from route_delivery import human_text_multi
+
+        # Check recent hits for 🔥 marker (same entry_id within last 30 min in audit log)
+        recent_hit_ids: set[str] = set()
+        try:
+            if audit_log.exists():
+                cutoff_dt = datetime.now(timezone.utc) - timedelta(minutes=30)
+                with audit_log.open("r", encoding="utf-8") as f:
+                    for line in f:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            rec = json.loads(line)
+                        except (json.JSONDecodeError, ValueError):
+                            continue
+                        if rec.get("reason") != "HIT":
+                            continue
+                        rec_ts = str(rec.get("ts", ""))
+                        if not rec_ts:
+                            continue
+                        try:
+                            rec_dt = datetime.fromisoformat(rec_ts.replace("Z", "+00:00"))
+                            if rec_dt >= cutoff_dt:
+                                recent_hit_ids.add(str(rec.get("entry_id", "")))
+                        except (ValueError, TypeError):
+                            continue
+        except Exception:
+            pass
+
+        hit_thresholds = [float(h.get("_effective_threshold", 0)) for h in hits]
+        hit_recent = [str(h.get("entry_id", "")) in recent_hit_ids for h in hits]
+
+        # Sort by abs(abs_pp) descending
+        sorted_indices = sorted(range(len(hits)), key=lambda i: abs(float(hits[i].get("abs_pp", 0) or 0)), reverse=True)
+        sorted_hits = [hits[i] for i in sorted_indices]
+        sorted_thresholds = [hit_thresholds[i] for i in sorted_indices]
+        sorted_recent = [hit_recent[i] for i in sorted_indices]
+
+        if len(sorted_hits) == 1:
+            # Single HIT — deliver with emoji params
+            evt = sorted_hits[0]
+            hit_delivery = deliver_hit(
+                evt, config, dry_run=False,
+                threshold=sorted_thresholds[0],
+                recent_hit=sorted_recent[0],
+            )
+            if not hit_delivery.get("ok"):
+                delivery_errors.append({
+                    "entry_id": str(evt.get("entry_id", "")),
+                    "error": hit_delivery.get("status", "unknown"),
+                    "detail": str(hit_delivery.get("error", hit_delivery.get("attempts", ""))),
+                })
+        else:
+            # Multi-HIT — merge into combined messages
+            messages = human_text_multi(
+                sorted_hits, config,
+                thresholds=sorted_thresholds,
+                recent_hits=sorted_recent,
+            )
+            # Deliver each page
+            for msg in messages:
+                # Build a minimal envelope and deliver via the same webhook path
+                delivery = config.get("delivery", {})
+                primary = delivery.get("primary", {})
+                route_primary = f"{primary.get('channel', 'webhook')}:{primary.get('target', '')}"
+                fallback_routes = [
+                    f"{fb.get('channel', '')}:{fb.get('target', '')}"
+                    for fb in delivery.get("fallback", [])
+                    if isinstance(fb, dict)
+                ]
+                from route_delivery import attempt_delivery, utc_now as _utc
+                envelope = {
+                    "schema_version": "1.1.0",
+                    "delivery_id": f"del:multi:{request_id}",
+                    "request_id": request_id,
+                    "idempotency_key": f"sr:multi:{request_id}:{hash(msg) % 100000}",
+                    "severity": severity_for_event(sorted_hits[0]),
+                    "route": {"primary": route_primary, "fallback": fallback_routes},
+                    "human_text": msg,
+                    "machine_payload": {"hit_count": len(sorted_hits)},
+                    "ts": _utc().isoformat().replace("+00:00", "Z"),
+                }
+                routes = [route_primary] + fallback_routes
+                outcome = attempt_delivery(envelope, routes, timeout_sec=8)
+                if not outcome.get("ok"):
+                    # Fallback: try delivering individually with emoji context
+                    for fb_idx, evt in enumerate(sorted_hits):
+                        fb_delivery = deliver_hit(
+                            evt, config, dry_run=False,
+                            threshold=sorted_thresholds[fb_idx] if fb_idx < len(sorted_thresholds) else 0.0,
+                            recent_hit=sorted_recent[fb_idx] if fb_idx < len(sorted_recent) else False,
+                        )
+                        if not fb_delivery.get("ok"):
+                            delivery_errors.append({
+                                "entry_id": str(evt.get("entry_id", "")),
+                                "error": fb_delivery.get("status", "unknown"),
+                                "detail": str(fb_delivery.get("error", fb_delivery.get("attempts", ""))),
+                            })
+                    break  # Don't try remaining pages after fallback
 
     # Determine overall status
     if errors and not hits:
@@ -2967,7 +3142,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     # Write last_run.json (not on dry-run), including delivery outcome
     if not args.dry_run:
-        _write_last_run(status, checked, len(hits), delivery=push_outcome)
+        _write_last_run(status, checked, len(hits), delivery=push_outcome,
+                        delivery_errors=delivery_errors)
 
     # Output
     if args.output == "json":
@@ -3414,7 +3590,7 @@ def cmd_onboard(args: argparse.Namespace) -> int:
 def _onboarding(args: argparse.Namespace) -> int:
     """First-time setup with 6 preset events. 3-step interactive flow."""
 
-    print("Welcome to SignalRadar! Loading popular events...\n")
+    print("📡 Welcome to SignalRadar! Loading popular events...\n")
 
     # Resolve all preset URLs
     events_data: list[dict[str, Any]] = []
@@ -3447,7 +3623,7 @@ def _onboarding(args: argparse.Namespace) -> int:
         return 1
 
     # --- STEP 1: Show event titles + market counts ---
-    print(f"Found {len(events_data)} events:\n")
+    print(f"🔢 Found {len(events_data)} events:\n")
     for i, ev in enumerate(events_data, 1):
         market_count = len(ev["markets"])
         unavail = " (unavailable)" if ev.get("unavailable") else ""
@@ -3477,7 +3653,7 @@ def _onboarding(args: argparse.Namespace) -> int:
 
     # --- STEP 2: Show sub-market details, confirm ---
     total_markets = sum(len(ev["markets"]) for ev in kept_events)
-    print(f"\nAdding {len(kept_events)} events ({total_markets} markets):\n")
+    print(f"\n🔄 Adding {len(kept_events)} events ({total_markets} markets):\n")
 
     # Group by inferred category
     num = 0
@@ -3528,10 +3704,10 @@ def _onboarding(args: argparse.Namespace) -> int:
                 dry_run=False,
             )
 
-    print(f"\nDone! {len(added)} markets added, baselines recorded.")
+    print(f"\n✅ Done! {len(added)} markets added, baselines recorded.")
     if skipped:
-        print(f"({len(skipped)} already in watchlist, skipped)")
-    print("Remove any you don't need with: signalradar.py remove <number>")
+        print(f"⚠️ ({len(skipped)} already in watchlist, skipped)")
+    print("📎 Remove any you don't need with: signalradar.py remove <number>")
     if added:
         _persist_detected_language_if_needed(getattr(args, "config", ""))
 
@@ -3620,7 +3796,7 @@ def _emit_startup_notices(args: argparse.Namespace) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="SignalRadar v0.9.931 — Polymarket probability monitor"
+        description=f"SignalRadar v{__version__} — Polymarket probability monitor"
     )
 
     sub = parser.add_subparsers(dest="command", required=True)
