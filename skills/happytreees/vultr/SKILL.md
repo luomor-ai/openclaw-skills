@@ -5,7 +5,7 @@ description: Manage Vultr cloud infrastructure including VPS instances, bare met
 
 ---
 name: vultr
-version: 1.0.0
+version: 1.3.0
 description: Manage Vultr cloud infrastructure including VPS instances, bare metal, Kubernetes clusters, databases, DNS, firewalls, VPCs, object storage, and more. Use when asked to deploy, manage, list, or modify Vultr resources.
 author: Erwin Evans
 tags:
@@ -22,7 +22,13 @@ Manage Vultr cloud resources via the Vultr API v2.
 
 ## Setup
 
-Set the `VULTR_API_KEY` environment variable or pass `--api-key` to commands.
+Store your API key in `~/.config/vultr/api_key`:
+
+```bash
+mkdir -p ~/.config/vultr
+echo -n "YOUR_API_KEY" > ~/.config/vultr/api_key
+chmod 600 ~/.config/vultr/api_key
+```
 
 Generate API keys at: https://my.vultr.com/settings/#settingsapi
 
