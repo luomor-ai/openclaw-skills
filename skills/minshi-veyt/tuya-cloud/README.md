@@ -1,6 +1,7 @@
 # Tuya Cloud Controller
 
 Control and read Tuya/Smart Life devices via the Tuya Cloud OpenAPI.
+The installation guide can be found here: https://medium.com/@min.shi.happy/building-a-tuya-smart-home-controller-skill-for-openclaw-beadb796c05c
 
 ---
 

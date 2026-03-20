@@ -3,9 +3,15 @@
   "slug": "tuya-cloud",
   "displayName": "Tuya Cloud",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773006855492,
-    "commit": "https://github.com/openclaw/skills/commit/69fd37df19782d509ae92770570f2c46efa83d3a"
+    "version": "1.0.3",
+    "publishedAt": 1773685770579,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773006855492,
+      "commit": "https://github.com/openclaw/skills/commit/69fd37df19782d509ae92770570f2c46efa83d3a"
+    }
+  ]
 }
