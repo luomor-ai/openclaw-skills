@@ -1,6 +1,6 @@
 ---
 name: polymarket-food-agriculture-trader
-description: Trades Polymarket prediction markets on food commodity prices, crop yields, drought-driven supply shocks, alternative protein milestones, and agricultural policy events. Use when you want to capture alpha on food markets using USDA crop reports, futures curves, and weather-agriculture correlation signals.
+description: Trades Polymarket prediction markets on food commodity prices, crop yields, drought-driven supply shocks, alternative protein milestones, and agricultural policy events. Use when you want to capture alpha on food markets using USDA WASDE calendar timing, commodity concentration signals, and crop season windows.
 metadata:
   author: Diagnostikon
   version: "1.0"
@@ -11,28 +11,72 @@ metadata:
 # Food & Agriculture Trader
 
 > **This is a template.**
-> The default signal is keyword-based market discovery combined with probability-extreme detection — remix it with the data sources listed in the Edge Thesis below.
+> The default signal is keyword-based market discovery combined with conviction-based sizing and `harvest_cycle_bias()` — remix it with the data sources listed below.
 > The skill handles all the plumbing (market discovery, trade execution, safeguards). Your agent provides the alpha.
 
 ## Strategy Overview
 
-USDA WASDE report vs futures curve divergence. Remix: USDA NASS crop progress reports, FAO Food Price Index (monthly), CME agricultural futures term structure, World Bank commodity price data.
+Agricultural markets are driven by hard data (USDA reports, satellite crop monitoring) but traded by retail participants who follow headlines. This skill exploits two structural edges without any external API:
 
+1. **WASDE & crop calendar timing** — Information asymmetry between professional futures traders and Polymarket retail peaks around USDA WASDE release months and planting windows. Trading these windows captures the pro vs retail pricing gap before it closes.
+2. **Commodity type confidence** — Cocoa and coffee (geographically concentrated supply) are dramatically more front-runnable than drought headlines (already crowded) or famine narratives (too complex to time).
 
-## Edge Thesis
+## Signal Logic
 
-Agricultural markets are driven by hard data (USDA reports, satellite crop monitoring) but traded by retail participants who follow headlines:
+### Default Signal: Conviction-Based Sizing with Harvest Cycle Bias
 
-- **USDA WASDE calendar**: The WASDE (World Agricultural Supply and Demand Estimates) report is published monthly on a known date. Markets on crop yield thresholds frequently misprice in the days before release when satellite data already indicates the direction
-- **Coffee/cocoa supply concentration**: 70% of cocoa comes from Côte d'Ivoire and Ghana — any weather event in West Africa is a strong signal for cocoa price markets. Retail frequently underprices supply shock probability
-- **El Niño agricultural impact**: ENSO forecasts from NOAA give 3–6 month lead time on major crop-growing regions. Markets on annual yield milestones rarely incorporate this correctly
-- **Alternative protein regulatory**: Lab-grown meat approval timelines are public record from FDA/USDA FSIS filings — markets frequently underprice based on regulatory calendar
+1. Discover active food and agriculture markets on Polymarket
+2. Compute base conviction from distance to threshold (0% at boundary → 100% at p=0/p=1)
+3. Apply `harvest_cycle_bias()` — combines WASDE calendar timing with commodity type confidence
+4. Size = `max(MIN_TRADE, conviction × bias × MAX_POSITION)` — capped at MAX_POSITION
+5. Skip markets with spread > MAX_SPREAD or fewer than MIN_DAYS to resolution
+
+### Harvest Cycle Bias (built-in, no API required)
+
+Two compounding structural edges:
+
+**Factor 1 — Crop Calendar / WASDE Timing**
+
+Agricultural markets have their highest information asymmetry at two points: (a) during the Northern hemisphere planting window (Mar–May) when yield uncertainty peaks, and (b) around USDA WASDE high-impact release months when professional traders have better reads than retail.
+
+| Condition | Multiplier |
+|---|---|
+| Crop question + WASDE high-impact month (Jun, Aug, Nov, Jan) | **1.20x** — pro vs retail divergence peaks |
+| Crop question + planting season (Mar–May) | **1.15x** — yield uncertainty at maximum |
+| Crop question + S. hemisphere harvest (Jan–Apr) | **1.10x** — Brazil/Argentina soy/corn window |
+| Crop question + off-season | **0.90x** — catalysts scarce, edge compresses |
+
+**Factor 2 — Commodity Type Confidence**
+
+| Commodity type | Multiplier | Why |
+|---|---|---|
+| Cocoa / coffee | **1.25x** | ~70% of supply from a few countries — W. Africa/Brazil weather is front-runnable |
+| Wheat / corn / soy / grain / WASDE | **1.20x** | CME professional futures lead; Polymarket retail lags by days |
+| Fertilizer / potash / nitrogen | **1.15x** | Upstream inputs move on Russia policy and energy — longer leads than retail prices |
+| Alternative protein / lab-grown meat | **1.10x** | FDA/USDA FSIS approval milestones are public — regulatory calendar predictable |
+| Food inflation / FAO index / CPI food | **1.05x** | Data-driven but lagged — moderate edge |
+| Drought / wildfire crop damage | **0.85x** | Crowded media trade — edge mostly gone by the time a Polymarket question exists |
+| Famine / food crisis / food security | **0.75x** | Humanitarian narratives — geopolitical complexity makes timing very hard |
+
+Combined and capped at **1.40x**. A cocoa market in August (WASDE month) → 1.20 × 1.25 = **1.40x** cap — maximum conviction. A drought headline in October (off-season) → 0.90 × 0.85 = **0.77x** — trade very small.
+
+### Keywords Monitored
+
+```
+wheat, corn, soybean, coffee, cocoa, sugar, food price, crop yield,
+drought, harvest, USDA, FAO, food inflation, famine, supply shock,
+alternative protein, Beyond Meat, Impossible Foods, lab-grown,
+vertical farming, fertilizer, potash, nitrogen, El Niño crop,
+La Niña harvest, WASDE, commodity, rice, palm oil, livestock,
+cattle, food security, grain, oilseed
+```
 
 ### Remix Signal Ideas
-- **USDA NASS**: https://www.nass.usda.gov/Data_and_Statistics/ — free crop progress API
-- **FAO Food Price Index**: https://www.fao.org/worldfoodsituation/foodpricesindex/
-- **World Bank Commodity Prices**: https://www.worldbank.org/en/research/commodity-markets
-- **Planet Labs crop monitoring**: Satellite NDVI for major crop regions (paid but powerful)
+
+- **USDA NASS crop progress**: Free weekly API during growing season — monitor crop condition ratings as leading indicator before WASDE reflects them
+- **FAO Food Price Index**: Monthly release — trade divergence between FAO trajectory and Polymarket food inflation question pricing
+- **CME agricultural futures**: Replace `market.current_probability` with CME futures-implied probability to trade the pro vs retail gap directly
+- **NOAA ENSO forecasts**: 3–6 month lead time on El Niño/La Niña impacts on major crop-growing regions — markets rarely incorporate this correctly
 
 
 ## Safety & Execution Mode
@@ -59,11 +103,14 @@ All declared as `tunables` in `clawhub.json` and adjustable from the Simmer UI.
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `SIMMER_MAX_POSITION` | See clawhub.json | Max USDC per trade |
-| `SIMMER_MIN_VOLUME` | See clawhub.json | Min market volume filter |
-| `SIMMER_MAX_SPREAD` | See clawhub.json | Max bid-ask spread |
-| `SIMMER_MIN_DAYS` | See clawhub.json | Min days until resolution |
-| `SIMMER_MAX_POSITIONS` | See clawhub.json | Max concurrent open positions |
+| `SIMMER_MAX_POSITION` | `30` | Max USDC per trade (reached at 100% conviction) |
+| `SIMMER_MIN_VOLUME` | `5000` | Min market volume filter (USD) |
+| `SIMMER_MAX_SPREAD` | `0.10` | Max bid-ask spread (10%) |
+| `SIMMER_MIN_DAYS` | `7` | Min days until resolution |
+| `SIMMER_MAX_POSITIONS` | `7` | Max concurrent open positions |
+| `SIMMER_YES_THRESHOLD` | `0.38` | Buy YES if market price ≤ this value |
+| `SIMMER_NO_THRESHOLD` | `0.62` | Sell NO if market price ≥ this value |
+| `SIMMER_MIN_TRADE` | `5` | Floor for any trade (min USDC regardless of conviction) |
 
 ## Dependency
 
