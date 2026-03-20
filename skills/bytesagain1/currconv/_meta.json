@@ -3,11 +3,16 @@
   "slug": "currconv",
   "displayName": "Currconv",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1773673693587,
-    "commit": "https://github.com/openclaw/skills/commit/64cb5e37afdb4be1cb75afd75dff8c5371224f81"
+    "version": "3.0.1",
+    "publishedAt": 1773917922998,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1773673693587,
+      "commit": "https://github.com/openclaw/skills/commit/64cb5e37afdb4be1cb75afd75dff8c5371224f81"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773536979808,
