@@ -3,11 +3,16 @@
   "slug": "moltmail-io",
   "displayName": "moltmail-io",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1772787150706,
-    "commit": "https://github.com/openclaw/skills/commit/ef53fb8fd8b1fd73e5e941342d56dca4590b5e72"
+    "version": "1.0.4",
+    "publishedAt": 1773755176475,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1772787150706,
+      "commit": "https://github.com/openclaw/skills/commit/ef53fb8fd8b1fd73e5e941342d56dca4590b5e72"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1772644034560,
