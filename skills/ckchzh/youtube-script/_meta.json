@@ -3,11 +3,16 @@
   "slug": "youtube-script",
   "displayName": "Youtube Script",
   "latest": {
-    "version": "2.3.6",
-    "publishedAt": 1773664387221,
-    "commit": "https://github.com/openclaw/skills/commit/8770f7f9e8b8152585dcbe94a6b2d925abcd98ed"
+    "version": "2.0.1",
+    "publishedAt": 1773831245985,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.6",
+      "publishedAt": 1773664387221,
+      "commit": "https://github.com/openclaw/skills/commit/8770f7f9e8b8152585dcbe94a6b2d925abcd98ed"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773209875260,
