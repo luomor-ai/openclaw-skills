@@ -3,14 +3,15 @@
 /**
  * NUVC — VC-grade business intelligence for OpenClaw agents.
  *
- * Commands: score, roast, analyze
+ * Commands: score, roast, analyze, extract, models
  * Zero dependencies. Requires Node 18+ and NUVC_API_KEY.
  * Get your free key at https://nuvc.ai/api-platform
  */
 
 const API_BASE = "https://api.nuvc.ai/api/v3";
 const FOOTER =
-  "\n---\nPowered by [NUVC](https://nuvc.ai) — VC-grade intelligence for AI agents | [Get API key](https://nuvc.ai/api-platform)";
+  "\n---\nPowered by [NUVC](https://nuvc.ai) — VC-grade intelligence for AI agents | [Get API key](https://nuvc.ai/api-platform/keys)";
+const TIMEOUT_MS = 30_000;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -21,7 +22,7 @@ function getApiKey() {
   if (!key) {
     console.error(
       "Error: NUVC_API_KEY not set.\n\n" +
-        "1. Get your free key at https://nuvc.ai/api-platform\n" +
+        "1. Get your free key at https://nuvc.ai/api-platform/keys\n" +
         "2. Set it: export NUVC_API_KEY=nuvc_your_key_here\n" +
         "3. Run again!"
     );
@@ -49,13 +50,28 @@ async function apiCall(method, path, body) {
   const headers = {
     Authorization: `Bearer ${getApiKey()}`,
     "Content-Type": "application/json",
-    "User-Agent": "nuvc-openclaw/1.0",
+    "User-Agent": "nuvc-openclaw/1.1",
   };
 
-  const opts = { method, headers };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+
+  const opts = { method, headers, signal: controller.signal };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(url, opts);
+  let res;
+  try {
+    res = await fetch(url, opts);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      console.error(`Request timed out after ${TIMEOUT_MS / 1000}s. Try again or check https://status.nuvc.ai`);
+    } else {
+      console.error(`Network error: ${err.message}`);
+    }
+    process.exit(1);
+  } finally {
+    clearTimeout(timer);
+  }
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: { message: res.statusText } }));
@@ -92,6 +108,12 @@ async function cmdScore(args) {
   }
 
   const res = await apiCall("POST", "/ai/score", { text });
+
+  if (args.json) {
+    console.log(JSON.stringify(res, null, 2));
+    return;
+  }
+
   const data = res.data || res;
   const scores = data.scores || {};
 
@@ -113,6 +135,8 @@ async function cmdScore(args) {
     console.log(`${emoji} **Overall: ${overall} / 10** — ${verdict}\n`);
   }
 
+  // The LLM returns: { scores: { "Dimension": {score, rationale}, ... }, overall_score, summary }
+  // So data.scores = full LLM JSON, and data.scores.scores = the dimension breakdown.
   const dimensions = scores.scores || scores;
   if (typeof dimensions === "object" && !Array.isArray(dimensions)) {
     const entries = Object.entries(dimensions).filter(
@@ -153,18 +177,12 @@ async function cmdRoast(args) {
   const res = await apiCall("POST", "/ai/analyze", {
     text,
     analysis_type: "pitch_deck",
-    system_prompt:
-      "You are a brutally honest VC partner who has seen 10,000 pitches. " +
-      "Give a sharp, witty, but ultimately constructive roast of this business idea. " +
-      "Structure your response as:\n" +
-      "1. THE ROAST (2-3 punchy, honest observations — be funny but fair)\n" +
-      "2. THE REAL TALK (what's actually wrong and needs fixing)\n" +
-      "3. THE SILVER LINING (what could work if they fix the issues)\n" +
-      "4. VERDICT: Would you take the meeting? (Yes/Maybe/No and why in one sentence)\n\n" +
-      "Keep the total response under 400 words. Be direct, not cruel.",
-    temperature: 0.7,
-    max_tokens: 800,
   });
+
+  if (args.json) {
+    console.log(JSON.stringify(res, null, 2));
+    return;
+  }
 
   const data = res.data || res;
 
@@ -183,11 +201,17 @@ async function cmdAnalyze(args) {
     process.exit(1);
   }
 
-  const analysisType = args.type || "general";
+  const analysisType = args.type || "market";
   const res = await apiCall("POST", "/ai/analyze", {
     text,
     analysis_type: analysisType,
   });
+
+  if (args.json) {
+    console.log(JSON.stringify(res, null, 2));
+    return;
+  }
+
   const data = res.data || res;
 
   const label = analysisType.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
@@ -196,14 +220,88 @@ async function cmdAnalyze(args) {
   console.log(FOOTER);
 }
 
+async function cmdExtract(args) {
+  const text = args._positional[0];
+  if (!text) {
+    console.error(
+      "Usage: node nuvc-api.mjs extract \"<pitch or business description>\"\n\n" +
+        'Example: node nuvc-api.mjs extract "We are an AI SaaS targeting SMBs with $2M ARR growing 20% MoM"'
+    );
+    process.exit(1);
+  }
+
+  const res = await apiCall("POST", "/ai/extract", { text });
+
+  if (args.json) {
+    console.log(JSON.stringify(res, null, 2));
+    return;
+  }
+
+  const data = res.data || res;
+  // ai_extract returns { extracted: {...fields...}, extraction_type, usage }
+  const extracted = data.extracted || data;
+
+  console.log("## NUVC Structured Extraction\n");
+
+  if (typeof extracted === "object" && extracted !== null) {
+    for (const [key, val] of Object.entries(extracted)) {
+      if (val === null || val === undefined) continue;
+      const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const display = Array.isArray(val) ? val.join(", ") : String(val);
+      console.log(`**${label}:** ${display}`);
+    }
+  } else {
+    console.log(extracted);
+  }
+
+  console.log(FOOTER);
+}
+
+async function cmdModels(args) {
+  const res = await apiCall("GET", "/ai/models");
+
+  if (args.json) {
+    console.log(JSON.stringify(res, null, 2));
+    return;
+  }
+
+  const data = res.data || res;
+
+  console.log("## NUVC Available Models\n");
+
+  // Providers (health + availability)
+  if (Array.isArray(data.providers) && data.providers.length > 0) {
+    console.log("### Providers\n");
+    console.log("| Provider | Available | Healthy |");
+    console.log("|----------|-----------|---------|");
+    for (const p of data.providers) {
+      console.log(`| ${p.name} | ${p.available ? "✓" : "✗"} | ${p.healthy ? "✓" : "✗"} |`);
+    }
+    console.log("");
+  }
+
+  // Embedding models
+  if (Array.isArray(data.embedding_models) && data.embedding_models.length > 0) {
+    console.log(`**Embedding models:** ${data.embedding_models.join(", ")}\n`);
+  }
+
+  if (data.preference) {
+    console.log(`**Preference order:** ${Array.isArray(data.preference) ? data.preference.join(" → ") : data.preference}\n`);
+  }
+
+  console.log(FOOTER);
+}
+
 // ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
 const COMMANDS = {
-  score: { fn: cmdScore, help: "Score a business idea on the VCGrade 0-10 scale" },
-  roast: { fn: cmdRoast, help: "Get a brutally honest (but constructive) startup roast" },
+  score:   { fn: cmdScore,   help: "Score a business idea on the VCGrade 0-10 scale" },
+  roast:   { fn: cmdRoast,   help: "Get a brutally honest (but constructive) startup roast" },
   analyze: { fn: cmdAnalyze, help: "Market, competitive, financial, or pitch analysis" },
+  extract: { fn: cmdExtract, help: "Extract structured data (metrics, team, market) from pitch text" },
+  models:  { fn: cmdModels,  help: "List available AI models" },
 };
 
 async function main() {
@@ -217,6 +315,8 @@ async function main() {
     for (const [name, { help }] of Object.entries(COMMANDS)) {
       console.log(`  ${name.padEnd(12)} ${help}`);
     }
+    console.log("\nFlags:");
+    console.log("  --json         Output raw JSON (useful for piping to other tools)");
     console.log("\n50 free calls/month. Get your key at https://nuvc.ai/api-platform");
     process.exit(0);
   }

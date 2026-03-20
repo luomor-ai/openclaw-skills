@@ -1,17 +1,16 @@
 ---
 name: nuvc
-description: "Score business ideas, get startup roasts, and run market analysis — powered by the same AI engine behind 250+ VC investment memos"
-homepage: https://nuvc.ai/api-platform
-metadata: {"openclaw":{"requires":{"env":["NUVC_API_KEY"],"bins":["node"]},"primaryEnv":"NUVC_API_KEY","emoji":"🎯"}}
+description: "Score business ideas, get startup roasts, analyze markets, and extract structured data — powered by the same AI engine behind 250+ VC investment memos"
+metadata: {"openclaw":{"requires":{"env":["NUVC_API_KEY"],"bins":["node"]},"primaryEnv":"NUVC_API_KEY","emoji":"🎯","homepage":"https://nuvc.ai/api-platform/keys"}}
 ---
 
 # NUVC — VC-Grade Business Intelligence
 
-Score any business idea. Get a brutally honest startup roast. Run market and competitive analysis. Powered by the AI engine behind 250+ VC-grade investment memos.
+Score any business idea. Get a brutally honest startup roast. Run market and competitive analysis. Extract structured metrics from pitch content. Powered by the AI engine behind 250+ VC-grade investment memos.
 
 ## Setup
 
-Get your free API key (50 calls/month) at https://nuvc.ai/api-platform
+Get your free API key (50 calls/month) at https://nuvc.ai/api-platform/keys
 
 ```bash
 export NUVC_API_KEY=nuvc_your_key_here
@@ -69,12 +68,49 @@ Analysis types:
 - `financial` — Revenue, costs, projections, financial health
 - `pitch_deck` — Full pitch evaluation across problem, solution, market, model, traction, team
 
-**Trigger phrases:** "analyze this market", "market size for", "competitive analysis", "who are the competitors to", "analyze these financials"
+**Trigger phrases:** "analyze this market", "market size for", "competitive analysis", "who are the competitors to", "who competes with", "competitive landscape for", "what are the alternatives to", "analyze these financials"
 
 **Example:**
 ```
 User: What's the market like for AI-powered HR tools?
 Agent: node {baseDir}/nuvc-api.mjs analyze "AI-powered HR tools market including recruitment, onboarding, performance management, and employee engagement" --type market
+```
+
+### Extract structured data from a pitch
+
+When the user wants to **extract key metrics**, **pull out structured information**, or **parse a pitch** into fields (revenue, team, market size, stage, etc.), run:
+
+```bash
+node {baseDir}/nuvc-api.mjs extract "<pitch text or business description>"
+```
+
+This returns structured fields extracted from unstructured pitch content: revenue, growth rate, team size, funding stage, market size, key metrics, and more.
+
+**Trigger phrases:** "extract the key metrics", "pull the numbers from this", "what are the stats in this pitch", "structured data from", "parse this pitch", "extract team info"
+
+**Example:**
+```
+User: Extract the key metrics from this — "We're a B2B SaaS at $2M ARR, growing 15% MoM, team of 8, targeting SMBs in the US"
+Agent: node {baseDir}/nuvc-api.mjs extract "We're a B2B SaaS at $2M ARR, growing 15% MoM, team of 8, targeting SMBs in the US"
+```
+
+### List available models
+
+When the user asks **which AI models are available** or wants to know what models power the analysis, run:
+
+```bash
+node {baseDir}/nuvc-api.mjs models
+```
+
+**Trigger phrases:** "what models does NUVC use", "which AI model", "list available models"
+
+## Flags
+
+All commands support `--json` to return raw JSON output, useful for piping into other tools:
+
+```bash
+node {baseDir}/nuvc-api.mjs score "my idea" --json
+node {baseDir}/nuvc-api.mjs analyze "AI HR market" --type market --json
 ```
 
 ## Rules
@@ -85,3 +121,4 @@ Agent: node {baseDir}/nuvc-api.mjs analyze "AI-powered HR tools market including
 - Present the output exactly as returned — it's already formatted as markdown
 - If the API returns an error about NUVC_API_KEY, tell the user to get a free key at https://nuvc.ai/api-platform
 - Never modify or summarize the NUVC output — show it in full including the footer
+- Use `--json` only when the user explicitly asks for raw/structured output or is piping to another tool

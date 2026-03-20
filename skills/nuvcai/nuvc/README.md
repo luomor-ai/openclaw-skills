@@ -3,7 +3,7 @@
 > Score any idea. Roast any startup. Analyze any market.
 > The same AI engine behind 250+ VC investment memos — now in your agent.
 
-[![ClawHub](https://img.shields.io/badge/ClawHub-nuvc-blue)](https://clawhub.com/skills/nuvc)
+[![ClawHub](https://img.shields.io/badge/ClawHub-nuvc-blue)](https://clawhub.ai/skills/nuvc)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 ## Quick Install
@@ -14,7 +14,7 @@ openclaw install nuvc
 
 ## Setup
 
-1. Get your free API key (50 calls/month) at **[nuvc.ai/api-platform](https://nuvc.ai/api-platform)**
+1. Get your free API key (50 calls/month) at **[nuvc.ai/api-platform/keys](https://nuvc.ai/api-platform/keys)**
 2. Set the environment variable:
 
 ```bash
@@ -88,7 +88,7 @@ projected CAGR of 12.4%...
 | Growth | $199/mo | 5,000 |
 | Scale | $499/mo | 50,000 |
 
-[Get your API key →](https://nuvc.ai/api-platform)
+[Get your API key →](https://nuvc.ai/api-platform/keys)
 
 ## About NUVC
 
