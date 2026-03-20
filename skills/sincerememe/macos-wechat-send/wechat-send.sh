@@ -23,6 +23,18 @@ if [ $# -eq 1 ]; then
     CONTACT="$1"
     MESSAGE=$(cat)
     python "$SCRIPT_DIR/wechat-send.py" "$CONTACT" "$MESSAGE"
-else
+# 如果有 2 个参数，正常发送单条消息
+elif [ $# -eq 2 ]; then
     python "$SCRIPT_DIR/wechat-send.py" "$@"
+# 如果有 3+ 个参数，第一个是联系人，后面都是消息（支持连续发送多条）
+elif [ $# -ge 3 ]; then
+    CONTACT="$1"
+    shift
+    python "$SCRIPT_DIR/wechat-send.py" "$CONTACT" "$@"
+else
+    echo "用法："
+    echo "  wechat-send <联系人> <消息>           # 单条消息"
+    echo "  wechat-send <联系人> <消息 1> <消息 2> ...  # 多条消息"
+    echo "  echo '消息' | wechat-send <联系人>    # 从 stdin 读取"
+    exit 1
 fi
