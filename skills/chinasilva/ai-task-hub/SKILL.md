@@ -1,7 +1,7 @@
 ---
 name: ai-task-hub
 description: AI task hub for image analysis, background removal, speech-to-text, text-to-speech, markdown conversion, points balance/ledger lookup, and async execute/poll/presentation orchestration. Use when users need hosted AI outcomes while host runtime manages identity, credits, payment, and risk control.
-version: 3.2.25
+version: 3.2.28
 metadata:
   openclaw:
     skillKey: ai-task-hub
@@ -24,12 +24,12 @@ Public package boundary:
 - Only orchestrates `portal.skill.execute`, `portal.skill.poll`, `portal.skill.presentation`, `portal.account.balance`, and `portal.account.ledger`.
 - Does not exchange `api_key` or `userToken` inside this package.
 - Does not handle recharge or payment flows inside this package.
-- Prefers attachment URLs, and when host runtime explicitly exposes attachment bytes or an explicit attachment path, forwards only that explicit attachment material through the public bridge before execution.
+- Prefers attachment URLs, and when host runtime explicitly exposes attachment bytes for the current request, forwards only that explicit attachment material through the public bridge before execution.
 - Third-party agent entry uses `POST /agent/public-bridge/invoke`.
 
 ## User-Facing Response Policy
 
-- When users upload images, audio, documents, or video and ask for a capability, prefer executing immediately only when the host runtime has already supplied an explicit attachment object, explicit attachment bytes, or an explicit attachment path for that request.
+- When users upload images, audio, documents, or video and ask for a capability, prefer executing immediately only when the host runtime has already supplied an explicit attachment object or explicit attachment bytes for that request.
 - Do not explain `image_url`, `attachment.url`, storage URLs, bridge layers, host uploads, input normalization, or controlled media domain details to end users unless they explicitly ask for technical debugging.
 - Do not ask end users to provide manual URLs, JSON field names, or upload-chain instructions; those are internal host-to-skill mechanics.
 - If the runtime supports attachment handling, limit processing to the explicit attachment object supplied for the current request and keep the upload/URL handoff scoped to execute/poll/presentation for that same request.
@@ -112,7 +112,8 @@ Third-party agent entry mode (recommended):
 
 - Use `POST /agent/public-bridge/invoke` as the first entrypoint for OpenClaw / Codex / Claude style runtimes.
 - Do not require end users to provide any credential.
-- On first use without an existing binding, gateway returns `AUTHORIZATION_REQUIRED` with `authorization_url` and `entry_user_key`.
+- With `TRIAL_ENABLED` and available trial points, first-time calls may proceed without browser authorization.
+- On first use without an existing binding, gateway can proceed without browser authorization when TRIAL_ENABLED and trial points are available; `AUTHORIZATION_REQUIRED` is returned only for conditional upgrade paths (for example trial exhausted or trial-disabled rollback).
 - The returned `authorization_url` may include `gateway_api_base_url`; preserve it when completing browser authorization so `/agent-auth/complete` is posted back to the same API environment that created the auth session.
 - Host/runtime should show `authorization_url` to the user, persist `entry_user_key`, then retry the same action with that same `entry_user_key`.
 - If gateway later returns `AUTHORIZATION_REQUIRED` with `details.likely_cause=ENTRY_USER_KEY_NOT_REUSED`, `details.recovery_action=REUSE_ENTRY_USER_KEY`, and `details.reauthorization_required=false`, host should restore the previously persisted `entry_user_key` and retry without sending the user through browser authorization again.
@@ -131,7 +132,7 @@ Host-side token bridge (outside published package):
 - These bridge endpoints are served by gateway runtime, not bundled into this published package, and do not require caller-managed credentials.
 - Bridge request body should include `action`, `agent_uid`, `conversation_id`, and optional `payload`.
 - `conversation_id` should be a host-generated opaque session/install identifier, not a public chat ID, raw thread ID, or PII.
-- Public bridge should resolve a stable external user binding when available; if the binding is missing, gateway returns a host-owned authorization URL plus `entry_user_key` so user can complete first-time binding in browser.
+- Public bridge should resolve a stable external user binding when available; if the binding is missing and trial conditions are satisfied, first-time onboarding can continue without browser authorization, while conditional upgrade paths return a host-owned authorization URL plus `entry_user_key`.
 - Cross-conversation account continuity requires reusing the same `entry_user_key`; public bridge intentionally does not accept owner overrides.
 - Gateway bridge will canonicalize `agent_uid`, repair binding when missing, issue short-lived internal task token, and run the action server-side.
 - `portal.skill.execute` through public bridge is write-capable and should send `options.confirm_write=true` after user confirmation; otherwise gateway may return `ACTION_CONFIRMATION_REQUIRED`.
@@ -162,7 +163,8 @@ Preferred invocation mode for third-party agent entry (recommended):
 
 - Send that body to `POST /agent/public-bridge/invoke`.
 - This is the recommended production entrypoint for third-party agent-friendly integration.
-- On first use, gateway may return `AUTHORIZATION_REQUIRED` with `authorization_url` and `entry_user_key`.
+- With `TRIAL_ENABLED` and available trial points, first-time onboarding can complete without browser authorization.
+- On first use, gateway may return `AUTHORIZATION_REQUIRED` with `authorization_url` and `entry_user_key` only when conditional authorization upgrade is required (for example trial exhausted).
 - Persist `entry_user_key` and retry with the same value after user authorization completes.
 - Preserve any `gateway_api_base_url` embedded in the authorization flow so the completion request lands on the same gateway API environment.
 - `agent_uid` should be your host-defined stable runtime agent identifier.
@@ -243,12 +245,12 @@ Attachment normalization:
 
 - Prefer explicit `image_url` / `audio_url` / `file_url` / `video_url`.
 - `attachment.url` is mapped to target media field by capability.
-- When host runtime exposes attachment bytes or an explicit attachment path, this published package forwards only that explicit attachment material through the public bridge and injects the returned URL before execute.
-- There is no separate `portal.upload` action in this package; for third-party agent entry, callers should keep using `portal.skill.execute`, and the bundled runtime will only forward explicit bytes/path inputs already supplied by the host for the current request.
+- When host runtime exposes attachment bytes, this published package forwards only that explicit attachment material through the public bridge and injects the returned URL before execute.
+- There is no separate `portal.upload` action in this package; for third-party agent entry, callers should keep using `portal.skill.execute`, and the bundled runtime will only forward explicit attachment bytes already supplied by the host for the current request.
 - If a host bypasses the bundled auto-upload helper and implements upload itself, use `POST /agent/public-bridge/upload-file` for third-party/public entry, not `POST /agent/skill/bridge/upload-file`.
-- Local path handling is limited to explicit allowlisted fields only: `payload.file_path`, `input.file_path`, `attachment.path`, and `attachment.file_path`.
-- The runtime does not scan the local filesystem, guess file locations, expand directories/globs, or read hidden/sensitive paths such as dot-directories, SSH config, cloud credentials, git metadata, or system config paths.
-- Arbitrary unmanaged local filesystem access remains unsupported.
+- Local `file_path` handling is disabled in the published public skill.
+- The runtime does not scan the local filesystem, guess file locations, expand directories/globs, or read local paths from `payload.file_path`, `input.file_path`, `attachment.path`, or `attachment.file_path`.
+- Arbitrary unmanaged local filesystem access remains unsupported; hosts should provide bytes or a bridge-managed URL instead.
 - Example host upload endpoint: `/agent/public-bridge/upload-file`.
 - `tencent-video-face-fusion` requires 2 uploaded files from the user before execution:
   - source video -> `input.video_url`

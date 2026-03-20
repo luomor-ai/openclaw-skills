@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "AI Task Hub Skill API",
-    "version": "3.2.25",
+    "version": "3.2.28",
     "description": "Public skill contract for execute/poll/presentation/account balance/account ledger via gateway-managed public bridge."
   },
   "servers": [
@@ -83,6 +83,10 @@
         "gateway_api_base_url",
         "auth_session_id",
         "retry_after_seconds"
+      ],
+      "notes": [
+        "With TRIAL_ENABLED and available trial points, first-time calls may succeed without browser authorization.",
+        "AUTHORIZATION_REQUIRED is expected when trial is exhausted, trial is disabled, or authorization upgrade is otherwise required."
       ]
     },
     "agent_uid_format": "^agent_[a-z0-9][a-z0-9_-]{5,63}$",
@@ -91,7 +95,7 @@
   "x-agent-invocation-guide": {
     "preferred_entrypoint": "public_bridge",
     "user_response_policy": {
-      "attachment_requests": "Treat uploaded files as ready for execution, prefer attachment URLs, and when the host exposes explicit bytes or an explicit attachment path, auto-upload before returning results or progress.",
+      "attachment_requests": "Treat uploaded files as ready for execution, prefer attachment URLs, and when the host exposes explicit attachment bytes, forward that explicit material before returning results or progress.",
       "internal_mechanics_visibility": "Do not expose image_url, attachment.url, storage URLs, bridge layers, or upload normalization details to end users unless they explicitly ask for technical debugging.",
       "manual_url_requests": "Do not ask end users to provide manual URLs, JSON field names, or upload-chain instructions.",
       "failure_language": "If user intervention is required, describe only the minimal next step in user-oriented language without revealing internal layering."
@@ -167,10 +171,11 @@
       "notes": [
         "Preferred production entrypoint for third-party agent-friendly integration.",
         "For end-user conversations, prefer direct execution and result delivery instead of explaining attachment upload or URL normalization internals.",
-        "When the host exposes attachment bytes or an explicit attachment path, the published skill forwards only that explicit attachment material through the public bridge before execute and injects the returned URL into the target media field.",
+        "When the host exposes attachment bytes, the published skill forwards only that explicit attachment material through the public bridge before execute and injects the returned URL into the target media field.",
         "agent_uid should be the host-defined stable runtime agent identifier; bridge canonicalizes it server-side.",
         "conversation_id should be a host-generated opaque session or install identifier, not a public chat id, raw thread id, or PII.",
-        "Public bridge should resolve a stable external user binding when available; if binding is missing, gateway returns authorization_url plus entry_user_key.",
+        "When TRIAL_ENABLED and trial points are available, first-time onboarding can proceed without browser authorization.",
+        "Public bridge should resolve a stable external user binding when available; for new installations with TRIAL_ENABLED and available trial points, onboarding proceeds without browser authorization, and AUTHORIZATION_REQUIRED is returned only for conditional upgrade paths (for example trial exhausted or trial disabled rollback).",
         "authorization_url may include gateway_api_base_url and hosts should preserve it when completing browser authorization so the binding write lands on the same API environment.",
         "Cross-conversation account continuity requires reusing the same entry_user_key across follow-up calls.",
         "If AUTHORIZATION_REQUIRED includes likely_cause=ENTRY_USER_KEY_NOT_REUSED and reauthorization_required=false, hosts should restore the previously persisted entry_user_key instead of launching a new browser login.",

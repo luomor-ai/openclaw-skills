@@ -1,7 +1,7 @@
 ---
 name: ai-task-hub
 description: AI Task Hub 用于图像检测与分析、去背景与抠图、语音转文字、文本转语音、文档转 Markdown、积分余额/流水查询和异步任务编排。适用于用户需要通过 execute/poll/presentation 与账户积分查询完成结果交付，且由宿主统一管理身份、积分、支付和风控的场景。
-version: 3.2.25
+version: 3.2.28
 metadata:
   openclaw:
     skillKey: ai-task-hub
@@ -24,12 +24,12 @@ metadata:
 - 只保留 `portal.skill.execute`、`portal.skill.poll`、`portal.skill.presentation`、`portal.account.balance`、`portal.account.ledger`。
 - 不在公开包内交换 `api_key` 或 `userToken`。
 - 不在公开包内处理支付、充值与积分 UI 闭环。
-- 优先使用附件 URL；当宿主运行时显式暴露附件 bytes 或显式附件路径时，只会把这份显式附件材料通过 public bridge 转发后再执行。
+- 优先使用附件 URL；当宿主运行时为当前请求显式暴露附件 bytes 时，只会把这份显式附件材料通过 public bridge 转发后再执行。
 - 第三方 agent 入口统一走 `POST /agent/public-bridge/invoke`。
 
 ## 用户侧输出原则
 
-- 当用户上传图片、音频、文档或视频并请求执行能力时，只有在宿主运行时已经为当前请求提供了显式附件对象、显式附件 bytes 或显式附件路径的前提下，才优先直接执行并返回结果、进度或必要的最小化下一步。
+- 当用户上传图片、音频、文档或视频并请求执行能力时，只有在宿主运行时已经为当前请求提供了显式附件对象或显式附件 bytes 的前提下，才优先直接执行并返回结果、进度或必要的最小化下一步。
 - 不要向最终用户解释 `image_url`、`attachment.url`、对象存储 URL、bridge、宿主上传、输入归一化、受控媒体域名等内部实现细节，除非用户明确要求排查技术问题。
 - 不要要求用户手工提供 URL、JSON 字段名或上传链路说明；这些属于宿主与 skill 之间的内部处理。
 - 若运行时已具备附件处理能力，也只应处理当前请求中宿主显式提供的附件对象，并把上传与 URL 交接严格限制在该次 execute/poll/presentation 编排内。
@@ -110,7 +110,8 @@ Action 与接口映射：
 
 - OpenClaw / Codex / Claude 这类运行时应优先调用 `POST /agent/public-bridge/invoke`。
 - 不应要求最终用户手工提供任何凭证。
-- 首次调用且尚无绑定时，gateway 会返回 `AUTHORIZATION_REQUIRED`，并在 details 中给出 `authorization_url` 与 `entry_user_key`。
+- 当 `TRIAL_ENABLED` 且试用积分可用时，首次调用可无感完成，不需要先走浏览器授权。
+- 首次调用且尚无绑定时，若 `TRIAL_ENABLED` 且试用积分可用，可无感继续；仅在条件性升级授权场景（如 trial 耗尽或 trial 关闭回滚）才返回 `AUTHORIZATION_REQUIRED`（含 `authorization_url` 与 `entry_user_key`）。
 - 返回的 `authorization_url` 里可能带有 `gateway_api_base_url`；宿主在浏览器授权完成时应保留这个参数，确保 `/agent-auth/complete` 回到创建该授权会话的同一 API 环境。
 - 宿主/运行时应把 `authorization_url` 展示给用户，保存 `entry_user_key`，待授权完成后用同一个 `entry_user_key` 重试。
 - 如果后续又收到 `AUTHORIZATION_REQUIRED`，且 `details.likely_cause=ENTRY_USER_KEY_NOT_REUSED`、`details.recovery_action=REUSE_ENTRY_USER_KEY`、`details.reauthorization_required=false`，宿主应优先恢复之前保存的 `entry_user_key` 并直接重试，而不是再次让用户走浏览器授权。
@@ -129,7 +130,7 @@ Action 与接口映射：
 - 这些桥接入口都由网关运行时提供，不打包在本公开 skill 包里，也不要求调用方自己管理任何凭证。
 - bridge 请求体应包含 `action`、`agent_uid`、`conversation_id` 以及可选 `payload`。
 - `conversation_id` 应是宿主生成的 opaque 会话/安装标识，不应直接使用公开 chat id、原始 thread id 或任何 PII。
-- 公开 bridge 在可用时会直接复用稳定外部用户绑定；若绑定缺失，网关会返回宿主自有授权 URL（host-owned 授权 URL）和 `entry_user_key`，让用户在浏览器完成首次绑定。
+- 公开 bridge 在可用时会直接复用稳定外部用户绑定；若绑定缺失且满足 trial 条件，首次调用可继续无感执行；仅在条件性升级授权场景返回宿主自有授权 URL（host-owned 授权 URL）和 `entry_user_key`。
 - 若需要跨多个会话/线程复用同一账户，应复用同一个 `entry_user_key`；公开 bridge 不接受 owner 覆盖。
 - 网关 bridge 会在服务端完成 `agent_uid` 规范化、缺失绑定修复、短期 task token 签发和 action 执行。
 - `portal.skill.execute` 属于写操作；通过 public bridge 调用时，建议在用户确认后再发送 `options.confirm_write=true`，否则网关可能返回 `ACTION_CONFIRMATION_REQUIRED`。
@@ -160,7 +161,8 @@ Action 与接口映射：
 
 - 将该请求体发送到 `POST /agent/public-bridge/invoke`。
 - 这是面向第三方 agent 友好接入的推荐生产入口。
-- 首次使用时，gateway 可能返回带 `authorization_url` 和 `entry_user_key` 的 `AUTHORIZATION_REQUIRED`。
+- 当 `TRIAL_ENABLED` 且试用积分可用时，首次 onboarding 可无感完成，不需要先走浏览器授权。
+- 首次使用时，只有在需要条件性授权升级（如 trial 耗尽）时，gateway 才会返回带 `authorization_url` 和 `entry_user_key` 的 `AUTHORIZATION_REQUIRED`。
 - 宿主应保存 `entry_user_key`，用户授权完成后继续携带同一个值重试。
 - 若授权流程中带有 `gateway_api_base_url`，宿主应原样保留，确保授权完成请求回到同一 gateway API 环境。
 - `agent_uid` 应表示宿主侧稳定的运行时 agent 标识。
@@ -241,12 +243,12 @@ agent 侧决策流程：
 
 - 优先使用 `image_url` / `audio_url` / `file_url` / `video_url`。
 - 若存在 `attachment.url`，脚本会按 capability 自动映射到目标字段。
-- 当宿主显式提供附件 bytes 或显式附件路径时，公开包只会把这份显式附件材料通过 public bridge 转发，再把返回的 URL 注入到目标字段。
-- 本包没有单独的 `portal.upload` action；对第三方 agent 入口，调用方应继续走 `portal.skill.execute`，只有当运行时已为当前请求提供显式 bytes/路径时，包内脚本才会在 execute 前转发它们。
+- 当宿主显式提供附件 bytes 时，公开包只会把这份显式附件材料通过 public bridge 转发，再把返回的 URL 注入到目标字段。
+- 本包没有单独的 `portal.upload` action；对第三方 agent 入口，调用方应继续走 `portal.skill.execute`，只有当运行时已为当前请求提供显式附件 bytes 时，包内脚本才会在 execute 前转发它们。
 - 如果宿主绕过包内自动上传逻辑而要自己实现上传，第三方/公开入口应使用 `POST /agent/public-bridge/upload-file`，不要使用 `POST /agent/skill/bridge/upload-file`。
-- 本地路径只允许来自显式白名单字段：`payload.file_path`、`input.file_path`、`attachment.path`、`attachment.file_path`。
-- 运行时不会扫描本地文件系统、猜测文件位置、展开目录或 glob，也不会读取隐藏路径或敏感目录，例如 dot 目录、SSH 配置、云凭证、git 元数据或系统配置路径。
-- 不支持任意未受控的本地文件系统访问。
+- 本公开 skill 禁用本地 `file_path` 处理。
+- 运行时不会扫描本地文件系统、猜测文件位置、展开目录或 glob，也不会从 `payload.file_path`、`input.file_path`、`attachment.path`、`attachment.file_path` 读取本地路径。
+- 不支持任意未受控的本地文件系统访问；宿主应提供 bytes 或由 bridge 管理的 URL。
 - 宿主可使用上传接口（示例）：`/agent/public-bridge/upload-file`。
 - `tencent-video-face-fusion` 在执行前必须拿到用户上传的 2 个文件：
   - 源视频 -> `input.video_url`

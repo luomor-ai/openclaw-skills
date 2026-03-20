@@ -1,5 +1,4 @@
-import { basename, extname, resolve as resolvePath } from 'node:path';
-import { readFile, stat } from 'node:fs/promises';
+import { extname } from 'node:path';
 
 const IMAGE_CAPABILITY_HINTS = new Set([
   'human_detect',
@@ -65,21 +64,6 @@ export async function resolvePublicUploadCandidate(payloadRaw) {
     return null;
   }
 
-  const filePath = readText(input.file_path) || readText(payload.file_path) || readAttachmentPath(attachment);
-  if (filePath) {
-    const fileName = resolveFileName(attachment, filePath);
-    const contentType = resolveContentType(attachment, filePath, fileName, capability);
-    const targetField = inferTargetField(capability, contentType, fileName);
-    await assertReadableAttachmentPath(filePath, contentType, targetField);
-    return {
-      sourceKind: 'file_path',
-      filePath,
-      fileName,
-      contentType,
-      targetField
-    };
-  }
-
   const rawBytesSource = readAttachmentBytesSource(attachment) ?? readAttachmentBytesSource(input.attachment);
   if (rawBytesSource === null) {
     return null;
@@ -112,10 +96,7 @@ export async function uploadCandidateThroughPublicBridge(candidate, auth, fetchI
     });
   }
 
-  const fileBuffer =
-    candidate.sourceKind === 'file_path'
-      ? await readFile(candidate.filePath)
-      : candidate.bytes;
+  const fileBuffer = candidate.bytes;
   const contentType = candidate.contentType ?? resolveFallbackContentType(candidate.targetField);
 
   if (!Buffer.isBuffer(fileBuffer) || fileBuffer.length === 0) {
@@ -310,11 +291,10 @@ function resolveFallbackContentType(targetField) {
   return 'image/png';
 }
 
-function readAttachmentPath(attachment) {
-  return readText(attachment.path) || readText(attachment.file_path) || readText(attachment.filePath);
-}
-
 function readAttachmentBytesSource(attachment) {
+  if (!attachment || typeof attachment !== 'object' || Array.isArray(attachment)) {
+    return null;
+  }
   return attachment.bytes ?? attachment.base64 ?? attachment.data ?? attachment.content ?? attachment.buffer ?? null;
 }
 
@@ -358,91 +338,6 @@ function decodeBytes(value) {
   }
 
   return Buffer.alloc(0);
-}
-
-async function assertReadableAttachmentPath(filePath, contentType, targetField) {
-  assertNoParentTraversal(filePath);
-  const resolvedPath = resolvePath(filePath);
-  const normalized = resolvedPath.replace(/\\/g, '/');
-  const normalizedLower = normalized.toLowerCase();
-  const blockedSegments = [
-    '/.ssh',
-    '/.aws',
-    '/.config',
-    '/.git',
-    '/etc',
-    '/private/etc',
-    '/var/root',
-    '/private/var/root',
-    '/library',
-    '/users/shared'
-  ];
-
-  if (blockedSegments.some((segment) => normalizedLower === segment || normalizedLower.includes(`${segment}/`))) {
-    throw createUploadError(
-      400,
-      'VALIDATION_BAD_REQUEST',
-      'attachment file_path points to a restricted local path',
-      { bridge_step: 'prepare_upload' }
-    );
-  }
-
-  assertNoHiddenSegments(normalized);
-
-  let fileStat;
-  try {
-    fileStat = await stat(resolvedPath);
-  } catch {
-    throw createUploadError(400, 'VALIDATION_BAD_REQUEST', 'attachment file_path does not exist', {
-      bridge_step: 'prepare_upload'
-    });
-  }
-
-  if (!fileStat.isFile()) {
-    throw createUploadError(400, 'VALIDATION_BAD_REQUEST', 'attachment file_path must point to a file', {
-      bridge_step: 'prepare_upload'
-    });
-  }
-
-  const uploadKind = inferUploadKind(contentType, targetField);
-  const maxBytes = MAX_UPLOAD_BYTES_BY_KIND[uploadKind] ?? MAX_UPLOAD_BYTES_BY_KIND.image;
-  if (fileStat.size > maxBytes) {
-    throw createUploadError(400, 'VALIDATION_BAD_REQUEST', `${uploadKind} file exceeds local upload limit`, {
-      bridge_step: 'prepare_upload',
-      max_bytes: maxBytes
-    });
-  }
-
-  if (!normalizeContentType(contentType) || inferMediaKind(contentType, basename(resolvedPath)) === null) {
-    throw createUploadError(400, 'VALIDATION_BAD_REQUEST', 'attachment file_path content type is not allowed', {
-      bridge_step: 'prepare_upload'
-    });
-  }
-}
-
-function assertNoParentTraversal(filePath) {
-  const normalized = filePath.replace(/\\/g, '/');
-  const segments = normalized.split('/');
-  if (segments.includes('..')) {
-    throw createUploadError(400, 'VALIDATION_BAD_REQUEST', 'attachment file_path must not contain parent traversal', {
-      bridge_step: 'prepare_upload'
-    });
-  }
-}
-
-function assertNoHiddenSegments(filePath) {
-  const normalized = filePath.replace(/\\/g, '/');
-  const segments = normalized.split('/').filter(Boolean);
-  for (const segment of segments) {
-    if (segment === '.' || segment === '..') {
-      continue;
-    }
-    if (segment.startsWith('.')) {
-      throw createUploadError(400, 'VALIDATION_BAD_REQUEST', 'attachment file_path must not target hidden files or directories', {
-        bridge_step: 'prepare_upload'
-      });
-    }
-  }
 }
 
 function looksLikeBase64(value) {
