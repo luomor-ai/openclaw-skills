@@ -1,116 +1,62 @@
 ---
 name: browser-search
 description: |
-  浏览器自动化搜索技能 - 使用本地浏览器进行网页搜索和内容提取。
-  支持 Bing、Google、Baidu 等搜索引擎，无需 API 配置。
-  适合：实时搜索、信息收集、资料整理、竞品分析等场景。
+  浏览器搜索技能 - 安全的网页搜索工具
+  使用本地浏览器进行自动化搜索和内容提取
+  支持 Bing、Google、Baidu、DuckDuckGo 等公开搜索引擎
+  无需 API 配置，路径输出受限
 ---
 
 # Browser Search 技能
 
-使用本地浏览器进行自动化搜索和内容提取。
+使用本地浏览器进行安全的网页搜索和内容提取。
+
+## 安全说明
+
+**仅用于合法用途**，严格遵守以下限制：
+
+- ✅ **仅访问公开搜索引擎**：Bing、Google、Baidu、DuckDuckGo
+- ✅ **路径输出受限**：结果文件只能保存到用户主目录
+- ✅ **无危险函数**：不使用 eval/exec 等危险函数
+- ✅ **严格的超时控制**：防止无限等待
+- ❌ **禁止访问敏感站点**：仅支持公开搜索引擎
+- ❌ **禁止爬取私有内容**：仅提取搜索结果摘要
 
 ## 核心功能
 
-- 🌐 **多搜索引擎支持**：Bing、Google、Baidu、DuckDuckGo 等
-- 📄 **内容提取**：自动提取搜索结果、文章摘要、链接
-- 🎯 **智能路由**：根据需求自动选择最佳搜索引擎
-- 💾 **结果保存**：自动保存搜索结果到文件
-- 🔍 **深度搜索**：支持分页浏览、关键词过滤
+- 🔍 **多搜索引擎支持**：Bing、Google、Baidu、DuckDuckGo
+- 📄 **内容提取**：自动提取搜索结果标题和链接
+- 💾 **结果保存**：保存到 JSON/TXT/MD 文件（路径受限）
 
 ## 使用场景
 
 - 查找最新新闻和资讯
-- 收集竞品分析资料
 - 搜索技术文档和教程
-- 市场调研和数据收集
-- 内容创作素材搜集
+- 市场调研（仅限公开信息）
 
 ## 触发词
 
-当用户说：
 - "搜索..."
 - "查找..."
 - "用浏览器搜索..."
 - "帮我找..."
-- "获取最新..."
 
 ## 快速开始
 
-### 基本搜索
-
 ```bash
-# 命令行调用
+# 基本搜索
 browser-search "人工智能 2026"
 
-# 带引擎选择
+# 指定引擎
 browser-search "AI 趋势" --engine bing
 
-# 保存到文件
-browser-search "Python 教程" --output ai_tutorials.md
-```
-
-### 高级用法
-
-```bash
-# 指定引擎
-browser-search "量子计算" --engine bing --engine baidu
-
-# 提取特定内容
-browser-search "深度学习论文" --extract abstract --max 5
-
-# 实时监控
-browser-search "股市新闻" --interval 60
-```
-
-## 配置
-
-### 搜索引擎设置
-
-```bash
-# 添加自定义搜索引擎
-browser-search config add --engine custom \
-  --name 知乎 \
-  --url "https://www.zhihu.com/search?q={query}" \
-  --selector ".ResultPost"
-```
-
-### 默认引擎
-
-```bash
-browser-search config set-default bing
-```
-
-## 输出格式
-
-```json
-{
-  "query": "人工智能 2026",
-  "engine": "bing",
-  "results": [
-    {
-      "title": "2026 AI 趋势预测",
-      "url": "https://...",
-      "snippet": "...",
-      "source": "腾讯云开发"
-    }
-  ],
-  "extracted": {
-    "summary": "AI Agent 成为核心趋势...",
-    "links": ["...", "..."]
-  }
-}
+# 保存结果
+browser-search "Python 教程" --output ~/results.json --max 5
 ```
 
 ## 注意事项
 
-- 需要浏览器服务正常运行
-- 搜索结果可能受地区限制
-- 部分网站可能有反爬虫机制
-- 建议设置合理的搜索间隔
-
-## 相关技能
-
-- `web-search` - 需要 API 配置的搜索
-- `agent-browser` - 浏览器自动化基础
-- `web-fetch` - 网页内容提取
+- 需要本地 Chromium 浏览器
+- 结果可能受地区限制
+- 仅用于合法合规用途
+- 输出文件路径必须在用户主目录
