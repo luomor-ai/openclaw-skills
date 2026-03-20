@@ -4,6 +4,8 @@ name: Automation Recipe
 description: "Zapier Recipe Book. Use when you need zapier recipe capabilities. Triggers on: zapier recipe."
   自动化流程设计。Zapier/Make流程、触发器、动作链、条件逻辑、模板、效率分析。Automation recipes for Zapier, Make. 自动化、工作流、效率。
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Automation Recipe
 
