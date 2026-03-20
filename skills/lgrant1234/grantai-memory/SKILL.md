@@ -1,58 +1,110 @@
+---
+name: grantai-memory
+description: Persistent memory for OpenClaw agents. Exact recall in milliseconds - your agent remembers everything across sessions.
+version: 1.3.0
+metadata:
+  openclaw:
+    requires:
+      bins:
+        - grantai-mcp
+    emoji: "\U0001F9E0"
+    homepage: https://solonai.com/grantai/integrations/openclaw
+---
+
 # GrantAi Memory
 
-Give your OpenClaw agents persistent memory that works across sessions. GrantAi uses exact-recall architecture (not RAG/vectors) for sub-second retrieval, 100% local with AES-256 encryption.
+**Persistent memory for your OpenClaw agent. Never hit context limits again.**
 
-## Setup
+Your agent remembers everything - from 1 minute ago to 5 years ago. Exact recall in milliseconds.
 
-Install GrantAi:
+## Free for OpenClaw Users
 
-```bash
-curl -fsSL https://solonai.com/install.sh | bash
+GrantAi Memory is **free** for OpenClaw users - automatic activation, no license key required.
+
+## The Problem
+
+OpenClaw agents hit context window limits mid-task, forget everything, and start from scratch.
+
+## The Solution
+
+GrantAi gives your agent **exact recall in milliseconds**:
+- Memory persists across sessions
+- Works outside the context window
+- 100% local - data never leaves your machine
+- AES-256 encrypted at rest
+
+## Installation
+
+Download from [solonai.com/grantai/download](https://solonai.com/grantai/download)
+
+- **macOS**: .pkg installer
+- **Windows**: GUI installer (.exe)
+- **Linux**: .tar.gz package
+- **Docker**: `ghcr.io/solonai-com/grantai-memory:1.8.6`
+
+## Configuration
+
+Add to your OpenClaw config:
+
+```yaml
+mcp:
+  grantai:
+    command: grantai-mcp
 ```
 
-Add to mcporter:
+Or with Docker:
 
-```bash
-mcporter config add grantai ~/.grantai/bin/grantai-mcp
-mcporter tools grantai
+```yaml
+mcp:
+  grantai:
+    command: docker
+    args:
+      - run
+      - -i
+      - --rm
+      - -v
+      - grantai-data:/data
+      - ghcr.io/solonai-com/grantai-memory:1.8.6
 ```
 
-## skill.json Example
+## Tools
 
-```json
-{
-  "name": "research-assistant",
-  "mcpServers": ["grantai"],
-  "systemPrompt": "You have persistent memory via GrantAi. Query grantai_infer before searching files."
-}
+| Tool | Description |
+|------|-------------|
+| `grantai_infer` | Query memory (use FIRST before file searches) |
+| `grantai_teach` | Store information for future recall |
+| `grantai_learn` | Import files/directories into memory |
+| `grantai_summarize` | Save session summaries |
+| `grantai_project` | Track project state across sessions |
+| `grantai_snippet` | Store code snippets with context |
+| `grantai_capture` | Capture conversation turns verbatim |
+| `grantai_git` | Import git commit history |
+| `grantai_health` | Check memory system status |
+| `grantai_savings` | View token savings statistics |
+
+## Usage Examples
+
+**Store a decision:**
+```
+Remember that we decided to use JWT for authentication
 ```
 
-## Available Tools
+**Recall it later:**
+```
+What did we decide about authentication?
+→ Returns exact decision in milliseconds
+```
 
-- **grantai_infer** — Query memory. Use before searching files or re-reading context.
-- **grantai_teach** — Store facts, decisions, and learnings for future sessions.
-- **grantai_learn** — Import files or code into memory.
-- **grantai_summarize** — Save a session summary before ending.
-- **grantai_project** — Track project state across sessions.
-- **grantai_snippet** — Save reusable code patterns.
+**Import codebase:**
+```
+Learn the src/ directory
+```
 
-## When to Use Each Tool
+## Support
 
-| Situation | Tool |
-|---|---|
-| Starting a session | `grantai_infer` — check what's already known |
-| User corrects or updates facts | `grantai_teach` |
-| Onboarding a new codebase | `grantai_learn` |
-| End of session | `grantai_summarize` |
-| Tracking feature/sprint state | `grantai_project` |
-| Reusable code pattern found | `grantai_snippet` |
+- Docs: [solonai.com/grantai/integrations/openclaw](https://solonai.com/grantai/integrations/openclaw)
+- Email: support@solonai.com
 
-## Multi-Agent Coordination
+---
 
-Agents share memory automatically — a researcher, writer, and reviewer agent can all read and write the same GrantAi brain without extra configuration.
-
-## Notes
-
-- 30-day free trial, no credit card needed.
-- Docs: https://solonai.com/grantai/integrations/openclaw
-- Support: support@solonai.com
+[SolonAI](https://solonai.com)
