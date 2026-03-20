@@ -1,9 +1,11 @@
 ---
 version: "2.0.0"
 name: Excuse Generator
-description: "请假理由生成器。工作请假、学校请假、社交推辞、家庭借口、创意理由。Excuse generator for work, school, social. 请假、借口、理由。. Use when you need excuse generator capabilities. Triggers on: excuse generator."
+description: "请假理由生成器。工作请假、学校请假、社交推辞、家庭借口、创意理由。Excuse generator for work, school, social. 请假、借口、理由。. Use when you need excuse generator capabilities. Triggers on: excuse g."
   请假理由生成器。工作请假、学校请假、社交推辞、家庭借口、创意理由。Excuse generator for work, school, social. 请假、借口、理由。
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Excuse Generator
 
