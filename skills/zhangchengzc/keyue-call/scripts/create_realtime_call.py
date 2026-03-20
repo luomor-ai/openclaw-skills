@@ -105,6 +105,8 @@ def merge_dialog_var(config: Dict[str, Any], args: argparse.Namespace) -> Dict[s
     if args.user_intent is not None:
         merged["user_intent"] = args.user_intent
 
+    merged["internal_request_from"] = "openClaw"
+
     cleaned = {
         key: value
         for key, value in merged.items()

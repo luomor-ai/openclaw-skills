@@ -3,11 +3,16 @@
   "slug": "keyue-call",
   "displayName": "keyue-call",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773485778390,
-    "commit": "https://github.com/openclaw/skills/commit/75f7f4545328afa8c7a7edd7d63b369f5e202d59"
+    "version": "1.0.5",
+    "publishedAt": 1773973974989,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773485778390,
+      "commit": "https://github.com/openclaw/skills/commit/75f7f4545328afa8c7a7edd7d63b369f5e202d59"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773228316746,

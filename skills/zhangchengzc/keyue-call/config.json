@@ -2,8 +2,8 @@
   "accessKey": "**************",
   "secretKey": "**************",
   "robotId": "**************",
-  "mobile": "**************",
-  "callerNum": ["**************"],
+  "mobile": "",
+  "callerNum": [],
   "secretType": 2,
   "dialogVar": {
     "name": "",
