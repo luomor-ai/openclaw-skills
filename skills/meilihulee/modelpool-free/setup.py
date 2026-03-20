@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="modelpool-free",
-    version="1.0.2",
+    version="1.0.3",
     description="Free AI Model Manager for OpenClaw — auto-discover, multi-key rotation, smart fallback, one-click repair",
     long_description=open("README.md", encoding="utf-8").read() if __import__("os").path.exists("README.md") else "",
     long_description_content_type="text/markdown",

@@ -102,7 +102,7 @@ pip install modelpool-oc
 ### Option B: Clone and install
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/modelpool.git
+git clone https://github.com/meilihulee/modelpool.git
 cd modelpool
 pip install -e .
 ```
@@ -110,8 +110,8 @@ pip install -e .
 ### Option C: Just run the script
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/modelpool.git
-python modelpool/scripts/modelpool.py setup
+git clone https://github.com/meilihulee/modelpool.git
+python modelpool/scripts/freeswitch.py setup
 ```
 
 ---
