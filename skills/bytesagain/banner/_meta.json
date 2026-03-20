@@ -3,9 +3,15 @@
   "slug": "banner",
   "displayName": "Banner",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773663391201,
-    "commit": "https://github.com/openclaw/skills/commit/8d2927b3365a7a5cfe4ec81277cf5cdfeb99f856"
+    "version": "2.0.1",
+    "publishedAt": 1773830105520,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773663391201,
+      "commit": "https://github.com/openclaw/skills/commit/8d2927b3365a7a5cfe4ec81277cf5cdfeb99f856"
+    }
+  ]
 }
