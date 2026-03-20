@@ -33,20 +33,33 @@ class FeishuService {
     return this.tenantAccessToken;
   }
 
-  async _request(method, url, options = {}) {
+  async _request(method, url, options = {}, retries = 3) {
     const token = await this.getTenantAccessToken();
-    const response = await fetch(url, {
-      method,
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json; charset=utf-8',
-        ...options.headers
-      },
-      body: options.body ? JSON.stringify(options.body) : undefined
-    });
-    const data = await response.json();
-    if (data.code !== 0) throw new Error(`API Error [${data.code}]: ${data.msg}`);
-    return data.data;
+
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json; charset=utf-8',
+          ...options.headers
+        },
+        body: options.body ? JSON.stringify(options.body) : undefined
+      });
+
+      const data = await response.json();
+
+      // 飞书限流错误码 99991400 / 99991429，指数退避重试
+      if ((data.code === 99991400 || data.code === 99991429) && attempt < retries) {
+        const delay = Math.pow(2, attempt) * 500; // 1s, 2s, 4s
+        logger.info({ attempt, delay, url }, 'Rate limited, retrying...');
+        await new Promise(r => setTimeout(r, delay));
+        continue;
+      }
+
+      if (data.code !== 0) throw new Error(`API Error [${data.code}]: ${data.msg}`);
+      return data.data;
+    }
   }
 
   /**
@@ -114,13 +127,15 @@ class FeishuService {
   async sendPollCards(userIds, sessionId, meetingTopic, agentMessage, timeSlots) {
     // 构造带回调 session 的动作按钮
     const actions = timeSlots.map((ts, i) => {
-      // 转化为中文本地时区以显示
-      const text = `${new Date(ts.start_time).toLocaleDateString('zh-CN')} ${new Date(ts.start_time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})} - ${new Date(ts.end_time).toLocaleTimeString('zh-CN', {hour: '2-digit', minute:'2-digit'})}`;
+      // 转化为中文本地时区以显示（明确使用 Asia/Shanghai 时区）
+      const startDate = new Date(ts.start_time);
+      const endDate = new Date(ts.end_time);
+      const text = `${startDate.toLocaleDateString('zh-CN', { timeZone: 'Asia/Shanghai' })} ${startDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Shanghai' })} - ${endDate.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Shanghai' })}`;
       return {
         tag: 'button',
         text: { tag: 'plain_text', content: text },
         type: i === 0 ? 'primary' : 'default',
-        value: { action: 'vote', session_id: sessionId, choice: JSON.stringify(ts) } // choice 带有完整开始借宿时间
+        value: { action: 'vote', session_id: sessionId, choice: JSON.stringify(ts) } // choice 带有完整开始结束时间
       };
     });
 
@@ -167,22 +182,23 @@ class FeishuService {
       attendee_ability: 'none',
       need_notification: true
     };
-    
+
     try {
-      // 先向应用主日历或公共日历建会，暂使用应用的 Primary 日历
-      // 真实环境中最好用用户授权或建立独立的代理日历集
-      const calRes = await this._request('POST', 'https://open.feishu.cn/open-apis/calendar/v4/calendars/feishu.cn_0000/events', {
+      // 使用环境变量配置的日历 ID，如果未配置则使用 primary
+      const calendarId = process.env.FEISHU_CALENDAR_ID || 'primary';
+
+      const calRes = await this._request('POST', `https://open.feishu.cn/open-apis/calendar/v4/calendars/${calendarId}/events`, {
         body: eventBody
       });
-      // (伪代码：实际要传真实 application calendar_id，假设成功)
-      logger.info({ meetingTopic }, 'Calendar event mocked creation.');
-      
+
+      logger.info({ meetingTopic, calendarId }, 'Calendar event created successfully.');
+
       // 为参会者发确认信
       for (const uid of userIds) {
          await this._request('POST', 'https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=user_id', {
           body: {
             receive_id: uid, msg_type: 'text',
-            content: JSON.stringify({text: `✅ 您好，会议“${meetingTopic}”已于 ${new Date(startTime).toLocaleString()} 成功建会并锁定！`})
+            content: JSON.stringify({text: `✅ 您好，会议"${meetingTopic}"已于 ${new Date(startTime).toLocaleString('zh-CN', { timeZone: 'Asia/Shanghai' })} 成功建会并锁定！`})
           }
         });
       }
