@@ -18,26 +18,29 @@ Options:
 
 Commands:
 
-  id                                      - Print the issue based on the current git branch          
-  list                                    - List your issues                                         
-  search            <query>               - Deprecated: use `issue list` or `api` for issue filtering
-  title             [issueId]             - Print the issue title                                    
-  start             [issueId]             - Start working on an issue                                
-  view, v           [issueId]             - View issue details (default) or open in browser/app      
-  url               [issueId]             - Print the issue URL                                      
-  describe          [issueId]             - Print the issue title and Linear-issue trailer           
-  commits           [issueId]             - Show all commits for a Linear issue (jj only)            
-  pull-request, pr  [issueId]             - Create a GitHub pull request with issue details          
-  delete, d         [issueId]             - Delete an issue                                          
-  create                                  - Create a linear issue                                    
-  update            [issueId]             - Update a linear issue                                    
-  move              <issueId> <state>     - Move an issue to a different workflow state              
-  assign            <issueId> [assignee]  - Assign an issue to a user                                
-  priority          <issueId> <priority>  - Set the priority of an issue                             
-  estimate          <issueId> [points]    - Set the estimate (points) of an issue                    
-  label                                   - Manage issue labels                                      
-  comment                                 - Manage issue comments                                    
-  attach            <issueId> <filepath>  - Attach a file to an issue                                
+  id                                      - Print the issue based on the current git branch                    
+  list                                    - List issues assigned to you (use -A/--all-assignees to include all)
+  search            <query>               - Deprecated: use `issue list` or `api` for issue filtering          
+  title             [issueId]             - Print the issue title                                              
+  start             [issueId]             - Start working on an issue                                          
+  view, v           [issueId]             - View issue details (default) or open in browser/app                
+  url               [issueId]             - Print the issue URL                                                
+  describe          [issueId]             - Print the issue title and Linear-issue trailer                     
+  commits           [issueId]             - Show all commits for a Linear issue (jj only)                      
+  pull-request, pr  [issueId]             - Create a GitHub pull request with issue details                    
+  delete, d         [issueId]             - Delete an issue                                                    
+  create                                  - Create a linear issue                                              
+  create-batch                            - Create a parent issue and child issues from a JSON file            
+  update            [issueId]             - Update a linear issue                                              
+  move              <issueId> <state>     - Move an issue to a different workflow state                        
+  assign            <issueId> [assignee]  - Assign an issue to a user                                          
+  priority          <issueId> <priority>  - Set the priority of an issue                                       
+  estimate          <issueId> [points]    - Set the estimate (points) of an issue                              
+  parent            [issueId]             - Show the parent issue for an issue                                 
+  children          [issueId]             - List child issues for an issue                                     
+  label                                   - Manage issue labels                                                
+  comment                                 - Manage issue comments                                              
+  attach            <issueId> <filepath>  - Attach a file to an issue                                          
   relation                                - Manage issue relations (dependencies)
 ```
 
@@ -62,34 +65,41 @@ Options:
 
 ### list
 
-> List your issues
+> List issues assigned to you (use -A/--all-assignees to include all)
 
 ```
 Usage:   linear issue list
 
 Description:
 
-  List your issues
+  List issues assigned to you (use -A/--all-assignees to include all)
 
 Options:
 
-  -h, --help                        - Show this help.                                                                                                              
-  -w, --workspace      <slug>       - Target workspace (uses credentials)                                                                                          
-  -s, --state          <state>      - Filter by issue state (can be repeated for multiple states)           (Default: [ "unstarted" ], Values: "triage", "backlog",
-                                                                                                            "unstarted", "started", "completed", "canceled")       
-  --all-states                      - Show issues from all states                                                                                                  
-  --assignee           <assignee>   - Filter by assignee (username)                                                                                                
-  -A, --all-assignees               - Show issues for all assignees                                                                                                
-  -U, --unassigned                  - Show only unassigned issues                                                                                                  
-  --sort               <sort>       - Sort order (can also be set via LINEAR_ISSUE_SORT)                    (Values: "manual", "priority")                         
-  --team               <team>       - Team to list issues for (if not your default team)                                                                           
-  --project            <project>    - Filter by project name                                                                                                       
-  --cycle              <cycle>      - Filter by cycle name, number, or 'active'                                                                                    
-  --milestone          <milestone>  - Filter by project milestone name (requires --project)                                                                        
-  --limit              <limit>      - Maximum number of issues to fetch (default: 50, use 0 for unlimited)  (Default: 50)                                          
-  -w, --web                         - Open in web browser                                                                                                          
-  -a, --app                         - Open in Linear.app                                                                                                           
-  --no-pager                        - Disable automatic paging for long output
+  -h, --help                            - Show this help.                                                                                                              
+  -w, --workspace      <slug>           - Target workspace (uses credentials)                                                                                          
+  -s, --state          <state>          - Filter by issue state (can be repeated for multiple states)           (Default: [ "unstarted" ], Values: "triage", "backlog",
+                                                                                                                "unstarted", "started", "completed", "canceled")       
+  --all-states                          - Show issues from all states                                                                                                  
+  --all                                 - Shortcut for --all-states --all-assignees --limit 0                                                                          
+  --assignee           <assignee>       - Filter by assignee (username)                                                                                                
+  -A, --all-assignees                   - Show issues for all assignees                                                                                                
+  -U, --unassigned                      - Show only unassigned issues                                                                                                  
+  --sort               <sort>           - Sort order (can also be set via LINEAR_ISSUE_SORT)                    (Values: "manual", "priority")                         
+  --team               <team>           - Team to list issues for (if not your default team)                                                                           
+  --project            <project>        - Filter by project name                                                                                                       
+  --cycle              <cycle>          - Filter by cycle name, number, or 'active'                                                                                    
+  --milestone          <milestone>      - Filter by project milestone name (requires --project)                                                                        
+  --query              <query>          - Filter by title or description substring                                                                                     
+  --parent             <parent>         - Filter by parent issue identifier                                                                                            
+  --priority           <priority>       - Filter by priority (0-4 or none/urgent/high/medium/low)                                                                      
+  --updated-before     <updatedBefore>  - Filter issues updated before an ISO date or datetime                                                                         
+  --due-before         <dueBefore>      - Filter issues due before a date (YYYY-MM-DD)                                                                                 
+  --limit              <limit>          - Maximum number of issues to fetch (default: 50, use 0 for unlimited)  (Default: 50)                                          
+  -j, --json                            - Output as JSON                                                                                                               
+  -w, --web                             - Open in web browser                                                                                                          
+  -a, --app                             - Open in Linear.app                                                                                                           
+  --no-pager                            - Disable automatic paging for long output
 ```
 
 ### search
@@ -297,9 +307,31 @@ Options:
   -s, --state                <state>        - Workflow state for the issue (by name or type)                 
   --milestone                <milestone>    - Name of the project milestone                                  
   --cycle                    <cycle>        - Cycle name, number, or 'active'                                
+  -j, --json                                - Output as JSON                                                 
   --no-use-default-template                 - Do not use default template for the issue                      
   --no-interactive                          - Disable interactive prompts                                    
   -t, --title                <title>        - Title of the issue
+```
+
+### create-batch
+
+> Create a parent issue and child issues from a JSON file
+
+```
+Usage:   linear issue create-batch
+
+Description:
+
+  Create a parent issue and child issues from a JSON file
+
+Options:
+
+  -h, --help                  - Show this help.                                 
+  -w, --workspace  <slug>     - Target workspace (uses credentials)             
+  --file           <path>     - Path to a JSON file describing the issue batch  
+  --team           <team>     - Team key override for the batch file            
+  --project        <project>  - Project name override for the batch file        
+  -j, --json                  - Output as JSON
 ```
 
 ### update
@@ -331,6 +363,7 @@ Options:
   -s, --state         <state>        - Workflow state for the issue (by name or type)                 
   --milestone         <milestone>    - Name of the project milestone                                  
   --cycle             <cycle>        - Cycle name, number, or 'active'                                
+  -j, --json                         - Output as JSON                                                 
   -t, --title         <title>        - Title of the issue
 ```
 
@@ -432,6 +465,42 @@ Examples:
   Set 3 points   linear issue estimate ENG-123 3      
   Set 5 points   linear issue estimate ENG-123 5      
   Clear estimate linear issue estimate ENG-123 --clear
+```
+
+### parent
+
+> Show the parent issue for an issue
+
+```
+Usage:   linear issue parent [issueId]
+
+Description:
+
+  Show the parent issue for an issue
+
+Options:
+
+  -h, --help               - Show this help.                      
+  -w, --workspace  <slug>  - Target workspace (uses credentials)  
+  -j, --json               - Output as JSON
+```
+
+### children
+
+> List child issues for an issue
+
+```
+Usage:   linear issue children [issueId]
+
+Description:
+
+  List child issues for an issue
+
+Options:
+
+  -h, --help               - Show this help.                      
+  -w, --workspace  <slug>  - Target workspace (uses credentials)  
+  -j, --json               - Output as JSON
 ```
 
 ### label
@@ -538,7 +607,8 @@ Options:
   -b, --body       <text>      - Comment body text                                               
   --body-file      <path>      - Read comment body from a file (preferred for markdown content)  
   -p, --parent     <id>        - Parent comment ID for replies                                   
-  -a, --attach     <filepath>  - Attach a file to the comment (can be used multiple times)
+  -a, --attach     <filepath>  - Attach a file to the comment (can be used multiple times)       
+  -j, --json                   - Output as JSON
 ```
 
 ##### delete
@@ -646,6 +716,7 @@ Options:
 
   -h, --help               - Show this help.                      
   -w, --workspace  <slug>  - Target workspace (uses credentials)  
+  -j, --json               - Output as JSON                       
 
 Examples:
 
@@ -667,7 +738,8 @@ Description:
 Options:
 
   -h, --help               - Show this help.                      
-  -w, --workspace  <slug>  - Target workspace (uses credentials)
+  -w, --workspace  <slug>  - Target workspace (uses credentials)  
+  -j, --json               - Output as JSON
 ```
 
 ##### list
@@ -682,5 +754,6 @@ Description:
 Options:
 
   -h, --help               - Show this help.                      
-  -w, --workspace  <slug>  - Target workspace (uses credentials)
+  -w, --workspace  <slug>  - Target workspace (uses credentials)  
+  -j, --json               - Output as JSON
 ```
