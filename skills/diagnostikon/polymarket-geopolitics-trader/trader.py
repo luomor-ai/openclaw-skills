@@ -15,7 +15,14 @@ from simmer_sdk import SimmerClient
 TRADE_SOURCE = "sdk:polymarket-geopolitics-trader"
 SKILL_SLUG   = "polymarket-geopolitics-trader"
 
-KEYWORDS = ['war', 'ceasefire', 'sanctions', 'NATO', 'Ukraine', 'Russia', 'China', 'Taiwan', 'Iran', 'nuclear', 'UN', 'diplomacy', 'invasion', 'treaty', 'military', 'missile', 'coup', 'election interference', 'espionage', 'regime change']
+KEYWORDS = [
+    'war', 'ceasefire', 'sanctions', 'NATO', 'Ukraine', 'Russia',
+    'China', 'Taiwan', 'Iran', 'nuclear', 'UN', 'diplomacy',
+    'invasion', 'treaty', 'military', 'missile', 'coup',
+    'election interference', 'espionage', 'regime change',
+    'Security Council', 'veto', 'peace deal', 'summit',
+    'Gaza', 'Israel', 'North Korea', 'DPRK', 'South China Sea',
+]
 
 # Risk parameters — declared as tunables in clawhub.json, adjustable from Simmer UI.
 # Named SIMMER_* so apply_skill_config() can load automaton-managed overrides.
@@ -24,6 +31,12 @@ MIN_VOLUME     = float(os.environ.get("SIMMER_MIN_VOLUME",    "20000"))
 MAX_SPREAD     = float(os.environ.get("SIMMER_MAX_SPREAD",    "0.08"))
 MIN_DAYS       = int(os.environ.get(  "SIMMER_MIN_DAYS",      "5"))
 MAX_POSITIONS  = int(os.environ.get(  "SIMMER_MAX_POSITIONS", "6"))
+# Signal thresholds — buy YES below YES_THRESHOLD, sell NO above NO_THRESHOLD.
+# Position size scales with conviction, corrected for fear premiums and
+# regional news timezone repricing windows.
+YES_THRESHOLD  = float(os.environ.get("SIMMER_YES_THRESHOLD", "0.38"))
+NO_THRESHOLD   = float(os.environ.get("SIMMER_NO_THRESHOLD",  "0.62"))
+MIN_TRADE      = float(os.environ.get("SIMMER_MIN_TRADE",     "5"))
 
 _client: SimmerClient | None = None
 
@@ -33,7 +46,7 @@ def get_client(live: bool = False) -> SimmerClient:
     live=False → venue="sim"  (paper trades — safe default).
     live=True  → venue="polymarket" (real trades, only with --live flag).
     """
-    global _client, MAX_POSITION, MIN_VOLUME, MAX_SPREAD, MIN_DAYS, MAX_POSITIONS
+    global _client, MAX_POSITION, MIN_VOLUME, MAX_SPREAD, MIN_DAYS, MAX_POSITIONS, YES_THRESHOLD, NO_THRESHOLD, MIN_TRADE
     if _client is None:
         venue = "polymarket" if live else "sim"
         _client = SimmerClient(
@@ -48,6 +61,9 @@ def get_client(live: bool = False) -> SimmerClient:
         MAX_SPREAD     = float(os.environ.get("SIMMER_MAX_SPREAD",    str(MAX_SPREAD)))
         MIN_DAYS       = int(os.environ.get(  "SIMMER_MIN_DAYS",      str(MIN_DAYS)))
         MAX_POSITIONS  = int(os.environ.get(  "SIMMER_MAX_POSITIONS", str(MAX_POSITIONS)))
+        YES_THRESHOLD  = float(os.environ.get("SIMMER_YES_THRESHOLD", str(YES_THRESHOLD)))
+        NO_THRESHOLD   = float(os.environ.get("SIMMER_NO_THRESHOLD",  str(NO_THRESHOLD)))
+        MIN_TRADE      = float(os.environ.get("SIMMER_MIN_TRADE",     str(MIN_TRADE)))
     return _client
 
 
@@ -65,17 +81,122 @@ def find_markets(client: SimmerClient) -> list:
     return unique
 
 
-def compute_signal(market) -> tuple[str | None, str]:
+def geopolitics_bias(question: str) -> float:
     """
-    Returns (side, reasoning) or (None, skip_reason).
-    News velocity signal: geopolitical markets move fastest in first 30min after breaking news. Remix: ACLED conflict data API, GDELT event database, UN press release feed, ICG (International Crisis Group) alerts.
+    Returns a conviction multiplier (0.65–1.35) combining two geopolitical
+    structural edges:
+
+    1. FEAR/NARRATIVE PREMIUM CORRECTION
+       Retail systematically overprices dramatic, scary outcomes and
+       underprices boring but likely ones. Conflict research databases
+       (ACLED, ICG) document actual base rates that deviate sharply from
+       media-driven market pricing.
+
+       Nuclear / WMD use           → 0.65x  (near-zero modern base rate; media panic inflates)
+       Coup / regime change        → 0.75x  (retail overprices drama; ~50% actual success)
+       Full invasion / occupation  → 0.80x  (retail overprices escalation to worst case)
+       Ceasefire / truce           → 0.80x  (~40% of ceasefires hold within 6 months)
+       Sanctions / embargo         → 0.85x  (~30-40% achieve objectives; overestimated)
+       Diplomatic breakthrough     → 1.15x  (underpriced — boring, retail ignores)
+       UN vote / Security Council  → 1.10x  (procedural; P5 veto patterns predictable)
+
+    2. REGIONAL NEWS TIMING
+       Geopolitical news breaks in local time. Polymarket is US-dominated —
+       markets take 15–45 min to reprice events that break during Asian or
+       European business hours when US retail is asleep or just waking.
+
+       Asia/Pacific events (China, Taiwan, NK, Japan):
+         Active 00:00–08:00 UTC → 1.20x  (US asleep, repricing window open)
+         US hours 13:00–22:00 UTC → 0.95x  (priced in quickly)
+
+       Europe/Middle East (Ukraine, Russia, Iran, Israel, Gaza, NATO):
+         Active 06:00–14:00 UTC → 1.15x  (US just waking, lag window)
+         Off-hours 18:00–04:00 UTC → 0.95x  (smaller edge)
+
+    Combined and capped at 1.35x.
+    """
+    hour_utc = datetime.now(timezone.utc).hour
+    q = question.lower()
+
+    # Factor 1: event type fear/base rate correction
+    if any(w in q for w in ("nuclear", "nuke", "wmd", "atomic", "radiological",
+                             "dirty bomb", "nuclear weapon", "nuclear strike")):
+        event_mult = 0.65  # Post-WWII nuclear use base rate is zero — retail panics irrationally
+
+    elif any(w in q for w in ("coup", "regime change", "overthrow", "depose", "topple")):
+        event_mult = 0.75  # Dramatic outcome retail overprices; ~50% actual success rate
+
+    elif any(w in q for w in ("full invasion", "full-scale", "ground invasion",
+                               "occupy", "annexe", "annex")):
+        event_mult = 0.80  # Retail anchors to worst-case escalation; base rates lower
+
+    elif any(w in q for w in ("ceasefire", "peace deal", "truce", "armistice", "peace agreement")):
+        event_mult = 0.80  # Only ~40% of ceasefires hold within 6 months; market overprices
+
+    elif any(w in q for w in ("sanction", "embargo", "trade ban")):
+        event_mult = 0.85  # ~30-40% achieve stated objectives — effectiveness overestimated
+
+    elif any(w in q for w in ("diplomatic", "negotiation", "talks", "summit",
+                               "agreement", "accord", "dialogue")):
+        event_mult = 1.15  # Diplomatic progress is boring — retail underprices it
+
+    elif any(w in q for w in ("un vote", "security council", "un resolution",
+                               "veto", "general assembly")):
+        event_mult = 1.10  # UN procedure is structured; P5 veto patterns well-documented
+
+    else:
+        event_mult = 1.0
+
+    # Factor 2: regional news timing window
+    # Asia/Pacific — local business hours roughly 00:00-08:00 UTC
+    if any(w in q for w in ("china", "taiwan", "north korea", "dprk", "japan",
+                             "south china sea", "pacific", "beijing", "seoul")):
+        if 0 <= hour_utc <= 8:
+            timing_mult = 1.20   # Asia active hours — US retail asleep, lag window open
+        elif 13 <= hour_utc <= 22:
+            timing_mult = 0.95   # US prime time — reprices quickly, edge gone
+        else:
+            timing_mult = 1.05   # Transition period
+
+    # Europe / Middle East — local business hours roughly 06:00-16:00 UTC
+    elif any(w in q for w in ("ukraine", "russia", "iran", "israel", "gaza",
+                               "nato", "europe", "middle east", "syria", "turkey",
+                               "moscow", "kyiv", "brussels")):
+        if 6 <= hour_utc <= 14:
+            timing_mult = 1.15   # Europe/ME active hours — US just waking, partial lag
+        elif 18 <= hour_utc <= 4:
+            timing_mult = 0.95   # Off-hours — less news flow
+        else:
+            timing_mult = 1.0
+
+    else:
+        timing_mult = 1.0  # General/Americas — no systematic timezone edge
+
+    return min(1.35, event_mult * timing_mult)
+
+
+def compute_signal(market) -> tuple[str | None, float, str]:
+    """
+    Returns (side, size, reasoning) or (None, 0, skip_reason).
+
+    Conviction-based sizing with fear-premium correction and timezone adjustment:
+    - Base conviction scales linearly with distance from threshold
+    - geopolitics_bias() discounts fear-driven overpricing (nuclear, invasion)
+      and boosts underpriced diplomatic/procedural markets
+    - Regional timing layer adds boost when trading in the news lag window
+      before US retail has repriced non-US breaking events
+    - Result capped at 1.0 so size never exceeds MAX_POSITION
+    - MIN_TRADE floor prevents trivially small orders near the boundary
+
+    Remix: feed GDELT event velocity or ACLED conflict intensity scores
+    into p to trade divergence between conflict data and market pricing.
     """
     p = market.current_probability
     q = market.question
 
     # Spread gate
     if market.spread_cents is not None and market.spread_cents / 100 > MAX_SPREAD:
-        return None, f"Spread {market.spread_cents/100:.1%} > {MAX_SPREAD:.1%}"
+        return None, 0, f"Spread {market.spread_cents/100:.1%} > {MAX_SPREAD:.1%}"
 
     # Days-to-resolution gate
     if market.resolves_at:
@@ -83,15 +204,26 @@ def compute_signal(market) -> tuple[str | None, str]:
             resolves = datetime.fromisoformat(market.resolves_at.replace("Z", "+00:00"))
             days = (resolves - datetime.now(timezone.utc)).days
             if days < MIN_DAYS:
-                return None, f"Only {days} days to resolve"
+                return None, 0, f"Only {days} days to resolve"
         except Exception:
             pass
 
-    if p < 0.2:
-        return "yes", f"YES at {p:.0%} — {q[:80]}"
-    if p > 0.8:
-        return "no",  f"NO (YES={p:.0%}) — {q[:80]}"
-    return None, f"Neutral at {p:.1%}"
+    bias = geopolitics_bias(q)
+
+    if p <= YES_THRESHOLD:
+        # conviction=0 at threshold boundary, conviction=1 at p=0 — scaled by geopolitics bias
+        conviction = min(1.0, (YES_THRESHOLD - p) / YES_THRESHOLD * bias)
+        size = max(MIN_TRADE, round(conviction * MAX_POSITION, 2))
+        edge = YES_THRESHOLD - p
+        return "yes", size, f"YES {p:.0%} edge={edge:.0%} bias={bias:.2f}x size=${size} — {q[:65]}"
+
+    if p >= NO_THRESHOLD:
+        conviction = min(1.0, (p - NO_THRESHOLD) / (1 - NO_THRESHOLD) * bias)
+        size = max(MIN_TRADE, round(conviction * MAX_POSITION, 2))
+        edge = p - NO_THRESHOLD
+        return "no", size, f"NO YES={p:.0%} edge={edge:.0%} bias={bias:.2f}x size=${size} — {q[:65]}"
+
+    return None, 0, f"Neutral at {p:.1%} (outside {YES_THRESHOLD:.0%}/{NO_THRESHOLD:.0%} bands)"
 
 
 def context_ok(client: SimmerClient, market_id: str) -> tuple[bool, str]:
@@ -126,7 +258,7 @@ def run(live: bool = False) -> None:
         if placed >= MAX_POSITIONS:
             break
 
-        side, reasoning = compute_signal(m)
+        side, size, reasoning = compute_signal(m)
         if not side:
             print(f"  [skip] {reasoning}")
             continue
@@ -140,14 +272,14 @@ def run(live: bool = False) -> None:
             r = client.trade(
                 market_id=m.id,
                 side=side,
-                amount=MAX_POSITION,
+                amount=size,
                 source=TRADE_SOURCE,
                 skill_slug=SKILL_SLUG,
                 reasoning=reasoning,
             )
             tag    = "(sim)" if r.simulated else "(live)"
             status = "OK" if r.success else f"FAIL:{r.error}"
-            print(f"  [trade] {side.upper()} ${MAX_POSITION} {tag} {status} — {reasoning[:70]}")
+            print(f"  [trade] {side.upper()} ${size} {tag} {status} — {reasoning[:70]}")
             if r.success:
                 placed += 1
         except Exception as e:
