@@ -4,6 +4,8 @@ name: Payment Integration
 description: "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━. Use when you need alipay helper capabilities. Triggers on: alipay helper."
   支付集成指南。微信支付、支付宝、退款、回调webhook、测试。Payment integration guide for WeChat Pay, Alipay. 支付、微信支付、支付宝。
 author: BytesAgain
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 ---
 # Payment Integration
 

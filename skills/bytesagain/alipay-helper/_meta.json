@@ -3,11 +3,16 @@
   "slug": "alipay-helper",
   "displayName": "Alipay Helper",
   "latest": {
-    "version": "2.4.5",
-    "publishedAt": 1773664488189,
-    "commit": "https://github.com/openclaw/skills/commit/59e4d319f796decdde246ee6a75ca7d6cda2236a"
+    "version": "2.4.6",
+    "publishedAt": 1773773112886,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.4.5",
+      "publishedAt": 1773664488189,
+      "commit": "https://github.com/openclaw/skills/commit/59e4d319f796decdde246ee6a75ca7d6cda2236a"
+    },
     {
       "version": "2.2.0",
       "publishedAt": 1773420911813,
