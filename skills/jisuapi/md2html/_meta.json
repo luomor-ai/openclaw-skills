@@ -1,13 +1,18 @@
 {
   "owner": "jisuapi",
   "slug": "md2html",
-  "displayName": "Markdown和HTML、PDF互转 - Convert Markdown To HTML And PDF",
+  "displayName": "Convert Markdown To HTML And PDF - Markdown和HTML、PDF互转",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773632352871,
-    "commit": "https://github.com/openclaw/skills/commit/66fc87dfe17f974fd4f24ad258b412778bd79875"
+    "version": "1.0.4",
+    "publishedAt": 1773721328990,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773632352871,
+      "commit": "https://github.com/openclaw/skills/commit/66fc87dfe17f974fd4f24ad258b412778bd79875"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773309002533,

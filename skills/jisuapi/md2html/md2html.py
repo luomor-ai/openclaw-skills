@@ -9,10 +9,10 @@ import json
 import os
 import sys
 from io import BytesIO
-from typing import Any
+from typing import Any, Tuple, Optional
 
 
-def _get_content(req: dict) -> tuple[str, str | None]:
+def _get_content(req: dict) -> Tuple[str, Optional[str]]:
     """
     从 path 或 content 获取文本。返回 (content, error_message)。
 
