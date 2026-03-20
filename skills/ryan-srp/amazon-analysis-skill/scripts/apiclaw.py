@@ -11,6 +11,7 @@ Usage:
     python apiclaw.py products --keyword "yoga mat" --mode beginner
     python apiclaw.py competitors --keyword "wireless earbuds"
     python apiclaw.py product --asin B09V3KXJPB
+    python apiclaw.py analyze --asin B09V3KXJPB --label-type painPoints
     python apiclaw.py report --keyword "pet supplies"
     python apiclaw.py opportunity --keyword "pet supplies"
 
@@ -41,17 +42,20 @@ PRODUCT_MODES = {
     "emerging":                 {"monthlySalesMax": 600, "salesGrowthRateMin": 0.1, "listingAge": "180"},
     "single-variant":           {"salesGrowthRateMin": 0.2, "variantCountMax": 1, "listingAge": "180"},
     "high-demand-low-barrier":  {"monthlySalesMin": 300, "reviewCountMax": 50, "listingAge": "180"},
-    "long-tail":                {"bsrMin": 10000, "bsrMax": 50000, "priceMax": 30, "sellerCountMax": 1},
+    "long-tail":                {"bsrMin": 10000, "bsrMax": 50000, "priceMax": 30, "sellerCountMax": 1, "monthlySalesMax": 300},
     "underserved":              {"monthlySalesMin": 300, "ratingMax": 3.7, "listingAge": "180"},
-    "new-release":              {"monthlySalesMax": 500, "badges": ["New Release"]},
-    "fbm-friendly":             {"monthlySalesMin": 300, "fulfillment": ["FBM"]},
+    "new-release":              {"monthlySalesMax": 500, "badges": ["New Release"], "fulfillment": ["FBA", "FBM"]},
+    "fbm-friendly":             {"monthlySalesMin": 300, "fulfillment": ["FBM"], "listingAge": "180"},
     "low-price":                {"priceMax": 10},
     "broad-catalog":            {"bsrGrowthRateMin": 0.99, "reviewCountMax": 10, "listingAge": "90"},
     "selective-catalog":        {"bsrGrowthRateMin": 0.99, "listingAge": "90"},
-    "speculative":              {"monthlySalesMin": 600, "sellerCountMin": 3},
-    "beginner":                 {"monthlySalesMin": 300, "priceMin": 15, "priceMax": 60, "fulfillment": ["FBA"]},
-    "top-bsr":                  {"bsrMax": 1000},
+    "speculative":              {"monthlySalesMin": 600, "sellerCountMin": 3, "listingAge": "180"},
+    "beginner":                 {"monthlySalesMin": 300, "priceMin": 15, "priceMax": 60, "fulfillment": ["FBA"],
+                                 "salesGrowthRateMin": 0.03, "listingAge": "365",
+                                 "excludeKeywords": "Brow,Air Fryer,Body Fragrance Mist,Ornament,Ivory,Bed Comforter,Biker Shorts,Mens Dress Shoe,Charms,Dumbbell,Gaming Chair,Skipping Rope,Hoops,Plus Hoola,Kids Bike Helmet,Socks,Cushion,Camping Hammock,Double Leggings,Yoga,Hand Warmers,Trail Camera,Water Bottle,Insulated Food,Pillow,Pillows,iPhone,Dog Bark Collar,Leg Covers,Leg Cover,Laptop Stand,Pet Briefs,Brief,Hangers,Hanger,Slip Rug Pad,rossbody,Fanny Pack,Bedding,Dog Harness,Sweet Water Decor,Eyeshadow,Cotton Sleepsack,Swaddle,Chocolate Bra,Wireless Bed Sheet Set,Car Windshield Curtain,Curtains,Wallet,Green Tea,Picture Frame,Womens,Women Fan,Bottle,Essential Oil,Tumbler,YETI,Vitamin,Vitamins,Face Mask,Led Strip,Pocket,Women's Watch,Waffle Case,Gloves,Shorts,Short Yoga,StrawExpert,Wrap Around Pillowcases,Cup,Bath Mats,Bedsure,Pillowcase,Bathroom,Shower,Milk Frother,Masks,Bug Zapper,Touchless Thermometer,Cat Litter Mat,Probiotics,Smart Plug,Natural Vitality Bottle,Christmas,Sleeveless,Shape Shifting Box,Refrigerator Organizer,Hydration Multiplier,Standard Mouth,Gift Box,USB C,Superhero,Digital Caliper,Massage Gun,Fidget Toys,Garden Hose,Cookie,Blanket,Protein Bars,Caramel Cashew,String Lights,Umbrella,Wearable Blanket,Diapers,Halloween,Flying Toys,Laundry Basket,Kitchen Faucet,Citrulline Malate,Onesie,Pajamas,Nail Polish Kit,fairy finder,Allergy,Immune Supplement,Frying Pan,Tablecloth,Electric Knife,Butter Dish,Dancing Cactus,Maya Mint,ice Cream,Christmas Tree,Liquid Motion Lamp,Stuffed Animal,Plush Bed Comforter,Journal,Women's,Sleeveless Wrap,Supplement,Screen Magnifier,Foot Massager,Machine,Santa,Anime Heroes,Air Mattress,Three Barrel Curling,3D Printer Filament,Power Strip,Rechargeable Toothbrush,Hooded Bathrobe,Sleepwear,Baby Einstein,Vinyl,Plastic Plates,Doorbell,Month Planner,Wooden Balls,Arceus,Wipes,Perfume,Rings,Bore Sight,Fishing Lures,Ear Protection,Firewood Rack,Sling Bag,Resistance Bands,Belt,Backpacks,Silver Slides,Whiteboard,Sports Bra,Cover,Jade Stud,Earrings,Necklace,Snow Shovel,Computer Desk,Dog Pee Pads,Turtleneck,Glasses,Spa,Up Balancer"},
+    "top-bsr":                  {"subBsrMax": 1000},
 }
+
 
 # ─── API Client ──────────────────────────────────────────────────────────────
 
@@ -87,12 +91,12 @@ def get_api_key():
     print("", file=sys.stderr)
     print("Please configure your API Key using one of these methods:", file=sys.stderr)
     print("", file=sys.stderr)
-    print("  Method 1: Config file (recommended)", file=sys.stderr)
+    print("  Method 1: Environment variable (recommended)", file=sys.stderr)
+    print("    export APICLAW_API_KEY='hms_live_yourkey'", file=sys.stderr)
+    print("", file=sys.stderr)
+    print("  Method 2: Config file", file=sys.stderr)
     print(f"    Create config.json in the skill directory: {skill_dir}", file=sys.stderr)
     print('    Content: {"api_key": "hms_live_yourkey"}', file=sys.stderr)
-    print("", file=sys.stderr)
-    print("  Method 2: Environment variable", file=sys.stderr)
-    print("    export APICLAW_API_KEY='hms_live_yourkey'", file=sys.stderr)
     print("", file=sys.stderr)
     print("Get a free key at https://apiclaw.io/api-keys", file=sys.stderr)
     sys.exit(1)
@@ -137,6 +141,11 @@ def api_call(endpoint: str, params: dict) -> dict:
                     data["_query"] = {
                         "endpoint": endpoint,
                         "params": actual_params,
+                    }
+                    # Inject _credits metadata for usage tracking
+                    data["_credits"] = {
+                        "consumed": data.get("creditsConsumed"),
+                        "remaining": data.get("creditsRemaining"),
                     }
                     return data
                 else:
@@ -222,10 +231,18 @@ def output(data, fmt="json"):
 # ─── Helper: parse category string ──────────────────────────────────────────
 
 def parse_category(cat_str: str) -> list:
-    """Parse 'Pet Supplies,Dogs,Toys' or 'Pet Supplies > Dogs > Toys' into a list."""
+    """Parse category path string into a list.
+
+    Supported formats (in priority order):
+    1. ' > ' separator: 'Pet Supplies > Dogs > Toys'  (recommended, handles commas in names)
+    2. ',' separator:   'Pet Supplies,Dogs,Toys'       (legacy, breaks on names with commas)
+
+    Use ' > ' when category names contain commas, e.g.:
+    'Baby Products > Baby Care > Pacifiers, Teethers & Teething Relief'
+    """
     if not cat_str:
         return []
-    # Support both comma and ' > ' separators
+    # Prefer ' > ' separator — handles commas in category names correctly
     if " > " in cat_str:
         return [c.strip() for c in cat_str.split(" > ")]
     return [c.strip() for c in cat_str.split(",")]
@@ -318,6 +335,22 @@ def cmd_products(args):
         params["ratingMax"] = args.rating_max
     if args.growth_min is not None:
         params["salesGrowthRateMin"] = args.growth_min
+    if args.bsr_min is not None:
+        params["bsrMin"] = args.bsr_min
+    if args.bsr_max is not None:
+        params["bsrMax"] = args.bsr_max
+    if args.seller_count_min is not None:
+        params["sellerCountMin"] = args.seller_count_min
+    if args.seller_count_max is not None:
+        params["sellerCountMax"] = args.seller_count_max
+    if args.variant_count_max is not None:
+        params["variantCountMax"] = args.variant_count_max
+    if args.keyword_match_type:
+        params["keywordMatchType"] = args.keyword_match_type
+    if args.sub_bsr_max is not None:
+        params["subBsrMax"] = args.sub_bsr_max
+    if args.exclude_keywords:
+        params["excludeKeywords"] = args.exclude_keywords
     if args.listing_age:
         params["listingAge"] = args.listing_age
     if args.badges:
@@ -367,6 +400,35 @@ def cmd_product(args):
         params["marketplace"] = args.marketplace
 
     result = api_call("realtime/product", params)
+    output(result, args.format)
+
+
+def cmd_analyze(args):
+    """Analyze reviews for ASINs or category with AI-powered insights."""
+    params = {}
+
+    # Determine mode from arguments
+    if args.asin:
+        params["asins"] = [args.asin]
+        params["mode"] = "asin"
+    elif args.asins:
+        params["asins"] = [a.strip() for a in args.asins.split(",")]
+        params["mode"] = "asin"
+    elif args.category:
+        params["categoryPath"] = parse_category(args.category)
+        params["mode"] = "category"
+    elif args.mode:
+        params["mode"] = args.mode
+    else:
+        print("ERROR: --asin, --asins, or --category is required for analyze command.", file=sys.stderr)
+        sys.exit(1)
+
+    if args.label_type:
+        params["labelType"] = args.label_type
+    if args.period:
+        params["period"] = args.period
+
+    result = api_call("reviews/analyze", params)
     output(result, args.format)
 
 
@@ -512,9 +574,8 @@ def cmd_check(args):
                 pass
 
     if api_key:
-        masked = api_key[:8] + "..." + api_key[-4:] if len(api_key) > 12 else "***"
-        source_label = "~/.apiclaw/config.json" if key_source == "config" else "env"
-        print(f"✅ API Key ({source_label}): {masked}", file=sys.stderr)
+        source_label = "~/.apiclaw/config.json" if key_source == "config" else "environment variable"
+        print(f"✅ API Key found (source: {source_label})", file=sys.stderr)
     else:
         print("❌ API Key: Not found", file=sys.stderr)
         print("   Checked: $APICLAW_API_KEY, ~/.apiclaw/config.json", file=sys.stderr)
@@ -548,8 +609,9 @@ def cmd_check(args):
             results[endpoint] = {"status": "error", "message": str(e)}
             all_ok = False
 
-    # Note: realtime/product requires a valid ASIN, skip in self-check
+    # Note: realtime/product and reviews/analyze require valid ASINs, skip in self-check
     print(f"⏭️  realtime/product            (skipped, requires valid ASIN)", file=sys.stderr)
+    print(f"⏭️  reviews/analyze             (skipped, requires valid ASIN or category)", file=sys.stderr)
 
     print("\n" + "=" * 50, file=sys.stderr)
     if all_ok:
@@ -619,6 +681,15 @@ Examples:
     p_prod.add_argument("--rating-min", type=float, help="Min rating")
     p_prod.add_argument("--rating-max", type=float, help="Max rating")
     p_prod.add_argument("--growth-min", type=float, help="Min sales growth rate")
+    p_prod.add_argument("--bsr-min", type=int, help="Min BSR rank")
+    p_prod.add_argument("--bsr-max", type=int, help="Max BSR rank")
+    p_prod.add_argument("--seller-count-min", type=int, help="Min seller count")
+    p_prod.add_argument("--seller-count-max", type=int, help="Max seller count")
+    p_prod.add_argument("--variant-count-max", type=int, help="Max variant count")
+    p_prod.add_argument("--keyword-match-type", choices=["fuzzy", "phrase", "exact"],
+                        help="Keyword match type (default: fuzzy)")
+    p_prod.add_argument("--sub-bsr-max", type=int, help="Max sub-category BSR rank")
+    p_prod.add_argument("--exclude-keywords", help="Keywords to exclude (comma-separated)")
     p_prod.add_argument("--listing-age", help="Max listing age in days (string)")
     p_prod.add_argument("--badges", nargs="+", help="Badge filters (e.g. 'New Release')")
     p_prod.add_argument("--fulfillment", nargs="+", help="Fulfillment filter (FBA, FBM)")
@@ -646,6 +717,20 @@ Examples:
     p_single.add_argument("--marketplace", default="US",
                           help="Marketplace: US/UK/DE/FR/IT/ES/JP/CA/AU/IN/MX/BR (default: US)")
     p_single.set_defaults(func=cmd_product)
+
+    # ── analyze (review analysis) ──
+    p_analyze = sub.add_parser("analyze", help="Analyze reviews (sentiment, insights, pain points)")
+    p_analyze.add_argument("--asin", help="Single ASIN to analyze")
+    p_analyze.add_argument("--asins", help="Multiple ASINs (comma-separated, max 100)")
+    p_analyze.add_argument("--category", help="Category path for category-level analysis")
+    p_analyze.add_argument("--label-type",
+                           help="Insight dimension filter: painPoints,issues,positives,improvements,"
+                                "buyingFactors,scenarios,keywords,userProfiles,usageTimes,"
+                                "usageLocations,behaviors")
+    p_analyze.add_argument("--period", help="Time period (e.g. 90d)")
+    p_analyze.add_argument("--mode", choices=["asin", "category"],
+                           help="Query mode (auto-detected from --asin/--category)")
+    p_analyze.set_defaults(func=cmd_analyze)
 
     # ── report (composite) ──
     p_report = sub.add_parser("report", help="Full market analysis report (composite workflow)")

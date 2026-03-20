@@ -1,6 +1,6 @@
 # APIClaw Analysis Skill
 
-> Amazon Product Research skill for AI agents — powered by [APIClaw API](https://apiclaw.io)
+> Find winning Amazon products with 14 battle-tested selection strategies & 6-dimension risk assessment. Backed by 200M+ product database. Powered by [APIClaw API](https://apiclaw.io).
 
 ## What It Does
 
@@ -11,6 +11,7 @@ Gives AI agents the ability to perform real-time Amazon product research:
 - 📊 **Competitor Analysis** — Brand/seller landscape, Chinese seller cases
 - ⚠️ **Risk Assessment** — 6-dimension risk matrix with compliance alerts
 - 💰 **Pricing Strategy** — Price band analysis, profit estimation
+- ✍️ **Listing Optimization** — Competitor listing analysis, copy generation, diagnosis
 - 📈 **Daily Operations** — Market monitoring, alert signals
 
 ## Structure
@@ -24,7 +25,8 @@ apiclaw-analysis-skill/
 │   ├── scenarios-eval.md       # Product evaluation, risk, review analysis
 │   ├── scenarios-pricing.md    # Pricing strategy, profit estimation, listing
 │   ├── scenarios-ops.md        # Market monitoring, anomaly alerts
-│   └── scenarios-expand.md     # Expansion, trends, discontinuation
+│   ├── scenarios-expand.md     # Expansion, trends, discontinuation
+│   └── scenarios-listing.md   # Listing writing, optimization, diagnosis
 └── scripts/
     └── apiclaw.py            # CLI script — 8 subcommands, 14 preset modes
 ```
@@ -50,7 +52,9 @@ Clone this repo or download the files directly into your agent's skill directory
 ## Setup
 
 1. Get an API Key at [apiclaw.io/api-keys](https://apiclaw.io/api-keys) (format: `hms_live_xxx`)
-2. Tell your AI agent your API Key — it handles the rest automatically.
+2. Configure your key (choose one):
+   - **Environment variable (recommended):** `export APICLAW_API_KEY='hms_live_xxx'`
+   - **Config file:** Tell your AI agent your key — it saves to `config.json` automatically
 
 ## Script Commands
 
