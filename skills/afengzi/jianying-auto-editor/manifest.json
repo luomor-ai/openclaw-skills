@@ -1,7 +1,7 @@
 {
   "name": "Jianying Auto Editor",
   "slug": "jianying-auto-editor",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Scan local media, request cloud editing plans, and generate Jianying-oriented draft output packages.",
   "category": "video-automation",
   "tags": [
@@ -124,7 +124,7 @@
     "Write access to the configured Jianying draft directory"
   ],
   "author": {
-    "name": "OpenAI Codex",
-    "contact": "local-skill-template"
+    "name": "afengzi",
+    "contact": "https://github.com/imfengziaaa/video-auto-editor-skills"
   }
 }

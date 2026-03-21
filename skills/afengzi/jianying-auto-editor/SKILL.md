@@ -1,7 +1,7 @@
 ---
 name: jianying-auto-editor
 description: Automate Jianying draft generation from local media plus a cloud editing API. Use when Codex needs to scan a material folder, request editing decisions, and write Jianying-oriented draft output for short-form video workflows.
-metadata: {"openclaw":{"emoji":"🎬","homepage":"https://example.com/jianying-auto-editor","requires":{"bins":["node"]},"skillKey":"jianying-auto-editor"}}
+metadata: {"openclaw":{"emoji":"🎬","homepage":"https://github.com/imfengziaaa/video-auto-editor-skills","requires":{"bins":["node"]},"skillKey":"jianying-auto-editor"}}
 ---
 
 # Jianying Auto Editor
