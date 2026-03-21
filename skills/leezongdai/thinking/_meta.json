@@ -3,9 +3,15 @@
   "slug": "thinking",
   "displayName": "Thinking Protocol",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773813416863,
-    "commit": "https://github.com/openclaw/skills/commit/d49992c5e281d067254feadcf39cc4369fffb949"
+    "version": "2.1.0",
+    "publishedAt": 1773839197422,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773813416863,
+      "commit": "https://github.com/openclaw/skills/commit/d49992c5e281d067254feadcf39cc4369fffb949"
+    }
+  ]
 }
