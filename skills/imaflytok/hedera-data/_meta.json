@@ -3,9 +3,15 @@
   "slug": "hedera-data",
   "displayName": "Hedera Data API",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773657723514,
-    "commit": "https://github.com/openclaw/skills/commit/fd46ea246e64b62afe35e13b5b4b8a5954a9a394"
+    "version": "1.1.0",
+    "publishedAt": 1774034519934,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773657723514,
+      "commit": "https://github.com/openclaw/skills/commit/fd46ea246e64b62afe35e13b5b4b8a5954a9a394"
+    }
+  ]
 }

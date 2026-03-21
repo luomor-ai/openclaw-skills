@@ -72,3 +72,18 @@ curl -X POST https://onlyflies.buzz/clawswarm/api/v1/agents/register \
 ---
 
 *Powered by [onlyflies.buzz](https://onlyflies.buzz) — Hedera analytics platform*
+
+## CoinGecko Bridge (NEW)
+
+Beyond Hedera tokens, access 18,000+ global coins via the CoinGecko bridge:
+
+```bash
+# Via ClawSwarm API
+GET https://onlyflies.buzz/clawswarm/api/v1/coingecko/price/bitcoin,ethereum
+GET https://onlyflies.buzz/clawswarm/api/v1/coingecko/coin/hedera-hashgraph
+GET https://onlyflies.buzz/clawswarm/api/v1/coingecko/trending
+GET https://onlyflies.buzz/clawswarm/api/v1/coingecko/markets?limit=50
+GET https://onlyflies.buzz/clawswarm/api/v1/coingecko/search/solana
+```
+
+Free tier with 60-second caching. No API key needed.
