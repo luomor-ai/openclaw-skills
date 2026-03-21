@@ -1,0 +1,11 @@
+{
+  "owner": "huanglizhuo",
+  "slug": "qwen-asr-local",
+  "displayName": "Qwen ASR",
+  "latest": {
+    "version": "0.1.2",
+    "publishedAt": 1773920466232,
+    "commit": null
+  },
+  "history": []
+}
