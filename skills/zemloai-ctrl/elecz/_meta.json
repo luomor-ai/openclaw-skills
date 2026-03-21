@@ -1,0 +1,11 @@
+{
+  "owner": "zemloai-ctrl",
+  "slug": "elecz",
+  "displayName": "Elecz Energy Signal",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1773973129980,
+    "commit": null
+  },
+  "history": []
+}
