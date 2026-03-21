@@ -1,15 +1,19 @@
 ---
 name: xiaohongshu-win
+version: "1.1.0"
 description: |
   小红书内容工具 Windows 原生版。
   基于 Node.js + Playwright，直接控制本地 Chromium 浏览器，
   无需 WSL、无需 Linux 二进制、无需 Python、无需任何外部服务。
   
+  核心功能：
+  - 🔍 内容搜索 - 关键词搜索，分析热度排行
+  - 📊 话题报告 - 自动生成热点分析 Markdown 报告
+  - 📝 笔记发布 - 帮你写+帮你发图文笔记
+  - 🔔 定时任务 - 每天自动搜热点（支持 Cron 定时）
+  - 🖼️ 封面生成 - 集成即梦AI生成封面图片
+  
   使用场景：
-  - 搜索小红书内容（关键词、话题）
-  - 获取帖子详情（互动数据、评论）
-  - 发布图文笔记
-  - 生成话题热点 Markdown 报告
   - "搜索小红书上关于XX的内容"
   - "帮我在小红书发一篇笔记"
   - "小红书XX话题报告"
@@ -19,12 +23,20 @@ description: |
 metadata:
   openclaw:
     emoji: "📕"
+    author: "ken0521"
+    tags: ["xiaohongshu", "social-media", "automation", "windows"]
 ---
 
 # 小红书 Windows 原生 Skill
 
 **技术栈：Node.js + Playwright（Chromium）**  
 纯 Windows 原生，无跨平台依赖。
+
+## 🆕 v1.1.0 新功能
+
+- **定时任务** - 支持 Cron 定时自动搜索热点
+- **即梦AI集成** - 可直接生成封面图片
+- **Browser Relay** - 支持复用本地 Chrome 浏览器
 
 ## 架构
 
