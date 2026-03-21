@@ -3,9 +3,15 @@
   "slug": "sjykj-meeting-minutes-generator",
   "displayName": "Meeting Minutes Generator",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773732660468,
-    "commit": "https://github.com/openclaw/skills/commit/0930b6db86c5b70787644149444b41144658a330"
+    "version": "1.0.2",
+    "publishedAt": 1773990232919,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773732660468,
+      "commit": "https://github.com/openclaw/skills/commit/0930b6db86c5b70787644149444b41144658a330"
+    }
+  ]
 }
