@@ -54,4 +54,4 @@ priority = (novelty_weight × novelty_score) +
            (prediction_error_weight × prediction_error_score)
 ```
 
-Weights are configurable in `.corvus/config.json`.
+Weights are configurable in `~/openclaw/data/ocas-corvus/config.json`.

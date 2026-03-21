@@ -1,8 +1,7 @@
 {
   "name": "ocas-corvus",
-  "version": "1.1.0",
-  "description": "Exploratory pattern analysis engine for the system knowledge graph. Use when the system needs to detect routines, emerging interests, anomalies, stalled threads, or cross-domain opportunities from accumulated activity signals. Trigger phrases: 'analyze my patterns', 'what routines has the system detected', 'run a deep exploration cycle', 'are there anomalies in my activity'. Do not use for web research (Sift), person investigations (Scout), or system architecture changes (Mentor).",
+  "version": "2.0.0",
+  "description": "Exploratory pattern analysis engine for the system knowledge graph and skill journals. Detects routines, emerging interests, anomalies, stalled threads, and cross-domain opportunities from accumulated activity signals. Use when analyzing patterns, detecting routines, running exploration cycles, or checking for anomalies. Do not use for web research (Sift), person investigations (Scout), or system architecture changes (Mentor).",
   "author": "Indigo Karasu",
-  "email": "mx.indigo.karasu@gmail.com",
-  "skill_type": "system"
+  "email": "mx.indigo.karasu@gmail.com"
 }

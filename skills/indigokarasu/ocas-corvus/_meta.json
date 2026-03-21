@@ -3,9 +3,15 @@
   "slug": "ocas-corvus",
   "displayName": "Ocas Corvus",
   "latest": {
-    "version": "1.1.0",
-    "publishedAt": 1773729176883,
-    "commit": "https://github.com/openclaw/skills/commit/0bba24f816538d9d1f17816c4824d5d99654c300"
+    "version": "1.1.1",
+    "publishedAt": 1773811652453,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.0",
+      "publishedAt": 1773729176883,
+      "commit": "https://github.com/openclaw/skills/commit/0bba24f816538d9d1f17816c4824d5d99654c300"
+    }
+  ]
 }
