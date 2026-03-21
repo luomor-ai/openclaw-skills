@@ -3,9 +3,15 @@
   "slug": "zip",
   "displayName": "Zip",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773664396293,
-    "commit": "https://github.com/openclaw/skills/commit/82033d14baa911c837faa67ffcbb7e872d600a57"
+    "version": "3.0.1",
+    "publishedAt": 1773914017002,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773664396293,
+      "commit": "https://github.com/openclaw/skills/commit/82033d14baa911c837faa67ffcbb7e872d600a57"
+    }
+  ]
 }
