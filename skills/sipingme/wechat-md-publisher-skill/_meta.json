@@ -1,0 +1,11 @@
+{
+  "owner": "sipingme",
+  "slug": "wechat-md-publisher-skill",
+  "displayName": "Wechat Md Publisher",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773910677071,
+    "commit": null
+  },
+  "history": []
+}
