@@ -1,0 +1,11 @@
+{
+  "owner": "binance-skills-hub",
+  "slug": "binance-algo",
+  "displayName": "Binance Algo",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774000321494,
+    "commit": null
+  },
+  "history": []
+}
