@@ -1,6 +1,9 @@
 ---
 name: memory-deposit
-description: 检查并补齐 6 层记忆系统。检查当前 workspace 的记忆配置是否完整，缺什么补什么。已完成则报告状态，未完成则引导配置。可反复执行。
+description: >
+  记忆系统搭建与健康检查（Memory Deposit）。检查并补齐 6 层记忆系统，确保 workspace 的记忆配置完整。缺什么补什么，已完成则报告状态。可反复执行。
+  适用于：首次安装后初始化记忆系统、怀疑记忆功能不完整、想知道当前记忆系统的健康状态、或发现 agent 的记忆行为异常（忘事、不记录、记录格式混乱）。
+  当用户表达类似意图时触发——不限于特定措辞。常见表达举例："检查记忆系统"、"memory deposit"、"记忆配置"、"记忆力怎么样"、"为什么老忘事"、"记忆系统健康吗"、"初始化记忆"、"补一下记忆配置"。
 version: 0.3.0
 author: MindCode
 tags: [memory, foundation, clawiser]
@@ -39,7 +42,7 @@ mkdir -p memory/transcripts memory/projects memory/voice scripts
 ### A2. 脚本
 
 从本 skill 的 `scripts/` 目录复制到 workspace 的 `scripts/`：
-- `merge-daily-transcript.js` → 对话合并
+- `merge-daily-transcript.js` → 对话合并（支持归档文件 `.deleted`/`.reset`、session 类型过滤、delivery-mirror 过滤）
 - `auto-commit.sh` → Git 自动提交
 
 验证：两个文件都在 `scripts/` 下。
@@ -54,6 +57,8 @@ mkdir -p memory/transcripts memory/projects memory/voice scripts
 ```
 
 `role` 用 `"user"` 或 `"assistant"`，不要用实际名字。merge 脚本依赖这个字段区分发话人。
+
+**STT 适配建议：** 如果你的语音转写工具（Whisper CLI、mlx_whisper 等）在输出中混入了时间戳、进度条、模型加载信息等非文本内容，建议写一个 adapter 脚本：接受音频文件路径作为输入，内部调用 STT 工具并清洗输出，只把纯文本写到 stdout。这是经典的 adapter pattern——把不干净的接口包装成干净的接口。具体实现取决于你用的 STT 工具，agent 可以自行判断。
 
 ### A4. ⚠️ 合并输出的名字
 
@@ -115,11 +120,44 @@ cd ~/.openclaw/workspace && git init
 - **无结果或报错** → 可能是 embedding key 未配置，也可能是 memory 目录下还没有足够内容。
 
 区分方法：检查 memory/ 下是否有 .md 文件。
-- **有文件但搜不到** → embedding key 未配置。告诉用户：
+- **有文件但搜不到** → embedding key 未配置。**⚠️ 这是关键步骤，必须向用户明确说明并协助配置，不能跳过。** 告诉用户：
 
-> 向量搜索需要一个 embedding API key。OpenClaw 支持 OpenAI、Gemini、Voyage、Mistral 的 embedding，配好任意一个就行。你有哪个的 key？
+> 向量搜索需要一个 embedding API key，这是记忆系统的核心能力——没有它，我就无法从历史记忆中检索信息。
 
-用户配好后再跑一次确认。
+然后根据用户的网络环境和已有的 API key，推荐方案：
+
+| 方案 | 模型 | 价格 | 说明 |
+|------|------|------|------|
+| **Gemini** | `gemini-embedding-001` | 很低 | MTEB 总分第一，配置最简单 |
+| **阿里云百炼 DashScope** | `text-embedding-v4` | 很低 | OpenAI 兼容接口 |
+| **OpenAI** | `text-embedding-3-small` | 很低 | 效果稳定 |
+
+配置示例：
+
+Gemini：
+```json5
+memorySearch: { provider: "gemini", remote: { apiKey: "<Gemini API Key>" } }
+```
+
+OpenAI：
+```json5
+memorySearch: { provider: "openai", remote: { apiKey: "<OpenAI API Key>" } }
+```
+
+阿里云百炼（OpenAI 兼容）：
+```json5
+memorySearch: {
+  provider: "openai",
+  model: "text-embedding-v4",
+  remote: {
+    baseUrl: "https://dashscope.aliyuncs.com/compatible-mode/v1",
+    apiKey: "<DashScope API Key>"
+  }
+}
+```
+API Key 获取：https://bailian.console.aliyun.com/
+
+确认用户选定方案后，用 `gateway(action=config.patch)` 帮用户配好，再跑一次 `memory_search` 验证。
 
 - **没有文件** → 正常，还没有数据。告诉用户：向量搜索已就绪，等你用几天积累了笔记后就能搜到了。
 
