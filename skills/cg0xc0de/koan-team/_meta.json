@@ -3,11 +3,16 @@
   "slug": "koan-team",
   "displayName": "Koan Team",
   "latest": {
-    "version": "0.7.0",
-    "publishedAt": 1773764598520,
-    "commit": "https://github.com/openclaw/skills/commit/d1f2aff2046fb1914cacdfeb80cf8b92e86e0fbd"
+    "version": "0.1.2",
+    "publishedAt": 1773936339785,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.7.0",
+      "publishedAt": 1773764598520,
+      "commit": "https://github.com/openclaw/skills/commit/d1f2aff2046fb1914cacdfeb80cf8b92e86e0fbd"
+    },
     {
       "version": "0.4.0",
       "publishedAt": 1773757301927,
