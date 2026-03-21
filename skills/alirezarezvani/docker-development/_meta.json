@@ -1,0 +1,11 @@
+{
+  "owner": "alirezarezvani",
+  "slug": "docker-development",
+  "displayName": "Docker Development",
+  "latest": {
+    "version": "2.1.1",
+    "publishedAt": 1773996978509,
+    "commit": null
+  },
+  "history": []
+}
