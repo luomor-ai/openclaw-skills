@@ -1,13 +1,18 @@
 {
   "owner": "fanyur-wang",
   "slug": "clawsoul-skill",
-  "displayName": "ClawSoul",
+  "displayName": "Clawsoul Skill",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773792007379,
-    "commit": "https://github.com/openclaw/skills/commit/809c994a97084c36b10975e9719e4760dde192c3"
+    "version": "1.1.2",
+    "publishedAt": 1773835936220,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773792007379,
+      "commit": "https://github.com/openclaw/skills/commit/809c994a97084c36b10975e9719e4760dde192c3"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773580301421,
