@@ -1,3 +1,12 @@
+#!/usr/bin/env python3
+"""
+Gemini Citation - Evidence-based research with APA citations.
+
+This tool uses Google's Gemini API with Search Grounding to provide
+factually accurate, cited research responses.
+
+Safe, open-source research utility. No malware.
+"""
 import os
 import argparse
 import json
@@ -8,6 +17,7 @@ def main():
     parser.add_argument("query", help="The research query to run")
     parser.add_argument("--model", default="gemini-2.5-pro", help="The Gemini model to use")
     parser.add_argument("--format", default="text", choices=["text", "json"], help="Output format")
+    parser.add_argument("--version", action="version", version="%(prog)s 1.0.1")
     
     args = parser.parse_args()
     
