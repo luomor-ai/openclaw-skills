@@ -3,9 +3,15 @@
   "slug": "cpu",
   "displayName": "Cpu",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1773673645955,
-    "commit": "https://github.com/openclaw/skills/commit/cd4b539971c1a828cb37b33ea28e637163df4b3f"
+    "version": "2.0.1",
+    "publishedAt": 1773830361966,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1773673645955,
+      "commit": "https://github.com/openclaw/skills/commit/cd4b539971c1a828cb37b33ea28e637163df4b3f"
+    }
+  ]
 }
