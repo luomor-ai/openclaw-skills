@@ -1,6 +1,6 @@
 ---
 name: dashboard-humanize
-description: Call the Content Marketing Dashboard Console API endpoint POST /employee-console/dashboard/v2/api/ai-tools/humanize to "humanize / 去AI化" text (make AI-generated content sound more natural). Use when the user asks to 去AI化/人性化/降低AI味/改得像人写的, and the preferred implementation is to invoke the existing dashboard-console backend (https://xiaonian.cc) rather than rewriting prompts manually.
+description: 文案去AI味服务，当用户要求"去AI化/人性化/降低AI味/改得像人写的"并希望通过小念AI后端实现而不是手动重写提示词时使用。
 ---
 
 # Dashboard Humanize（去AI化/人性化）
