@@ -1,11 +1,13 @@
 ---
 name: baidu-netdisk-skill
-description: 百度网盘文件管理工具 - 支持文件列表、搜索、下载、上传，推荐 OAuth 一键授权
+description: Baidu Netdisk file management for OpenClaw - List, search, download, upload with OAuth 2.0 (百度网盘文件管理 - OAuth 一键授权)
 ---
 
-# 百度网盘 Skill
+# 百度网盘 Skill (Baidu Netdisk Skill)
 
-> AI Agent 的云端数据连接器 —— 无需本地存储即可访问百度网盘文件
+> AI Agent 的云端数据连接器 | Cloud Data Connector for AI Agents —— 无需本地存储即可访问百度网盘文件
+
+**安全状态**：✅ 已自审 | 🔒 Token 加密存储 | 🌐 仅调用百度官方 API
 
 ## 简介
 

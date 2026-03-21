@@ -3,9 +3,15 @@
   "slug": "baidu-netdisk-skill",
   "displayName": "Baidu Netdisk Skill",
   "latest": {
-    "version": "1.0.7",
-    "publishedAt": 1773626880401,
-    "commit": "https://github.com/openclaw/skills/commit/fc9bc0962caa0bc223153f866e21c37b67b3e718"
+    "version": "1.0.10",
+    "publishedAt": 1773933012255,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.7",
+      "publishedAt": 1773626880401,
+      "commit": "https://github.com/openclaw/skills/commit/fc9bc0962caa0bc223153f866e21c37b67b3e718"
+    }
+  ]
 }

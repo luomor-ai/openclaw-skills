@@ -36,7 +36,7 @@
 ## 🔍 数据流向说明
 
 ```
-用户电脑 ←→ 百度网盘 API
+用户电脑 ←→ 百度网盘 API (pan.baidu.com)
     ↑
     └── 本 Skill（仅转发，不存储）
 ```
@@ -49,6 +49,31 @@
 **我们只知道**（如果你选择分享）：
 - 订阅状态（是否付费用户）
 - 基础使用统计（可选，用于改进产品）
+
+---
+
+## 📂 本地存储详情
+
+### Token 存储位置
+```
+~/.config/configstore/baidu-netdisk-skill.json
+```
+
+### 加密方式
+- **算法**：AES-256-CBC
+- **密钥来源**：使用 `crypto-js` 内置密钥派生
+- **存储格式**：加密后的 Base64 字符串
+
+### 验证方法
+```bash
+# 查看存储文件（Token 已加密）
+cat ~/.config/configstore/baidu-netdisk-skill.json
+
+# 监控网络请求（确认只调用百度 API）
+mitmproxy -p 8080
+npx baidu-netdisk-skill list /
+# 应该只看到 pan.baidu.com 的请求
+```
 
 ---
 

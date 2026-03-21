@@ -1,10 +1,12 @@
-# 🦞 百度网盘 Skill for OpenClaw
+# 🦞 百度网盘 Skill (Baidu Netdisk Skill) for OpenClaw
 
-> **AI Agent 的云端数据连接器** —— 专为 OpenClaw 云端部署设计，无需本地存储即可访问百度网盘文件
+> **AI Agent 的云端数据连接器 | Cloud Data Connector** —— 专为 OpenClaw 云端部署设计，无需本地存储即可访问百度网盘文件
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18.0.0-green.svg)](https://nodejs.org/)
 [![ClawHub](https://img.shields.io/badge/ClawHub-Skill-blue.svg)](https://clawhub.ai/)
+[![Security: Self-Audited](https://img.shields.io/badge/Security-Self--Audited-brightgreen.svg)](.clawhub/SECURITY_AUDIT.md)
+[![Privacy: No Data Collection](https://img.shields.io/badge/Privacy-No%20Data%20Collection-success.svg)](SECURITY.md)
 
 ---
 

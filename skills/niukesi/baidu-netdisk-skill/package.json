@@ -1,11 +1,17 @@
 {
   "name": "baidu-netdisk-skill",
-  "version": "0.2.0",
+  "version": "1.0.10",
   "description": "百度网盘 Skill for OpenClaw - 安全、省 Token、云端友好",
   "main": "src/index.js",
   "bin": {
     "baidu-netdisk-skill": "./src/index.js",
     "baidu-netdisk-auth": "./src/auth.js"
+  },
+  "security": {
+    "policy": "SECURITY.md",
+    "externalDomains": ["pan.baidu.com", "openapi.baidu.com"],
+    "noCredentials": true,
+    "encryptedStorage": true
   },
   "scripts": {
     "start": "node src/index.js",

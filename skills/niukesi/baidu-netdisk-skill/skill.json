@@ -1,11 +1,20 @@
 {
   "name": "baidu-netdisk-skill",
-  "version": "0.2.0",
-  "description": "百度网盘文件管理工具 - 支持文件列表、搜索、下载、上传，推荐 OAuth 一键授权，也支持自带 API key",
+  "version": "1.0.10",
+  "description": "Baidu Netdisk file management for OpenClaw - List, search, download, upload with OAuth 2.0 (百度网盘文件管理 - OAuth 一键授权)",
   "author": "Miaozai Studio",
   "license": "MIT",
   "homepage": "https://github.com/niukesi/baidu-netdisk-skill",
   "keywords": ["baidu", "netdisk", "cloud-storage", "百度网盘", "网盘"],
+  "security": {
+    "auditStatus": "self-audited",
+    "auditDate": "2026-03-19",
+    "externalCalls": ["pan.baidu.com", "openapi.baidu.com"],
+    "fileAccess": ["~/.config/configstore/baidu-netdisk-skill.json"],
+    "credentialsCollected": false,
+    "dataLeavesDevice": false,
+    "notes": "OAuth 授权流程使用百度官方授权页，Token 本地加密存储，不上传任何用户数据"
+  },
   "trigger": {
     "patterns": [
       "百度网盘",
