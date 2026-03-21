@@ -1,11 +1,17 @@
 {
   "owner": "jkzfhq",
   "slug": "psyvector-pv13",
-  "displayName": "PV_13",
+  "displayName": "Psyvector Pv13",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773841710748,
-    "commit": "https://github.com/openclaw/skills/commit/80ce4e1d40fa82005d8e933f024242d6f94034f5"
+    "version": "3.0.0",
+    "publishedAt": 1773849942220,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773841710748,
+      "commit": "https://github.com/openclaw/skills/commit/80ce4e1d40fa82005d8e933f024242d6f94034f5"
+    }
+  ]
 }
