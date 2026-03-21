@@ -3,9 +3,15 @@
   "slug": "heartrate",
   "displayName": "Heartrate",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773673799460,
-    "commit": "https://github.com/openclaw/skills/commit/1b5f9b1560f13ff7986f684ad7eb6433556ff8f3"
+    "version": "2.0.1",
+    "publishedAt": 1773798324390,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773673799460,
+      "commit": "https://github.com/openclaw/skills/commit/1b5f9b1560f13ff7986f684ad7eb6433556ff8f3"
+    }
+  ]
 }

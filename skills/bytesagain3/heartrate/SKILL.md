@@ -1,8 +1,10 @@
 ---
 name: "Heartrate"
-description: "A focused health & wellness tool built for Heartrate. Log entries, review trends, and export reports — all locally."
+description: "Log heart rate readings, track BPM trends, and set cardiovascular goals. Use when recording heart rate, tracking trends, or charting weekly averages."
 version: "2.0.0"
 author: "BytesAgain"
+homepage: https://bytesagain.com
+source: https://github.com/bytesagain/ai-skills
 tags: ["health", "tracking", "daily", "heartrate", "personal"]
 ---
 
