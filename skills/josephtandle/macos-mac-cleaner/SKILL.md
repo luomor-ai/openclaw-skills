@@ -22,12 +22,14 @@ Cleans `~/Library/Caches`, old logs, Trash, npm cache, Homebrew cache, and stale
 |----------|--------|
 | API keys | None |
 | Network requests | None |
-| External deps | None (Node.js built-ins only) |
-| Targets | Cache/temp/log files ONLY -- never user documents or code |
+| Runtime required | Node.js v14+ (built-ins only -- no npm install needed) |
+| Optional system tools | `npm` (cache cleanup, skipped if absent), `brew` (Homebrew cleanup, skipped if absent) |
+| Targets | `~/Library/Caches`, `~/Library/Logs`, `~/.Trash`, `~/.npm/_cacache`, Homebrew cache, `~/.next` build artifacts, and system-generated Unicode-slash orphan folders in `~` -- never source code, documents, databases, or user data |
 | Sudo required | No -- runs as current user |
 | Logging | Every deletion logged to `data/last-run.json` with path, size, reason |
-| Tools used | `rm`, `brew cleanup`, `npm cache clean --force`, `find`, `du` |
-| Failure mode | Skips inaccessible items gracefully |
+| Tools used | Node.js `fs`, `child_process`; `brew cleanup` (optional), `npm cache clean --force` (optional), `df`, `du` |
+| Dry-run mode | Pass `--dry-run` to preview what would be cleaned without deleting anything |
+| Failure mode | Skips inaccessible items gracefully -- missing tools (brew, npm) are detected and bypassed |
 
 ## What It Cleans
 
@@ -43,7 +45,14 @@ Cleans `~/Library/Caches`, old logs, Trash, npm cache, Homebrew cache, and stale
 
 ## Installation Steps
 
-When invoked, execute ALL steps below in order.
+**Before starting**: Inform the user that this skill will:
+1. Create an agent directory at `~/.openclaw/workspace/agents/mac-cleaner/` and write Node.js scripts there
+2. Add a Mission Control dashboard page (read-only UI)
+3. Optionally register a weekly cron job (Step 10 -- only with explicit user consent)
+
+Ask the user to confirm before proceeding.
+
+When the user confirms, execute ALL steps below in order.
 
 ### Step 1 -- Create Agent Directory Structure
 
@@ -150,7 +159,38 @@ function getDirSizeBytes(dirPath) {
   return total;
 }
 
+// Allowed top-level directories for deletion -- never delete outside these paths
+const ALLOWED_PREFIXES = [
+  path.join(HOME, "Library", "Caches"),
+  path.join(HOME, "Library", "Logs"),
+  path.join(HOME, "Library", "Developer", "Xcode", "DerivedData"),
+  path.join(HOME, ".Trash"),
+  path.join(HOME, ".npm"),
+  path.join(HOME, ".openclaw"),
+];
+
+function isAllowedPath(targetPath) {
+  const normalized = path.resolve(targetPath);
+  // Also allow top-level home-dir folders that start with U+2215 (unicode orphan tmp)
+  if (path.dirname(normalized) === HOME && path.basename(normalized).startsWith("\u2215")) {
+    return true;
+  }
+  return ALLOWED_PREFIXES.some(
+    (prefix) => normalized === prefix || normalized.startsWith(prefix + path.sep)
+  );
+}
+
+function isSafeTarget(targetPath) {
+  // Reject symlinks to prevent traversal into unexpected locations
+  try {
+    return !fs.lstatSync(targetPath).isSymbolicLink();
+  } catch {
+    return false;
+  }
+}
+
 function removeDirRecursive(dirPath) {
+  if (!isAllowedPath(dirPath) || !isSafeTarget(dirPath)) return false;
   try {
     fs.rmSync(dirPath, { recursive: true, force: true });
     return true;
@@ -160,6 +200,7 @@ function removeDirRecursive(dirPath) {
 }
 
 function removeFile(filePath) {
+  if (!isAllowedPath(filePath) || !isSafeTarget(filePath)) return false;
   try {
     fs.unlinkSync(filePath);
     return true;
@@ -213,13 +254,17 @@ function cleanNextBuild(config, items, errors) {
 }
 
 function cleanOrphanedTmpFolders(items, errors) {
-  // Folders in ~ starting with the unicode slash character (U+2215) "tmp"
+  // Some macOS apps (notably older Electron-based apps) create temporary directories
+  // using U+2215 DIVISION SLASH (∕) as a path separator rather than the standard
+  // forward slash. This produces orphaned folders named like "∕tmp∕app-name" directly
+  // in the user's home directory. These are safe to delete -- they are never accessed
+  // by any running process because the path with U+2215 is not a valid POSIX path.
+  const UNICODE_SLASH = "\u2215"; // U+2215 DIVISION SLASH (∕) -- visually similar to / but distinct
   try {
     const entries = fs.readdirSync(HOME, { withFileTypes: true });
     for (const entry of entries) {
       if (!entry.isDirectory()) continue;
-      // Match folders starting with \u2215tmp\u2215 (the specific unicode slash pattern)
-      if (entry.name.startsWith("\u2215tmp\u2215")) {
+      if (entry.name.startsWith(UNICODE_SLASH + "tmp" + UNICODE_SLASH)) {
         const fullPath = path.join(HOME, entry.name);
         try {
           const sizeMb = getDirSizeBytes(fullPath) / (1024 * 1024);
@@ -337,7 +382,8 @@ function cleanBrewCache(config, items, errors) {
       sizeBefore = getDirSizeBytes(brewCacheDir) / (1024 * 1024);
     } catch { /* ignore */ }
 
-    const pruneDays = config.brewPruneDays || 30;
+    // Validate brewPruneDays is a safe integer (1-365) before shell interpolation
+    const pruneDays = Math.max(1, Math.min(365, parseInt(String(config.brewPruneDays), 10) || 30));
     execSync(`brew cleanup --prune=${pruneDays}`, { stdio: "pipe", timeout: 120000 });
 
     let sizeAfter = 0;
@@ -1071,9 +1117,11 @@ Check if `mac-cleaner` already exists in `~/.openclaw/workspace/mission-control/
 }
 ```
 
-### Step 10 -- Register Cron Job
+### Step 10 -- Register Cron Job (Requires Explicit User Consent)
 
-Read `~/.openclaw/cron/jobs.json`. If no mac-cleaner job exists, add this entry to the `jobs` array:
+**STOP**: Only proceed with this step if the user has explicitly asked for automatic weekly cleanup (e.g. "run it automatically", "schedule it weekly", "set up the cron"). If the user has not asked, skip this step and inform them they can enable it later.
+
+If the user explicitly consents, read `~/.openclaw/cron/jobs.json`. If no mac-cleaner job exists, add this entry to the `jobs` array:
 
 ```json
 {
@@ -1095,9 +1143,25 @@ Read `~/.openclaw/cron/jobs.json`. If no mac-cleaner job exists, add this entry 
 }
 ```
 
-### Step 11 -- Run Initial Cleanup
+### Step 11 -- Mandatory Dry Run (Preview Before Deleting)
+
+**ALWAYS run dry-run first.** Show the user what will be cleaned before anything is deleted.
 
 **EXECUTE** using Bash tool:
+```bash
+node ~/.openclaw/workspace/agents/mac-cleaner/src/index.js --dry-run && echo "done" || echo "FAILED"
+```
+
+Read `~/.openclaw/workspace/agents/mac-cleaner/data/preview.json` and summarize for the user:
+- Total space that would be freed
+- Number of items that would be cleaned, broken down by category
+- Any paths that look unexpected
+
+**Ask the user to confirm** they want to proceed with actual cleanup before continuing to Step 12.
+
+### Step 12 -- Run Actual Cleanup (After User Confirms)
+
+Only proceed after the user reviews the dry-run output and confirms. **EXECUTE** using Bash tool:
 ```bash
 node ~/.openclaw/workspace/agents/mac-cleaner/src/index.js && echo "done" || echo "FAILED"
 ```
