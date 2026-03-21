@@ -8,6 +8,18 @@
 - **案件要素提取**：从文本或文件中自动提取案件关键要素
 - **案件完整分析**：基于当事人信息、案由、事实和诉求生成完整案件分析报告
 
+## HTTP 端点（必须严格一致）
+`base_url` 末尾带 `/`（默认 `https://api.test.mugua.muguafabao.com/`）。本 Skill 在服务端按下列路径请求，**不得**改用其它路径或自行 `curl` 猜测地址。
+
+| 能力 | 方法 | 完整 URL（拼接规则） |
+|------|------|----------------------|
+| 法律咨询 | POST | `{base_url}v1/legal-chat/completions` |
+| 案件分析 | POST | `{base_url}v1/case-analysis/generate` |
+
+**错误示例（不存在，会导致 404）**：`/v1/legal/chat`、`/api/v1/legal/chat` 等任何与上表不一致的路径。
+
+**正确调用方式**：通过本 Skill 的 `action` 与 JSON 参数调用（见下），由运行时注入 `base_url` 与 `api_key`；**不要**把 `legal/chat` 当作接口路径。
+
 ## 调用示例
 ### 法律咨询
 ```json
@@ -29,8 +41,9 @@
 ```
 
 ## 配置说明
-- `base_url`: 木瓜API基础地址，默认为 `https://api.test.mugua.muguafabao.com/`
-- `api_key`: 木瓜API鉴权Token（Bearer Token），必须填写平台分配的完整Token值
+- `base_url`: 木瓜 API 根地址（与 `metadata.json` 中 `required_configs` 一致）。运行时按顺序读取 `context.credentials.base_url`、`context.config.base_url`、`event.config.base_url`；均未提供时使用代码内默认 `https://api.test.mugua.muguafabao.com/`。法律咨询实际请求为 `{base_url}v1/legal-chat/completions`。
+- `api_key`: 木瓜 API 鉴权 Token（Bearer），对应 `context.credentials.api_key`。
+- `requirements.txt` 仅声明 `requests`；勿将标准库 `typing` 写入 pip 依赖（与注册元数据一致）。
 
 ## 许可证
 MIT-0

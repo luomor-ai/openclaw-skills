@@ -5,7 +5,7 @@ from typing import Dict, Optional, List
 SKILL_META = {
     "name": "木瓜法律助手",
     "description": "对接木瓜法律API，提供法律咨询、案件要素提取/完整分析能力",
-    "version": "1.0.0",
+    "version": "1.0.4",
     "triggers": ["法律咨询", "案件分析", "要素提取"],
     "endpoint": "/skills/mugua-legal",
     "auth_type": "api_key",
@@ -16,9 +16,22 @@ SKILL_META = {
     }
 }
 
+
+def _resolve_base_url(event: Dict, context: Dict) -> str:
+    """与 metadata.json 中 base_url 配置一致：优先运行时注入，否则用 SKILL_META 默认。"""
+    creds = context.get("credentials") or {}
+    ctx_cfg = context.get("config") or {}
+    ev_cfg = event.get("config") or {}
+    url = creds.get("base_url") or ctx_cfg.get("base_url") or ev_cfg.get("base_url")
+    if not url:
+        url = SKILL_META["config"]["base_url"]
+    return url.rstrip("/") + "/"
+
+
 # ====================== 法律咨询接口封装 ======================
 def legal_chat_completions(
     prompt: str,
+    base_url: str,
     stream: bool = False,
     enable_network: bool = False,
     api_key: str = ""
@@ -28,10 +41,11 @@ def legal_chat_completions(
     :param prompt: 法律咨询问题
     :param stream: 是否流式响应
     :param enable_network: 是否联网检索
+    :param base_url: API 根地址（含尾斜杠）
     :param api_key: 木瓜API鉴权Key
     :return: 标准化响应结果
     """
-    url = f"{SKILL_META['config']['base_url']}/v1/legal-chat/completions"
+    url = f"{base_url}v1/legal-chat/completions"
     headers = {
         "Content-Type": "application/json",
         "Authorization": f"Bearer {api_key}"  # 替换为实际鉴权方式
@@ -75,6 +89,7 @@ def legal_chat_completions(
 # ====================== 案件分析接口封装 ======================
 def case_analysis_generate(
     analysis_mode: str,
+    base_url: str,
     stream: bool = False,
     input_text: Optional[str] = None,
     files: Optional[List[Dict]] = None,
@@ -94,6 +109,7 @@ def case_analysis_generate(
     :param case_reasons: 案由（完整分析模式）
     :param facts: 案件事实（完整分析模式）
     :param demands: 诉求（完整分析模式）
+    :param base_url: API 根地址（含尾斜杠）
     :param api_key: 鉴权Key
     :return: 标准化响应结果
     """
@@ -106,7 +122,7 @@ def case_analysis_generate(
             "request_id": None
         }
 
-    url = f"{SKILL_META['config']['base_url']}/v1/case-analysis/generate"
+    url = f"{base_url}v1/case-analysis/generate"
     headers = {"Authorization": f"Bearer {api_key}"}
 
     # 文件上传模式（form-data）
@@ -213,6 +229,7 @@ def skill_handler(event: Dict, context: Dict) -> Dict:
     skill_params = event.get("params", {})
     action = skill_params.get("action")
     api_key = context.get("credentials", {}).get("api_key", "")
+    base_url = _resolve_base_url(event, context)
 
     # 路由到对应接口
     if not action:
@@ -220,6 +237,7 @@ def skill_handler(event: Dict, context: Dict) -> Dict:
     elif action == "legal_chat":
         result = legal_chat_completions(
             prompt=skill_params.get("prompt", ""),
+            base_url=base_url,
             stream=skill_params.get("stream", False),
             enable_network=skill_params.get("enable_network", False),
             api_key=api_key
@@ -227,6 +245,7 @@ def skill_handler(event: Dict, context: Dict) -> Dict:
     elif action == "case_analysis":
         result = case_analysis_generate(
             analysis_mode=skill_params.get("analysis_mode", ""),
+            base_url=base_url,
             stream=skill_params.get("stream", False),
             input_text=skill_params.get("input_text"),
             files=skill_params.get("files"),

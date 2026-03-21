@@ -1,6 +1,6 @@
 {
   "name": "木瓜法律助手",
-  "version": "1.0.0",
+  "version": "1.0.4",
   "description": "对接木瓜法律API，提供法律咨询、案件要素提取、案件完整分析能力",
   "author": "开发者",
   "triggers": ["法律咨询", "案件分析", "要素提取"],
@@ -16,7 +16,7 @@
     {
       "name": "base_url",
       "type": "string",
-      "description": "木瓜法律API服务地址，需用户确认是官方可信端点（当前默认测试地址：https://api.test.mugua.muguafabao.com/），所有案件数据将发送至此地址",
+      "description": "木瓜法律 API 根地址（与 skill.py 中 _resolve_base_url 一致：OpenClaw 注入至 context.credentials / context.config / event.config 的 base_url；未注入时使用代码内默认）。默认 https://api.test.mugua.muguafabao.com/ ，实际请求路径见 SKILL.md（v1/legal-chat/completions 与 v1/case-analysis/generate）",
       "required": true,
       "default": "https://api.test.mugua.muguafabao.com/"
     }
