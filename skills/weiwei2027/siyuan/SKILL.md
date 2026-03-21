@@ -1,14 +1,16 @@
 ---
-name: siyuan
-description: SiYuan Note (思源笔记) API client
+name: "SiYuan Note"
+description: SiYuan Note (思源笔记) API client - Complete notebook, document and block management
 homepage: https://github.com/siyuan-note/siyuan
 api_docs: https://www.siyuan-note.club/apis
+version: "1.0.3"
+author: "weiwei"
 metadata:
   {
     "openclaw":
       {
         "emoji": "🧠",
-        "requires": { "bins": ["python3", "curl"] },
+        "requires": { "bins": ["python3"] },
         "install": [{ "kind": "none", "label": "No external deps required" }],
       },
   }
@@ -17,6 +19,10 @@ metadata:
 # SiYuan Note (思源笔记)
 
 A clean API client for SiYuan Note, providing access to your notes via the local HTTP API.
+
+**ClawHub**: https://clawhub.ai/weiwei2027/siyuan  
+**Install**: `clawhub install siyuan`  
+**Version**: 1.0.1
 
 ## Prerequisites
 
@@ -512,3 +518,15 @@ Then update config.yaml accordingly.
 - **Local API Documentation**: See [`API.md`](./API.md) in this directory (downloaded from [official repo](https://github.com/siyuan-note/siyuan/blob/master/API.md))
 - **Online API Docs**: https://www.siyuan-note.club/apis
 - **Official Repository**: https://github.com/siyuan-note/siyuan
+
+## Changelog
+
+### v1.0.0 (2026-03-20)
+- Added complete API client with automatic retry
+- Added 8 CLI tools for all common operations
+- Added bilingual documentation (Chinese/English)
+- Added configuration file support
+- Production-ready with comprehensive error handling
+
+### v0.5.0 (2026-03-18)
+- Initial release

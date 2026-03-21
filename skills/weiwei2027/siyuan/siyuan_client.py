@@ -53,7 +53,7 @@ class SiYuanClient:
     """
     
     DEFAULT_CONFIG_PATHS = [
-        Path.home() / ".openclaw" / "workspace" / "skills" / "siyuan-kb" / "config.yaml",
+        Path.home() / ".openclaw" / "workspace" / "skills" / "siyuan" / "config.yaml",
         Path(__file__).parent / "config.yaml",
     ]
     
