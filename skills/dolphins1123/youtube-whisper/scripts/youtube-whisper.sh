@@ -1,19 +1,24 @@
 #!/bin/bash
 # =============================================================================
 # YouTube Whisper - 下載 YouTube 影片並轉文字
-# Version: 1.2.2
+# Version: 1.3.0
 # =============================================================================
 # Author: Kuanlin
 # Description: 自動偵測字幕，有字幕則擷取，無字幕則用 Whisper 轉文字
 # Usage: youtube-whisper.sh <url> [output_file] [model]
+# Output: 會顯示處理時間、來源（字幕/Whisper）、轉錄內容
 # =============================================================================
 
 set -e
+
+# 開始計時
+START_TIME=$(date +%s)
 
 # 參數設定 / Parameters
 URL="${1:-}"
 OUTPUT="${2:-}"
 MODEL="${3:-small}"
+SOURCE_METHOD="Whisper 轉錄 (預設)"
 
 # 最低需求 / Minimum requirements
 MIN_RAM_GB=4
@@ -213,6 +218,7 @@ if [ $HAS_SUBTITLES -eq 0 ]; then
     # 有字幕 - 嘗試擷取 / Has subtitles - try to extract
     echo ""
     echo "🎯 使用字幕方式 / Using subtitle method"
+    SOURCE_METHOD="YouTube 字幕檔 (Subtitles)"
     extract_subtitles "$URL" "$OUTPUT"
     EXTRACT_OK=$?
     
@@ -245,6 +251,7 @@ else
     # 無字幕 - 使用 Whisper / No subtitles - use Whisper
     echo ""
     echo "🎯 無字幕，使用 Whisper 轉文字 / No subtitles, using Whisper"
+    SOURCE_METHOD="Whisper 轉錄 (Audio Download)"
     
     if [ $RESOURCES_OK -ne 0 ]; then
         echo "❌ 系統資源不足，無法使用 Whisper / Insufficient resources for Whisper"
@@ -269,3 +276,18 @@ else
         fi
     fi
 fi
+
+# 計算處理時間
+END_TIME=$(date +%s)
+DURATION=$((END_TIME - START_TIME))
+MINUTES=$((DURATION / 60))
+SECONDS=$((DURATION % 60))
+
+# 輸出摘要
+echo ""
+echo "========================================="
+echo "📊 處理摘要 / Processing Summary"
+echo "========================================="
+echo "⏱️ 處理時間: ${MINUTES}分${SECONDS}秒"
+echo "📝 來源: $SOURCE_METHOD"
+echo "========================================="

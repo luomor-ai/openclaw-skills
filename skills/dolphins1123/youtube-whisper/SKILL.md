@@ -1,12 +1,24 @@
 ---
 name: youtube-whisper
-description: Download YouTube videos and transcribe audio using local Whisper. Use when you need to extract text from YouTube videos that don't have subtitles, or when youtube-watcher fails due to missing captions.
-version: 1.2.2
+description: Download YouTube videos and transcribe audio using local Whisper. Use when you need to extract text from YouTube videos that don't have subtitles, or when youtube-watcher fails due to missing captions. Returns: (1) Source used - subtitles or audio download + Whisper (2) Time spent (3) Full transcript text.
+version: 1.3.0
 ---
 
 # YouTube Whisper / YouTube Whisper 語音轉文字
 
 下載 YouTube 影片並使用本地 Whisper 進行語音轉文字。
+
+## 回覆格式 / Response Format
+
+回覆會包含以下資訊：
+
+```
+📺 影片標題
+⏱️ 處理時間: X分X秒
+📝 來源: [字幕檔/Whisper轉錄]
+---
+[轉錄文字內容]
+```
 
 ## 硬體需求 / Hardware Requirements
 
@@ -66,3 +78,7 @@ youtube-whisper.sh "URL" "output.txt" "small"
 ## Author
 
 Kuanlin
+
+## Author
+- Kuanlin (GitHub: kuanlin)
+
