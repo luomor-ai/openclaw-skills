@@ -1,0 +1,11 @@
+{
+  "owner": "nansen-devops",
+  "slug": "nansen-wallet-manager",
+  "displayName": "Nansen Wallet Manager",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1773937019431,
+    "commit": null
+  },
+  "history": []
+}
