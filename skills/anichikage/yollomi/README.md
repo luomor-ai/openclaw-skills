@@ -1,10 +1,8 @@
-# Yollomi AI Image Generator (All Models)
+# Yollomi AI Image & Video Generator (All Models)
 
-An AI image generator skill for OpenClaw. Image generation for text-to-image and image-to-image, across many AI image models via one unified Yollomi API.
+An AI image and video generator skill for OpenClaw. Text-to-image, image-to-image, text-to-video, and image-to-video across many AI models via one unified Yollomi API.
 
-Keywords: image, ai image, image generator, image generation, text-to-image, image-to-image, multimodel.
-
-> Note: Video generation is temporarily disabled in this build.
+Keywords: image, video, ai image, ai video, image generator, video generator, text-to-image, image-to-image, text-to-video, multimodel.
 
 ## Install (ClawHub)
 

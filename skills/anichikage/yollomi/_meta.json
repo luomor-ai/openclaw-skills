@@ -1,13 +1,18 @@
 {
   "owner": "anichikage",
   "slug": "yollomi",
-  "displayName": "Yollomi AI Image Generator (All Models)",
+  "displayName": "Yollomi AI Image & Video Generator",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1770891004052,
-    "commit": "https://github.com/openclaw/skills/commit/86d22e3df87366b0c5de98463802741a5856952d"
+    "version": "1.1.0",
+    "publishedAt": 1773918201224,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1770891004052,
+      "commit": "https://github.com/openclaw/skills/commit/86d22e3df87366b0c5de98463802741a5856952d"
+    },
     {
       "version": "1.0.2",
       "publishedAt": 1770799917746,

@@ -48,7 +48,6 @@ Common aspect ratios for text-to-image models:
 | google-veo-3 | 10 | |
 | google-veo-3-fast | 9 | |
 | google-veo-3-1 | 10 | |
-| google-veo-3-2 | 10 | |
 | google-veo-3-1-fast | 9 | |
 | kling-2-1 | 9 | |
 | kling-v2-6-motion-control | 7/sec | videoDuration, mode |

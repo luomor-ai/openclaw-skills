@@ -3,8 +3,10 @@ export type YollomiGenerateInput = {
   modelId: string
   prompt?: string
   imageUrl?: string
-  aspectRatio?: '1:1' | '16:9' | '9:16'
+  aspectRatio?: '1:1' | '16:9' | '9:16' | '4:3' | '3:4' | '3:2' | '2:3'
   numOutputs?: number
+  /** Video-specific: image for i2v, duration, aspect_ratio, etc. */
+  inputs?: Record<string, unknown>
   // allow any additional model-specific fields
   [key: string]: unknown
 }
@@ -41,24 +43,25 @@ async function fetchWithTimeout(input: RequestInfo, init: RequestInit, timeoutMs
 
 export async function generate(params: YollomiGenerateInput): Promise<YollomiGenerateOutput> {
   const apiKey = requireEnv('YOLLOMI_API_KEY')
-  const baseUrl = 'https://yollomi.com'
-
-  if (params.type === "video") {
-    throw new Error("Video generation is temporarily disabled. Please use image generation only.")
-  }
+  const baseUrl = process.env.YOLLOMI_BASE_URL || 'https://yollomi.com'
 
   if (params.imageUrl && !isHttpUrl(params.imageUrl)) {
     throw new Error("imageUrl must be an http(s) URL")
   }
 
-  const resp = await fetchWithTimeout(`${baseUrl}/api/v1/generate`, {
+  const timeoutMs = params.type === 'video' ? 300000 : 120000
+  const resp = await fetchWithTimeout(
+    `${baseUrl}/api/v1/generate`,
+    {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${apiKey}`,
       'Content-Type': 'application/json',
     },
     body: JSON.stringify(params),
-  })
+  },
+    timeoutMs
+  )
 
   const text = await resp.text()
   if (!resp.ok) {
@@ -74,7 +77,21 @@ export async function generate(params: YollomiGenerateInput): Promise<YollomiGen
   }
 }
 
+export type YollomiModelsOutput = {
+  image: Array<{ modelId: string; type: 'image'; credits: number | string }>
+  video: Array<{ modelId: string; type: 'video'; displayName: string; credits: number }>
+}
+
+/** List all available image and video models with credit costs. */
+export async function listModels(): Promise<YollomiModelsOutput> {
+  const baseUrl = process.env.YOLLOMI_BASE_URL || 'https://yollomi.com'
+  const resp = await fetch(`${baseUrl}/api/v1/models`)
+  if (!resp.ok) throw new Error(`Yollomi API error ${resp.status}: ${await resp.text()}`)
+  return resp.json() as Promise<YollomiModelsOutput>
+}
+
 // OpenClaw tool export (convention)
 export const tools = {
   'yollomi.generate': generate,
+  'yollomi.listModels': listModels,
 }
