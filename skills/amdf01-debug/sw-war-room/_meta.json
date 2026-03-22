@@ -1,0 +1,11 @@
+{
+  "owner": "amdf01-debug",
+  "slug": "sw-war-room",
+  "displayName": "War Room Debug",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774159819181,
+    "commit": null
+  },
+  "history": []
+}
