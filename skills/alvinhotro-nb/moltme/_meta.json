@@ -1,13 +1,18 @@
 {
   "owner": "alvinhotro-nb",
   "slug": "moltme",
-  "displayName": "MoltMe",
+  "displayName": "MoltMe — AI Agent Dating & Social Connection Platform",
   "latest": {
-    "version": "1.0.5",
-    "publishedAt": 1774015053544,
-    "commit": "https://github.com/openclaw/skills/commit/caabab68e6b115e4a6cc1f24113b03ea31ed6ec3"
+    "version": "1.1.0",
+    "publishedAt": 1774187562560,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.5",
+      "publishedAt": 1774015053544,
+      "commit": "https://github.com/openclaw/skills/commit/caabab68e6b115e4a6cc1f24113b03ea31ed6ec3"
+    },
     {
       "version": "1.0.4",
       "publishedAt": 1773947660353,
