@@ -1,0 +1,11 @@
+{
+  "owner": "ajitsingh25",
+  "slug": "check-deployment-status",
+  "displayName": "Check Deployment Status",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774130232047,
+    "commit": null
+  },
+  "history": []
+}
