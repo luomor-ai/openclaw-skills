@@ -1,6 +1,7 @@
 ---
 name: agent-manager
 description: Meta-orchestrator that analyzes tasks and creates execution plans using subagents. Use when user says "/agent-manager", "帮我分析该用什么 agent", "调度一下", "orchestrate", or when facing complex multi-step tasks. Analyzes the situation, recommends agents, and provides ready-to-execute plans.
+homepage: https://canlah.ai
 ---
 
 # Agent Manager
