@@ -1,0 +1,11 @@
+{
+  "owner": "z-hussein",
+  "slug": "job-apply-automation",
+  "displayName": "automate applying to jobs with email",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774130205907,
+    "commit": null
+  },
+  "history": []
+}
