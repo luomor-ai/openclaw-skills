@@ -8,6 +8,18 @@ metadata: { "openclaw": { "emoji": "🔍", "requires": { "bins": ["truthcheck"] 
 
 AI content verification CLI. Verify claims, check URLs, and trace misinformation.
 
+## Installation
+
+Via ClawHub (recommended):
+```bash
+npx clawhub install truthcheck
+```
+
+Manual:
+```bash
+pip install truthcheck
+```
+
 ## Commands
 
 ### Verify a claim
