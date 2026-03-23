@@ -1,6 +1,6 @@
 ---
 name: "dnscheck"
-version: "2.0.0"
+version: "2.0.3"
 description: "Powered by BytesAgain"
 author: "BytesAgain"
 homepage: "https://bytesagain.com"
