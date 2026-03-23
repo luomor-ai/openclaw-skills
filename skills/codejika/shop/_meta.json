@@ -1,13 +1,18 @@
 {
   "owner": "codejika",
   "slug": "shop",
-  "displayName": "Shopify | Give your Agent shopping creditcard & wallet with strict controls",
+  "displayName": "Shop Claw | Agent goes shopping - Search and securely shop with guardrails",
   "latest": {
-    "version": "1.9.5",
-    "publishedAt": 1773808809010,
-    "commit": "https://github.com/openclaw/skills/commit/a149707a3add0cdb0acbe363d49050db20c005f6"
+    "version": "2.9.1",
+    "publishedAt": 1774042668340,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.9.5",
+      "publishedAt": 1773808809010,
+      "commit": "https://github.com/openclaw/skills/commit/a149707a3add0cdb0acbe363d49050db20c005f6"
+    },
     {
       "version": "1.5.5",
       "publishedAt": 1773467513121,

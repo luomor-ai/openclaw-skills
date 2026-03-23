@@ -1,6 +1,6 @@
 ---
 name: shop
-description: "With CreditClaw and Shop app by Shopify you can shop anywhere."
+description: "Claw goes shopping. Give your claw a creditcard. Financial management for Agents and OpenClaw bots."
 metadata:
   openclaw:
     requires:
