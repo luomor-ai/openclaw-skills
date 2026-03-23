@@ -30,11 +30,12 @@ Contact support@publora.com for updates on when thread nesting will be restored.
 | Property | API Limit | Notes |
 |----------|-----------|-------|
 | Text | **500 characters** | 10,000 via text attachment |
-| Images | Up to 20 × 8 MB | JPEG, PNG |
-| Video | **5 min** / 500 MB | MP4, MOV |
+| Images | Up to 10 × 8 MB | JPEG, PNG; WebP auto-converted |
+| Video | **5 min** / 500 MB | MP4, MOV; 1 per post |
 | Max links | 5 per post | — |
+| **Hashtags** | **Max 1 per post** | More than 1 may be ignored or rejected |
 | Text only | ✅ Yes | — |
-| Threading | ⚠️ Temporarily unavailable | See above |
+| Threading (nested) | ⚠️ Temporarily unavailable | See above |
 | Rate limit | 250 posts/24hr | 1,000 replies/24hr |
 
 ## Post a Single Thread
@@ -93,22 +94,54 @@ await fetch(upload.uploadUrl, {
 });
 ```
 
-## Thread Nesting (when available)
+## Thread Nesting (temporarily unavailable)
 
-When thread nesting is restored, you can split long content using `---` on its own line:
+When restored, long content auto-splits into connected posts. Three methods:
 
+**Auto-split** (content > 500 chars): Publora splits at paragraphs/sentences/words, adds `(1/N)` markers.
+
+**Manual `---` separator:**
 ```javascript
 body: JSON.stringify({
-  content: 'First post in thread.\n\n---\n\nSecond post continues the thought.\n\n---\n\nFinal post wraps up.',
+  content: 'First post.\n\n---\n\nSecond post.\n\n---\n\nThird post.',
   platforms: ['threads-17841412345678']
 })
 ```
 
-> ⚠️ Currently disabled. Single posts and carousels work normally.
+**Explicit `[n/m]` markers:** Publora detects `[1/3]`, `[2/3]` format and splits at those points exactly.
+
+> ⚠️ Currently **all nested threading is disabled**. Single posts, images, carousels work normally.
+
+**Media in threads:** Images/video attach to the **first post only**. Subsequent posts are text-only.
+
+## Reply Control (platformSettings)
+
+Control who can reply to posts:
+
+```javascript
+body: JSON.stringify({
+  content: 'Your post here',
+  platforms: ['threads-17841412345678'],
+  platformSettings: {
+    threads: {
+      replyControl: 'mentioned_only'  // or: 'accounts_you_follow', 'everyone', '' (default)
+    }
+  }
+})
+```
+
+| Value | Who can reply |
+|-------|---------------|
+| `""` (default) | Platform default (anyone) |
+| `"everyone"` | Anyone |
+| `"accounts_you_follow"` | Only accounts you follow |
+| `"mentioned_only"` | Only mentioned accounts |
 
 ## Platform Quirks
 
 - **Connected via Meta OAuth** — same account as Instagram
-- **5 links per post max** — Threads enforces this at the API level
-- **PNG supported** — unlike Instagram, Threads accepts PNG images
-- **Threading restriction** — see the notice at the top of this skill
+- **Max 1 hashtag per post** — more than 1 may be ignored or rejected by Threads
+- **5 links per post max** — enforced at the API level
+- **PNG supported** — unlike Instagram, Threads accepts PNG images; WebP auto-converted
+- **Video carousels limited** — video support in carousels is limited; use images for carousels
+- **Nested threading disabled** — see the notice at the top of this skill
