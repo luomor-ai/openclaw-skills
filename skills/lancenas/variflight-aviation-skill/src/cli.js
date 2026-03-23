@@ -17,7 +17,7 @@ const commands = {
 
 function showHelp() {
     console.log(`
-✈️  Variflight Aviation Skill v3.0.0 (Powered by 飞常准 VariFlight MCP)
+✈️  Variflight Aviation Skill v1.0.4 (Powered by 飞常准 VariFlight MCP)
 
 Usage: variflight <command> [arguments]
 

@@ -1,7 +1,7 @@
 ---
 name: variflight-aviation
 description: 航班信息查询 Skill（飞常准官方 MCP）- 实时航班动态、航线搜索、舒适度评估、机场天气、中转规划、实时定位
-version: 3.0.0
+version: 1.0.4
 author: lixiao
 license: MIT
 
