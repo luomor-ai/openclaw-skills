@@ -1,6 +1,6 @@
 {
   "name": "bilibit",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Simple Bilibili video downloader. Just paste the URL!",
   "main": "src/cli.js",
   "bin": {
@@ -22,7 +22,9 @@
     "弹幕",
     "danmaku",
     "simple",
-    "fast"
+    "fast",
+    "cli",
+    "pure-download"
   ],
   "author": "bilibit team",
   "license": "MIT",

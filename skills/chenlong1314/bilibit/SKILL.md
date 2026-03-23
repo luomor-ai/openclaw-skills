@@ -1,7 +1,7 @@
 ---
 name: bilibit
-description: B 站视频下载工具。支持哔哩哔哩视频下载、弹幕下载。用户说"B 站下载"、"哔哩哔哩"、"bilibili"、"下载视频"时使用。无需 API Key。
-aliases: [B 站下载，哔哩哔哩下载，bilibili 下载，B 站视频，哔哩哔哩，bilibili,B 站，b 站，视频下载，下载视频，弹幕下载]
+description: B 站视频下载工具。支持哔哩哔哩视频下载、弹幕下载。用户说"B 站下载"、"哔哩哔哩"、"bilibili"时使用。无需 API Key。纯下载工具，不支持搜索。
+aliases: [B 站下载，哔哩哔哩下载，bilibili 下载，B 站视频，哔哩哔哩，bilibili,B 站，b 站，视频下载，弹幕下载]
 homepage: https://github.com/AoturLab/bilibit
 metadata:
   openclaw:
@@ -12,7 +12,7 @@ metadata:
 
 # 🎬 bilibit - B 站视频下载专家
 
-你的 B 站视频助手！支持下载、搜索、弹幕下载。
+极简 B 站视频下载工具。粘贴 URL，一键下载视频和弹幕。
 
 ---
 
@@ -35,11 +35,6 @@ npm install -g bilibit
 bilibit https://b23.tv/BV1xx
 ```
 
-### 搜索视频
-```bash
-bilibit search "LOL 集锦"
-```
-
 ### 下载带弹幕
 ```bash
 bilibit https://b23.tv/BV1xx --danmaku
@@ -53,40 +48,32 @@ bilibit https://b23.tv/BV1xx --danmaku
 
 **当用户说这些话时，使用 bilibit**：
 - "下载这个 B 站视频" + URL
-- "找个 LOL 的 3 分钟视频"
 - "B 站下载"
 - "哔哩哔哩视频"
-- "下载带弹幕的视频"
+- "下载弹幕"
+
+**不支持的场景**：
+- ❌ "搜索 B 站视频" - bilibit 不支持搜索，需要用户提供 URL
+- ❌ "找某个 UP 主的视频" - 不支持搜索，需用户先在 B 站找到 URL
 
 ### 输出格式规范
 
-**搜索结果必须这样展示**：
+**输出格式规范**：
 
 ```
-🔍 找到 X 个 B 站视频
+📺 下载完成！已保存到：xxx
 
-1. ⭐ 视频标题
-   📺 哔哩哔哩 · 3:25 · UP 主名
-   🔗 https://b23.tv/BVxxx
-   https://i2.hdslb.com/bfs/archive/xxx.jpg  ← 封面 URL（第 1 个才显示）
-
-2. 视频标题
-   📺 哔哩哔哩 · 5:12 · UP 主名
-   🔗 https://b23.tv/BVyyy
-
-📌 回复序号下载
+📌 回复序号查看历史
 ```
 
 **禁止行为**：
 - ❌ 不要转成表格格式
-- ❌ 不要过滤/减少结果
 - ❌ 不要重新排序
 - ❌ 不要用 `[]()` 包裹 URL
 
 **必须保留**：
-- ✅ 封面 URL（单独一行）
 - ✅ 原始输出格式
-- ✅ 所有搜索结果
+- ✅ 下载完成提示
 
 ---
 
@@ -95,7 +82,6 @@ bilibit https://b23.tv/BV1xx --danmaku
 | 命令 | 说明 | 示例 |
 |------|------|------|
 | `bilibit <url>` | 下载视频 | `bilibit https://b23.tv/BV1xx` |
-| `bilibit search <关键词>` | 搜索视频 | `bilibit search "LOL"` |
 | `bilibit <url> --danmaku` | 下载 + 弹幕 | `bilibit ... --danmaku` |
 | `bilibit <url> --quality 4K` | 指定画质 | `bilibit ... --quality 4K` |
 | `bilibit history` | 下载历史 | `bilibit history` |
