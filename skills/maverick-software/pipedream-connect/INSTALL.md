@@ -1,155 +1,133 @@
 # Installation Guide for Agents
 
-This guide is for AI agents installing the Pipedream Connect skill into a OpenClaw instance.
+Use this guide when installing or validating the OpenClaw Pipedream integration.
 
-## ⚠️ Security Notice
+## Security notice
 
-Before installing, inform the user:
+Before installation or migration, inform the user that:
 
-| What | Storage | Risk |
-|------|---------|------|
-| Client ID/Secret | `~/.openclaw/secrets.json` | Vault JSON (0600 perms) |
-| Access tokens | `~/.openclaw/workspace/config/mcporter.json` headers | Plaintext bearer tokens |
-| Cron job (optional) | User's crontab | Runs every 45 min, persists |
+- `PIPEDREAM_CLIENT_ID` and `PIPEDREAM_CLIENT_SECRET` are stored in the OpenClaw vault:
+  - `~/.openclaw/secrets.json`
+- non-secret Pipedream config is stored in:
+  - `~/.openclaw/workspace/config/pipedream-credentials.json`
+- mcporter server entries are stored in:
+  - `~/.openclaw/workspace/config/mcporter.json`
+- OAuth access tokens may appear in mcporter Authorization headers and should be treated as sensitive short-lived credentials
+- optional token-refresh cron jobs persist until removed
 
-**Credentials are stored in the OpenClaw vault** (`~/.openclaw/secrets.json`, mode 0600). Non-secret config is stored under `~/.openclaw/workspace/config/`.
+## Prerequisites
 
-## Prerequisites Check
-
-Before installing, verify:
+Verify:
 
 ```bash
-# Check OpenClaw version (need 2026.1.0+)
 openclaw --version
-
-# Check mcporter is installed
 which mcporter
-
-# Check gateway is running
 openclaw gateway status
 ```
 
-## Installation Steps
+## Main setup flow
 
-### Step 1: Copy Token Refresh Script
+### 1) Configure platform credentials
+In the OpenClaw dashboard Pipedream tab, save:
+- Client ID
+- Client Secret
+- Project ID
+- Environment
 
-```bash
-mkdir -p ~/.openclaw/scripts ~/.openclaw/logs
-cp ~/.openclaw/skills/pipedream-connect/scripts/pipedream-token-refresh.py ~/.openclaw/scripts/
-chmod +x ~/.openclaw/scripts/pipedream-token-refresh.py
-```
+Prefer `production` for normal use.
 
-### Step 2: Set Up Cron Job
+### 2) Connect apps per agent
+In **Agents → [Agent] → Tools → Pipedream**:
+- verify the agent external user id
+- connect an app
+- complete OAuth
+- refresh if needed
+- activate the app if activation is required
 
-```bash
-# Option A: Use setup script
-bash ~/.openclaw/skills/pipedream-connect/scripts/setup-cron.sh
+### 3) Browse the full catalog
+Use **Browse All Apps** to load the full dynamic catalog.
 
-# Option B: Manual setup
-(crontab -l 2>/dev/null; echo "*/45 * * * * /usr/bin/python3 $HOME/.openclaw/scripts/pipedream-token-refresh.py --quiet >> $HOME/.openclaw/logs/pipedream-cron.log 2>&1") | crontab -
-```
+Do not assume the static frontend app list is authoritative.
 
-### Step 3: Verify Backend Integration
+## Optional token refresh automation
 
-The Pipedream backend handlers are built into OpenClaw 2026.1.0+. Verify they're available:
-
-```bash
-# Test the RPC endpoint
-curl -s http://localhost:18789/rpc \
-  -H "Content-Type: application/json" \
-  -d '{"method":"pipedream.status","params":{}}' | head -100
-```
-
-Should return `{"configured":false,...}` or similar.
-
-### Step 4: Guide User Through Setup
-
-Inform the user:
-
-1. **Get Pipedream Credentials**
-   - Create account at [pipedream.com](https://pipedream.com)
-   - Get OAuth Client from [pipedream.com/settings/api](https://pipedream.com/settings/api)
-   - Create Project at [pipedream.com/projects](https://pipedream.com/projects)
-
-2. **Configure in UI**
-   - Open OpenClaw Dashboard → Tools → Pipedream
-   - Enter Client ID, Client Secret, Project ID
-   - Click Save Credentials
-
-3. **Connect Apps**
-   - Click Connect on desired apps
-   - Complete OAuth in popup
-   - Click Connect again to finalize
-
-## Verification
-
-After setup, verify the integration works:
+If the environment still relies on periodic token refresh via cron, install the included script:
 
 ```bash
-# List configured servers
-cat ~/.openclaw/workspace/config/mcporter.json | grep -A2 '"pipedream'
-
-# Test token refresh
-python3 ~/.openclaw/scripts/pipedream-token-refresh.py
-
-# If an app is connected, test it
-mcporter call pipedream-openclaw-gmail.gmail-list-labels instruction="List labels"
+bash ~/.openclaw/workspace/skills/pipedream-connect/scripts/setup-cron.sh
 ```
+
+Review the generated cron entry before keeping it.
+
+## Validation checklist
+
+After setup, verify:
+
+### Credentials
+```bash
+cat ~/.openclaw/workspace/config/pipedream-credentials.json
+```
+Confirm it contains non-secret config only.
+
+### Vault
+```bash
+cat ~/.openclaw/secrets.json
+```
+Confirm the Pipedream client credentials exist there.
+
+### Gateway RPCs
+Confirm the gateway exposes current Pipedream RPCs such as:
+- `pipedream.status`
+- `pipedream.catalog`
+- `pipedream.agent.status`
+- `pipedream.connect`
+- `pipedream.disconnect`
+- `pipedream.activate`
+- `pipedream.test`
+
+### Connected apps
+Open the agent Pipedream panel and refresh. Connected apps should come from the live accounts API when credentials are available.
+
+### First-class tools
+After activation, connected app MCP tools should appear as ordinary agent tools, not only as raw mcporter server endpoints.
+
+### Catalog and icons
+Open **Browse All Apps** and verify:
+- the full dynamic catalog loads
+- real app icons render when `iconUrl` is present
+- broken/missing icons fall back safely
 
 ## Troubleshooting
 
-### Backend Not Available
+### `unknown method: pipedream.*`
+Rebuild and restart the gateway.
 
-If `pipedream.status` returns "unknown method", the OpenClaw version may be too old:
+### Connected app missing
+Check:
+- credentials
+- project/environment
+- external user id
+- live accounts API response
+- activation state
 
-```bash
-# Update OpenClaw
-cd ~/openclaw && git pull && npm run build
-openclaw gateway restart
-```
+### Tools missing after app connection
+Check:
+- app shows in `pipedream.agent.status`
+- matching mcporter server exists
+- runtime tool registration is importing the connected MCP tools
 
-### UI Page Missing
+### Wrong or stale icon
+Check:
+- catalog path uses authenticated Pipedream app metadata
+- `img_src` is mapped to `iconUrl`
+- UI is not rendering stale static metadata
 
-If the Pipedream page doesn't appear in the dashboard:
-
-```bash
-# Rebuild UI
-cd ~/openclaw && npm run ui:build
-openclaw gateway restart
-```
-
-### Token Refresh Failing
-
-Check credentials and logs:
-
-```bash
-# View logs
-tail -20 ~/.openclaw/logs/pipedream-token-refresh.log
-
-# Verify non-secret config exists
-cat ~/.openclaw/workspace/config/pipedream-credentials.json
-
-# Manual test
-python3 ~/.openclaw/scripts/pipedream-token-refresh.py
-```
-
-## File Locations Reference
+## Important file locations
 
 | File | Purpose |
 |------|---------|
-| `~/.openclaw/secrets.json` | Vault secrets (clientId/clientSecret) |
+| `~/.openclaw/secrets.json` | Vault-stored Pipedream client credentials |
 | `~/.openclaw/workspace/config/pipedream-credentials.json` | Non-secret Pipedream config |
-| `~/.openclaw/workspace/config/mcporter.json` | MCP server configs (apps added here) |
-| `~/.openclaw/scripts/pipedream-token-refresh.py` | Token refresh script |
-| `~/.openclaw/logs/pipedream-token-refresh.log` | Refresh script logs |
-| `~/.openclaw/logs/pipedream-cron.log` | Cron job output |
-
-## Success Criteria
-
-Installation is complete when:
-
-- [ ] Token refresh script is in `~/openclaw/scripts/`
-- [ ] Cron job is running (check with `crontab -l`)
-- [ ] User has configured credentials in UI
-- [ ] At least one app is connected and testable
-- [ ] `mcporter call` works for connected app
+| `~/.openclaw/workspace/config/mcporter.json` | MCP server config for connected apps |
+| `~/.openclaw/workspace/config/integrations/pipedream/{agentId}.json` | Per-agent Pipedream config |
+| `~/.openclaw/workspace/skills/pipedream-connect/scripts/pipedream-token-refresh.py` | Optional token refresh script |

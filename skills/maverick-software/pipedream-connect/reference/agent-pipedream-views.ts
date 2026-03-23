@@ -1,5 +1,5 @@
 import { html, nothing } from "lit";
-import { ALL_APPS, type PipedreamApp } from "./pipedream.js";
+import { ALL_APPS, renderAppIcon, type PipedreamApp } from "./pipedream.js";
 
 export interface AgentPipedreamState {
   loading: boolean;
@@ -17,15 +17,14 @@ export interface AgentPipedreamState {
   // App browser
   showAppBrowser: boolean;
   appBrowserSearch: string;
-  appBrowserLetter: string;
+  allApps: PipedreamApp[];
+  loadingApps: boolean;
   connectingApp: string | null;
   testingApp: string | null;
   disconnectingApp: string | null;
   activatingApp: string | null;
   manualSlug: string;
   expandedApps: Set<string>;
-  allApps: PipedreamApp[];
-  loadingApps: boolean;
 }
 
 export interface AgentConnectedAppTool {
@@ -37,6 +36,7 @@ export interface AgentConnectedApp {
   slug: string;
   name: string;
   icon: string;
+  iconUrl?: string;
   accountName?: string;
   active?: boolean;
   toolCount?: number;
@@ -59,15 +59,14 @@ export function initialAgentPipedreamState(): AgentPipedreamState {
     draftUserId: "",
     showAppBrowser: false,
     appBrowserSearch: "",
-    appBrowserLetter: "",
+    allApps: [],
+    loadingApps: false,
     connectingApp: null,
     testingApp: null,
     disconnectingApp: null,
     activatingApp: null,
     manualSlug: "",
     expandedApps: new Set(),
-    allApps: [...ALL_APPS],
-    loadingApps: false,
   };
 }
 
@@ -86,15 +85,23 @@ export interface AgentPipedreamProps extends AgentPipedreamState {
   onOpenAppBrowser: () => void;
   onCloseAppBrowser: () => void;
   onAppBrowserSearchChange: (value: string) => void;
-  onAppBrowserLetterChange: (value: string) => void;
   onManualSlugChange: (value: string) => void;
   onConnectManualSlug: () => void;
 }
 
 const FEATURED_SLUGS = [
-  "google-calendar", "google-sheets", "google-drive", "google-docs", "google-tasks",
-  "youtube", "youtube-data-api", "slack", "telegram-bot-api", "twilio",
-  "sendgrid", "mailgun",
+  "google-calendar",
+  "google-sheets",
+  "google-drive",
+  "google-docs",
+  "google-tasks",
+  "youtube",
+  "youtube-data-api",
+  "slack",
+  "telegram-bot-api",
+  "twilio",
+  "sendgrid",
+  "mailgun",
 ];
 
 export function renderAgentPipedream(props: AgentPipedreamProps) {
@@ -103,26 +110,29 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
       <section class="card">
         <div class="card-title">Pipedream</div>
         <div class="card-sub">Loading…</div>
-      </section>`;
+      </section>
+    `;
   }
 
   if (!props.globalConfigured) {
     return html`
       <section class="card">
         <div class="card-title">Pipedream</div>
-        <div class="card-sub" style="color: var(--warning, #f59e0b);">
+        <div class="card-sub" style="color: var(--warning, #f59e0b)">
           ⚠️ Global Pipedream credentials not configured. Set them up in the
           <strong>Pipedream</strong> tab first.
         </div>
-      </section>`;
+      </section>
+    `;
   }
 
-  const userId = props.editingUserId ? props.draftUserId : (props.externalUserId || props.agentId);
-  const connectedApps = Array.isArray(props.connectedApps) ? props.connectedApps : [];
-  const allApps = Array.isArray(props.allApps) ? props.allApps : [];
-  const connectedSlugs = new Set(connectedApps.map((a) => a.slug));
-  const appCatalog = allApps.length > 0 ? allApps : ALL_APPS;
-  const featured = appCatalog.filter((a) => FEATURED_SLUGS.includes(a.slug) && !connectedSlugs.has(a.slug));
+  const userId = props.editingUserId ? props.draftUserId : props.externalUserId || props.agentId;
+  const connectedSlugs = new Set(props.connectedApps.map((a) => a.slug));
+  const featured = props.allApps.length > 0
+    ? FEATURED_SLUGS.map((slug) => props.allApps.find((a) => a.slug === slug)).filter(
+        (a): a is PipedreamApp => Boolean(a) && !connectedSlugs.has(a.slug),
+      )
+    : [];
 
   return html`
     <!-- Header -->
@@ -138,22 +148,36 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
       ${props.error ? html`<div class="callout danger" style="margin-top: 12px;">${props.error}</div>` : nothing}
       ${props.success ? html`<div class="callout success" style="margin-top: 12px;">${props.success}</div>` : nothing}
 
-      ${props.environment === "development" ? html`
-        <div class="callout" style="margin-top: 12px; font-size: 13px; background: rgba(245,158,11,0.1); border-color: #f59e0b; color: #f59e0b;">
-          ⚠️ Using <strong>development</strong> environment. To use production, go to the
-          <strong>Pipedream</strong> tab → Edit credentials → set Environment to Production.
-        </div>` : html`
-        <div style="margin-top: 10px; font-size: 12px; color: var(--muted);">
-          🟢 Production environment
-        </div>`}
+      ${
+        props.environment === "development"
+          ? html`
+              <div
+                class="callout"
+                style="
+                  margin-top: 12px;
+                  font-size: 13px;
+                  background: rgba(245, 158, 11, 0.1);
+                  border-color: #f59e0b;
+                  color: #f59e0b;
+                "
+              >
+                ⚠️ Using <strong>development</strong> environment. To use production, go to the
+                <strong>Pipedream</strong> tab → Edit credentials → set Environment to Production.
+              </div>
+            `
+          : html`
+              <div style="margin-top: 10px; font-size: 12px; color: var(--muted)">🟢 Production environment</div>
+            `
+      }
 
       <!-- External User ID -->
       <div style="margin-top: 16px;">
         <label class="field-label">External User ID</label>
         <div class="card-sub" style="margin-bottom: 8px;">Isolates this agent's OAuth tokens from other agents.</div>
         <div class="row" style="gap: 8px;">
-          ${props.editingUserId
-            ? html`
+          ${
+            props.editingUserId
+              ? html`
               <input class="input" style="flex: 1;" .value=${props.draftUserId}
                 @input=${(e: Event) => props.onDraftUserIdChange((e.target as HTMLInputElement).value)}
                 placeholder=${props.agentId} />
@@ -162,9 +186,13 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
                 ${props.saving ? "Saving…" : "Save"}
               </button>
               <button class="btn btn--sm" @click=${() => props.onEditUserId(false)} ?disabled=${props.saving}>Cancel</button>`
-            : html`
+              : html`
               <code class="mono" style="padding: 6px 12px; background: var(--surface-alt, var(--surface)); border-radius: 6px; flex: 1;">${userId}</code>
-              <button class="btn btn--sm" @click=${() => { props.onDraftUserIdChange(userId); props.onEditUserId(true); }}>Edit</button>`}
+              <button class="btn btn--sm" @click=${() => {
+                props.onDraftUserIdChange(userId);
+                props.onEditUserId(true);
+              }}>Edit</button>`
+          }
         </div>
       </div>
     </section>
@@ -174,73 +202,99 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
       <div class="card-title">✅ Connected Apps</div>
       <div class="card-sub">Apps this agent can use. Tokens refresh automatically.</div>
 
-      ${connectedApps.length === 0
-        ? html`
-          <div style="padding: 20px; text-align: center; border: 1px dashed var(--border); border-radius: 8px; margin-top: 12px;">
-            <div style="font-size: 32px; margin-bottom: 8px;">🔌</div>
-            <div class="card-sub">No apps connected yet. Browse available apps below to get started.</div>
-          </div>`
-        : html`
+      ${
+        props.connectedApps.length === 0
+          ? html`
+              <div
+                style="
+                  padding: 20px;
+                  text-align: center;
+                  border: 1px dashed var(--border);
+                  border-radius: 8px;
+                  margin-top: 12px;
+                "
+              >
+                <div style="font-size: 32px; margin-bottom: 8px">🔌</div>
+                <div class="card-sub">No apps connected yet. Browse available apps below to get started.</div>
+              </div>
+            `
+          : html`
           <div class="list" style="margin-top: 12px;">
-            ${connectedApps.map((app) => {
+            ${props.connectedApps.map((app) => {
               const isTesting = props.testingApp === app.slug;
               const isDisconnecting = props.disconnectingApp === app.slug;
               const isExpanded = props.expandedApps.has(app.slug);
               const hasTools = app.tools && app.tools.length > 0;
               return html`
-                <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 0;">
-                  <div style="display: flex; align-items: center; gap: 8px; width: 100%;">
+                <div
+                  style="display: block; border: 1px solid var(--border); border-radius: 10px; background: var(--card); padding: 0; overflow: hidden;"
+                >
+                  <div
+                    style="display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px;"
+                  >
                     <div class="list-main" style="flex: 1; min-width: 0;">
                       <div class="list-title" style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
-                        <span style="font-size: 20px;">${app.icon}</span>
+                        ${renderAppIcon(app, 20)}
                         <span>${app.name}</span>
                         ${app.toolCount != null ? html`<span style="font-size: 11px; font-weight: 500; color: var(--muted); background: var(--secondary); border: 1px solid var(--border); border-radius: 10px; padding: 1px 7px;">${app.toolCount} tools</span>` : nothing}
                       </div>
-                      <div class="list-sub">
-                        ${app.active === false
-                          ? html`<span style="color: var(--warning, #f59e0b);">⚠ OAuth complete — needs activation</span>`
-                          : app.accountName ? `Connected as ${app.accountName}` : "Connected"}
+                      <div class="list-sub" style="margin-top: 6px;">
+                        ${
+                          app.active === false
+                            ? html`
+                                <span style="color: var(--warning, #f59e0b)">⚠ OAuth complete — needs activation</span>
+                              `
+                            : app.accountName
+                              ? `Connected as ${app.accountName}`
+                              : "Connected"
+                        }
                       </div>
                     </div>
-                    <div class="list-actions">
-                      ${app.active === false ? html`
+                    <div class="list-actions" style="display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; align-self: center;">
+                      ${
+                        app.active === false
+                          ? html`
                         <button class="btn small" style="background: var(--accent); color: var(--bg); font-weight: 600;" ?disabled=${props.activatingApp === app.slug} @click=${() => props.onActivateApp(app.slug)}>
                           ${props.activatingApp === app.slug ? "Activating..." : "⚡ Activate"}
                         </button>
-                      ` : html`
+                      `
+                          : html`
                         ${hasTools ? html`<button class="btn small" @click=${() => props.onToggleExpand(app.slug)} title="${isExpanded ? "Hide tools" : "Show tools"}">${isExpanded ? "▲ Hide" : "▼ Tools"}</button>` : nothing}
                         <button class="btn small" ?disabled=${isTesting} @click=${() => props.onTestApp(app.slug)}>
                           ${isTesting ? "Testing..." : "Test"}
                         </button>
-                      `}
+                      `
+                      }
                       <button class="btn small danger" ?disabled=${isDisconnecting} @click=${() => props.onDisconnectApp(app.slug)}>
                         ${isDisconnecting ? "..." : "Disconnect"}
                       </button>
                     </div>
                   </div>
-                  ${isExpanded && hasTools ? html`
-                    <div style="margin-top: 10px; border-top: 1px solid var(--border); padding-top: 10px; width: 100%;">
-                      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
-                        <thead>
-                          <tr style="color: var(--muted); text-align: left;">
-                            <th style="padding: 4px 8px; font-weight: 500; width: 35%;">Tool</th>
-                            <th style="padding: 4px 8px; font-weight: 500;">Description</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          ${app.tools!.map((tool, i) => html`
-                            <tr style="border-top: 1px solid var(--border); ${i % 2 === 1 ? "background: rgba(255,255,255,0.02);" : ""}">
-                              <td style="padding: 5px 8px; font-family: monospace; font-size: 11px; color: var(--accent); white-space: nowrap;">${tool.name}</td>
-                              <td style="padding: 5px 8px; color: var(--muted); line-height: 1.4;">${tool.description ?? "—"}</td>
-                            </tr>
-                          `)}
-                        </tbody>
-                      </table>
+                  ${
+                    isExpanded && hasTools
+                      ? html`
+                    <div style="border-top: 1px solid var(--border); padding: 0 16px 14px; width: 100%;">
+                      <div class="card-sub" style="margin: 12px 0 8px;">Available tools</div>
+                      <div style="display: grid; gap: 8px;">
+                        ${app.tools!.map(
+                          (tool) => html`
+                            <div
+                              style="padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--bg-secondary);"
+                            >
+                              <div style="font-family: monospace; font-size: 12px; color: var(--accent); word-break: break-word;">${tool.name}</div>
+                              <div style="margin-top: 4px; color: var(--muted); font-size: 12px; line-height: 1.45;">${tool.description ?? "—"}</div>
+                            </div>
+                          `,
+                        )}
+                      </div>
                     </div>
-                  ` : nothing}
+                  `
+                      : nothing
+                  }
                 </div>`;
             })}
-          </div>`}
+          </div>`
+      }
     </section>
 
     <!-- Available Apps -->
@@ -253,9 +307,17 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
         <button class="btn" @click=${props.onOpenAppBrowser}>Browse All Apps</button>
       </div>
 
+      ${
+        featured.length > 0
+          ? html`
       <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; margin-top: 16px;">
         ${featured.slice(0, 12).map((app) => renderAvailableApp(app, props))}
-      </div>
+      </div>`
+          : html`
+      <div class="muted" style="margin-top: 16px; font-size: 13px;">
+        Browse Apps to load the live Pipedream catalog.
+      </div>`
+      }
 
       <!-- Manual slug -->
       <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border);">
@@ -263,7 +325,9 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
         <div class="row" style="gap: 8px;">
           <input type="text" .value=${props.manualSlug}
             @input=${(e: Event) => props.onManualSlugChange((e.target as HTMLInputElement).value)}
-            @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter" && props.manualSlug.trim()) props.onConnectManualSlug(); }}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === "Enter" && props.manualSlug.trim()) props.onConnectManualSlug();
+            }}
             placeholder="e.g., spotify, notion, stripe..."
             style="flex: 1; max-width: 300px;" />
           <button class="btn primary small"
@@ -279,13 +343,17 @@ export function renderAgentPipedream(props: AgentPipedreamProps) {
     </section>
 
     <!-- Remove config -->
-    ${props.configured ? html`
+    ${
+      props.configured
+        ? html`
       <section class="card" style="margin-top: 16px;">
         <div class="row" style="align-items: center; gap: 12px;">
           <button class="btn btn--sm btn--danger" @click=${props.onDelete} ?disabled=${props.saving}>Remove Agent Config</button>
           <span class="card-sub">Removes per-agent overrides. Falls back to global credentials.</span>
         </div>
-      </section>` : nothing}
+      </section>`
+        : nothing
+    }
 
     <!-- App Browser Modal -->
     ${props.showAppBrowser ? renderAppBrowserModal(props) : nothing}
@@ -296,9 +364,9 @@ function renderAvailableApp(app: PipedreamApp, props: AgentPipedreamProps) {
   const isConnecting = props.connectingApp === app.slug;
   return html`
     <div style="padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg-secondary); display: flex; align-items: center; justify-content: space-between; gap: 8px;">
-      <div style="display: flex; align-items: flex-start; gap: 8px; min-width: 0; flex: 1;">
-        <span style="font-size: 18px; flex-shrink: 0; margin-top: 1px;">${app.icon}</span>
-        <span style="font-weight: 500; font-size: 13px; white-space: normal; overflow-wrap: anywhere; line-height: 1.25;">${app.name}</span>
+      <div style="display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1;">
+        ${renderAppIcon(app, 18)}
+        <span style="font-weight: 500; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${app.name}">${app.name}</span>
       </div>
       <button class="btn small primary" style="flex-shrink: 0;" ?disabled=${isConnecting} @click=${() => props.onConnectApp(app.slug)}>
         ${isConnecting ? "..." : "Connect"}
@@ -307,25 +375,14 @@ function renderAvailableApp(app: PipedreamApp, props: AgentPipedreamProps) {
 }
 
 function renderAppBrowserModal(props: AgentPipedreamProps) {
-  const connectedApps = Array.isArray(props.connectedApps) ? props.connectedApps : [];
-  const allApps = Array.isArray(props.allApps) ? props.allApps : [];
-  const connectedSlugs = new Set(connectedApps.map((a) => a.slug));
-  const catalog = allApps.length > 0 ? allApps : ALL_APPS;
+  const connectedSlugs = new Set(props.connectedApps.map((a) => a.slug));
+  const sourceApps = props.allApps.length > 0 ? props.allApps : ALL_APPS;
   const search = props.appBrowserSearch.toLowerCase().trim();
-  const letter = (props.appBrowserLetter || "").toUpperCase();
-  const filtered = catalog.filter((app) => {
+  const filtered = sourceApps.filter((app) => {
     if (connectedSlugs.has(app.slug)) return false;
-    const appName = app.name ?? "";
-    const appSlug = app.slug ?? "";
-    if (letter) {
-      const nameFirst = (appName.match(/[A-Za-z]/)?.[0] ?? "").toUpperCase();
-      const slugFirst = (appSlug.match(/[A-Za-z]/)?.[0] ?? "").toUpperCase();
-      if (nameFirst !== letter && slugFirst !== letter) return false;
-    }
     if (!search) return true;
-    return appName.toLowerCase().includes(search) || appSlug.toLowerCase().includes(search);
+    return app.name.toLowerCase().includes(search) || app.slug.toLowerCase().includes(search);
   });
-  const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
 
   return html`
     <div class="modal-backdrop" @click=${props.onCloseAppBrowser}>
@@ -342,25 +399,21 @@ function renderAppBrowserModal(props: AgentPipedreamProps) {
             placeholder="Search apps by name or slug..."
             style="width: 100%; font-size: 16px;" autofocus />
           <div class="muted" style="margin-top: 8px; font-size: 13px;">
-            ${props.loadingApps
-              ? "Loading full catalog…"
-              : `${filtered.length} apps available${props.appBrowserLetter ? ` · Letter: ${props.appBrowserLetter}` : ""}`}
-          </div>
-          <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px;">
-            <button class="btn small ${!props.appBrowserLetter ? "primary" : ""}" @click=${() => props.onAppBrowserLetterChange("")}>All</button>
-            ${letters.map((l) => html`
-              <button class="btn small ${props.appBrowserLetter === l ? "primary" : ""}" @click=${() => props.onAppBrowserLetterChange(l)}>${l}</button>
-            `)}
+            ${props.loadingApps ? "Loading full app catalog…" : `${filtered.length} apps available`}
           </div>
         </div>
 
         <div style="flex: 1; overflow-y: auto; padding: 16px;">
-          ${filtered.length === 0
-            ? html`<div style="text-align: center; padding: 40px; color: var(--muted);">No apps found matching "${props.appBrowserSearch}"</div>`
-            : html`
-              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px;">
+          ${
+            props.loadingApps
+              ? html`<div style="text-align: center; padding: 40px; color: var(--muted);">Loading the full Pipedream app catalog…</div>`
+              : filtered.length === 0
+                ? html`<div style="text-align: center; padding: 40px; color: var(--muted);">No apps found matching "${props.appBrowserSearch}"</div>`
+                : html`
+              <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px;">
                 ${filtered.map((app) => renderAvailableApp(app, props))}
-              </div>`}
+              </div>`
+          }
         </div>
 
         <div style="padding: 16px; border-top: 1px solid var(--border); flex-shrink: 0;">
@@ -368,7 +421,9 @@ function renderAppBrowserModal(props: AgentPipedreamProps) {
           <div class="row" style="gap: 8px;">
             <input type="text" .value=${props.manualSlug}
               @input=${(e: Event) => props.onManualSlugChange((e.target as HTMLInputElement).value)}
-              @keydown=${(e: KeyboardEvent) => { if (e.key === "Enter" && props.manualSlug.trim()) props.onConnectManualSlug(); }}
+              @keydown=${(e: KeyboardEvent) => {
+                if (e.key === "Enter" && props.manualSlug.trim()) props.onConnectManualSlug();
+              }}
               placeholder="e.g., spotify, notion, stripe..."
               style="flex: 1;" />
             <button class="btn primary"

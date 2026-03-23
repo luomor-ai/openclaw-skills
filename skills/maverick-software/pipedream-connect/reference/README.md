@@ -1,97 +1,73 @@
 # Reference Implementation
 
-These files are the actual OpenClaw source code for the Pipedream integration. They are included for reference when:
+These files are synced snapshots of the actual OpenClaw Pipedream integration source.
 
-- Debugging issues with the integration
-- Building custom integrations
-- Understanding the OAuth flow
-- Extending functionality
+Use them when:
+- debugging the OpenClaw Pipedream integration
+- documenting current behavior
+- comparing a proposed change against the live implementation
+- tracing credential setup, agent app connection, activation, catalog loading, or tool registration
+
+## Important current behaviors
+
+### First-class MCP tools
+Connected Pipedream apps are no longer just raw mcporter endpoints. Their MCP tools are registered into the agent runtime as normal callable tools.
+
+### Per-agent isolation
+Each agent uses its own Pipedream `external_user_id`, usually defaulting to the agent id / slug.
+
+### Live connected-account discovery
+Agent refresh uses the live Pipedream Connect accounts API when credentials are available.
+
+### Dynamic full catalog
+The full app catalog is loaded dynamically from the gateway catalog path when the user opens **Browse All Apps**.
+
+### Real app icons
+Authenticated app metadata can include `img_src`, which is passed through as `iconUrl` for UI rendering with fallback behavior.
 
 ## Files
 
-### pipedream-backend.ts
+### `pipedream-backend.ts`
+Gateway handlers for:
+- credentials
+- catalog loading
+- app connect / disconnect / activate / test
+- per-agent status
+- mcporter server entry generation
+- live connected account discovery
 
-Gateway RPC handlers that run server-side. Key functions:
+### `pipedream-controller.ts`
+Global Pipedream dashboard controller:
+- platform credentials
+- global status
+- overall Pipedream UI actions
 
-- `pipedream.status` — Returns connection status and configured apps
-- `pipedream.saveCredentials` — Validates and stores OAuth credentials
-- `pipedream.getToken` — Gets fresh access token from stored credentials
-- `pipedream.getConnectUrl` — Creates Pipedream Connect token for OAuth flow
-- `pipedream.connectApp` — Saves app config to mcporter.json
-- `pipedream.disconnectApp` — Removes app from mcporter.json
-- `pipedream.refreshToken` — Updates stored access token
+### `pipedream-views.ts`
+Global Pipedream dashboard view and shared app icon rendering helpers.
 
-**Important:** All Pipedream API calls are made server-side to avoid CORS issues.
+### `agent-pipedream-controller.ts`
+Per-agent controller for:
+- app browser opening
+- dynamic catalog fetch
+- connected app state
+- activation / test / disconnect
 
-### pipedream-controller.ts
+### `agent-pipedream-views.ts`
+Per-agent view for:
+- connected apps
+- Browse All Apps modal
+- manual slug connect
+- activation / testing UI
 
-UI controller logic that handles user interactions:
+## Source of truth
 
-- `loadPipedreamState` — Fetches current state from backend
-- `savePipedreamCredentials` — Validates and saves credentials via backend
-- `connectPipedreamApp` — Handles the full OAuth flow:
-  1. Check if app already has tools (OAuth done)
-  2. If not, get connect URL and open popup
-  3. After OAuth, save config
-- `disconnectPipedreamApp` — Removes app connection
-- `testPipedreamApp` — Tests if app tools are accessible
-- `refreshPipedreamAppToken` — Manually refresh token
+These are reference copies.
 
-### pipedream-views.ts
+The running implementation lives in:
+- `~/openclaw/src/gateway/server-methods/pipedream.ts`
+- `~/openclaw/ui/src/ui/controllers/pipedream.ts`
+- `~/openclaw/ui/src/ui/views/pipedream.ts`
+- `~/openclaw/ui/src/ui/controllers/agent-pipedream.ts`
+- `~/openclaw/ui/src/ui/views/agents-panel-pipedream.ts`
 
-Lit templates for the UI. Includes:
-
-- Credentials form
-- Connected apps list
-- Available apps grid
-- App browser modal with search
-- Manual slug entry
-- Setup guide
-
-## Key Implementation Details
-
-### App Slug Format
-
-- **UI uses hyphens:** `google-calendar`
-- **MCP uses underscores:** `google_calendar`
-- Backend converts automatically
-
-### SSE Response Handling
-
-The MCP endpoint may return Server-Sent Events:
-
-```
-event: message
-data: {"result":{...},"jsonrpc":"2.0","id":1}
-```
-
-Parse by finding lines starting with `data: ` and extracting JSON.
-
-### OAuth Flow
-
-1. User clicks Connect
-2. Check `tools/list` — if empty, OAuth needed
-3. Call `pipedream.getConnectUrl` to get OAuth URL
-4. Open popup with URL including `&app=<slug>`
-5. User completes OAuth in popup
-6. User clicks Connect again
-7. `tools/list` now returns tools
-8. Save config to mcporter.json
-
-### Token Refresh
-
-Tokens expire after 1 hour. The refresh script:
-
-1. Reads credentials from `pipedream-credentials.json` or mcporter.json
-2. Calls Pipedream OAuth endpoint for new token
-3. Updates all `pipedream-*` servers in mcporter.json
-
-## Modifying
-
-If you need to modify this integration:
-
-1. The actual source is in `~/openclaw/src/` and `~/openclaw/ui/src/`
-2. After changes, run `npm run build` and `npm run ui:build`
-3. Restart gateway: `openclaw gateway restart`
-
-These reference files are snapshots and won't affect the running system.
+If behavior differs, trust the live OpenClaw source first and re-sync these reference files.

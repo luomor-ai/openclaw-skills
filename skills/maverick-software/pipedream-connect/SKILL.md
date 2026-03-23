@@ -1,199 +1,220 @@
 ---
 name: pipedream-connect
-description: Connect 2,000+ APIs with managed OAuth via Pipedream. Includes full UI integration for OpenClaw Gateway dashboard with per-agent app isolation.
-metadata: {"openclaw":{"emoji":"🔌","category":"integrations","requires":{"bins":["mcporter"],"openclaw":">=2026.1.0"},"configPaths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/pipedream-credentials.json","~/.openclaw/workspace/config/integrations/pipedream/*.json","~/.openclaw/workspace/config/mcporter.json","~/.openclaw/logs/pipedream-*.log"],"capabilities":[{"id":"file.read","paths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/**"]},{"id":"file.write","paths":["~/.openclaw/secrets.json","~/.openclaw/workspace/config/**","~/.openclaw/logs/**"]},{"id":"network.http","domains":["api.pipedream.com","remote.mcp.pipedream.net","mcp.pipedream.com"]},{"id":"cron.manage","scope":"user-crontab","optional":true}],"installWarnings":["Optional cron setup creates persistent token-refresh behavior.","Skill reads/writes vault and mcporter config files containing sensitive tokens."],"securityNotes":"Client secrets are stored in OpenClaw vault (~/.openclaw/secrets.json). Access tokens may be written to mcporter Authorization headers and refreshed periodically."}}
+description: Connect OpenClaw agents to thousands of apps via Pipedream Connect with per-agent OAuth isolation, first-class MCP tool exposure, live connected-account discovery, and dynamic full-catalog browsing. Use when setting up or maintaining the OpenClaw Pipedream integration, troubleshooting agent app connections, documenting the Pipedream dashboard / agent tools flow, or working on Pipedream catalog, icons, activation, and MCP tool registration behavior.
 ---
 
 # Pipedream Connect
 
-Connect your AI agents to 2,000+ APIs with managed OAuth via Pipedream. Each agent gets its own isolated app connections and OAuth tokens.
+Use this skill for the OpenClaw Pipedream integration.
 
-## What's New (2026-03-10 v1.5.2)
+## Current integration summary
 
-- Added **A–Z alphabet filter** in the per-agent Browse Apps modal for fast app lookup by starting letter
-- Added active letter indicator in results summary (e.g., `Letter: Q`)
-- Improved app card readability in Browse Apps (wrapped names, reduced truncation)
-- Updated reference snapshots for latest app catalog fallback + CSP compatibility path
+OpenClaw now uses this model:
 
-## What's New (2026-03-10 v1.5.1)
+- **Global Pipedream tab** = platform credentials only
+- **Agent Tools → Pipedream** = per-agent app connections and activation
+- **Connected Pipedream apps become first-class agent tools**
+- **Connected apps are discovered live from Pipedream Connect accounts API**
+- **Browse All Apps loads the full dynamic catalog on demand**
+- **Catalog icons come from authenticated Pipedream app metadata (`img_src`) when available**
 
-- Added explicit metadata declarations for config paths, capabilities, persistence, and security notes
-- Clarified persistent behavior (optional cron token refresh) and sensitive file access in docs
-- Aligned docs with actual paths under `~/.openclaw/`
+## Key improvements already implemented
 
-## What's New (2026-03-01 v1.3.0)
+### 1) Connected Pipedream tools are first-class tools
+Connected app MCP tools are registered into the agent runtime as normal tools.
 
-- **Per-agent app connections** — App connections moved to Agents → [Agent] → Tools → Pipedream
-- **Global tab = credentials only** — The Pipedream tab is now for platform auth (Client ID/Secret/Project ID) only
-- **External User ID defaults to agent slug** — e.g. `main`, `scout-monitor` (not a UUID)
-- **Live connected apps** — Refresh queries the Pipedream API for real connected accounts
-- **Environment warning** — Agent panel shows a warning when running in development mode
-- **New RPCs**: `pipedream.connect`, `pipedream.disconnect`, `pipedream.test` (per-agent, use `agentId` + `appSlug`)
+This means:
+- agents do **not** need raw `mcporter call ...` bridge syntax in normal chat use
+- tool catalog surfaces connected app tools directly
+- execution still routes through per-agent mcporter servers under the hood
 
-## What's New (v1.3.0) — Vault-Backed Secrets
+Server naming pattern:
 
-- **`clientId` and `clientSecret` stored in `~/.openclaw/secrets.json`** (OpenClaw vault) — no longer plaintext in `pipedream-credentials.json`
-- **`PIPEDREAM_CLIENT_SECRET` removed from `mcporter.json` env** — client secret is never written to mcporter config
-- **Auto-migration**: on first gateway start after upgrade, existing `pipedream-credentials.json` secrets are silently moved to vault and stripped from the file
-- **Token refresh script** now reads from vault first (falls back to credentials.json → mcporter.json for backwards compat)
-- **`pipedream-credentials.json`** now contains only non-sensitive fields: `projectId`, `environment`, `externalUserId`
-- VirusTotal "suspicious" flag resolved — no plaintext credential files
+```text
+pipedream-{externalUserId}-{appSlug}
+```
+
+### 2) Per-agent connection model
+Each agent gets its own Pipedream identity via `external_user_id`.
+
+Default behavior:
+- `external_user_id` defaults to the agent slug / id
+- each agent gets isolated OAuth accounts and MCP tool exposure
+
+Per-agent config path:
+
+```text
+~/.openclaw/workspace/config/integrations/pipedream/{agentId}.json
+```
+
+### 3) Live connected-account discovery
+Agent refresh uses the Pipedream Connect accounts API to discover connected apps live.
+
+Do not assume local config is the source of truth for connected apps if live API access is available.
+
+### 4) Full app catalog is dynamic
+The app browser should use the live full catalog, not a static baked-in list.
+
+Current intended behavior:
+- clicking **Browse All Apps** loads the full catalog dynamically
+- do not rely on stale frontend app constants for authoritative app metadata
+
+### 5) Real app icons now flow from Pipedream metadata
+Use authenticated Pipedream app metadata when available so apps can render real icons.
+
+Important detail:
+- authenticated app endpoints expose `img_src`
+- public MCP catalog endpoints may not expose equivalent icon metadata on the same path
+- UI should render `iconUrl` when present and fall back safely when missing / broken
 
 ## Architecture
 
+```text
+Global Pipedream tab
+  -> save platform credentials
+  -> show overall status
+
+Agents -> [Agent] -> Tools -> Pipedream
+  -> set / override external user id
+  -> connect app
+  -> refresh connected accounts
+  -> activate connected app MCP tools
+  -> browse full dynamic app catalog
 ```
-Global Pipedream Tab
-  └── Platform credentials (Client ID, Secret, Project ID, Environment)
-  └── Agent quick-links table (→ navigate to per-agent config)
 
-Agents → [Agent] → Tools → Pipedream
-  └── External User ID (defaults to agent slug)
-  └── Connected Apps (live from Pipedream API)
-  └── Available Apps grid + Browse All Apps modal
-  └── Manual slug entry
+## Setup workflow
+
+### 1) Create Pipedream credentials
+In Pipedream:
+- create an OAuth client
+- copy `client_id` and `client_secret`
+- create / select a project
+- copy `project_id`
+
+### 2) Configure OpenClaw global credentials
+In the OpenClaw dashboard Pipedream tab, save:
+- Client ID
+- Client Secret
+- Project ID
+- Environment
+
+Prefer `production` unless explicitly testing in development.
+
+### 3) Connect apps per agent
+In **Agents → [Agent] → Tools → Pipedream**:
+- verify the external user id
+- connect an app
+- complete OAuth
+- refresh
+- activate the app if needed
+
+### 4) Use the tools normally
+After activation, connected MCP tools should appear as ordinary tools for that agent.
+
+## Storage and security
+
+### Secrets
+Store `clientId` and `clientSecret` in the OpenClaw vault:
+
+```text
+~/.openclaw/secrets.json
 ```
 
-## Prerequisites
+### Non-secret config
+Store non-secret Pipedream config in:
 
-1. **Pipedream Account** — [pipedream.com](https://pipedream.com)
-2. **mcporter** — `npm install -g mcporter`
-3. **OpenClaw Gateway** — v2026.1.0 or later
+```text
+~/.openclaw/workspace/config/pipedream-credentials.json
+```
 
-## Setup
+Expected non-secret fields:
+- `projectId`
+- `environment`
+- `externalUserId`
 
-### Step 1: Create OAuth Client & Project
+Do not keep plaintext client secrets in normal config files.
 
-1. Go to [pipedream.com/settings/api](https://pipedream.com/settings/api) → **New OAuth Client**
-2. Copy **Client ID** and **Client Secret**
-3. Go to [pipedream.com/projects](https://pipedream.com/projects) → create a project
-4. Copy **Project ID** (`proj_...`)
+## Runtime behavior to preserve
 
-### Step 2: Configure Platform Credentials
+When editing this integration, preserve these behaviors:
 
-1. OpenClaw Dashboard → **Pipedream** tab → **Configure**
-2. Enter Client ID, Client Secret, Project ID
-3. Set **Environment** to `production` (not development — development tokens expire faster and have lower rate limits)
-4. Click **Save Credentials**
+1. **Connected apps remain per-agent isolated**
+2. **Connected app tools remain first-class tools in the agent runtime**
+3. **Live API data beats stale local display metadata**
+4. **Browse All Apps uses the dynamic full catalog**
+5. **Icons use `img_src` / `iconUrl` when available**
+6. **UI falls back safely if an icon URL fails**
 
-### Step 3: Connect Apps Per Agent
+## Useful RPCs / methods
 
-1. Go to **Agents → [Agent] → Tools → Pipedream**
-2. Verify the **External User ID** (defaults to agent slug, e.g. `main`)
-3. Click **Connect** on any app in the grid — completes OAuth in a popup
-4. Click **↻ Refresh** after OAuth completes to see the app appear in Connected Apps
+Common gateway methods involved in this integration include:
 
-### Step 4: Token Refresh (Recommended)
+- `pipedream.status`
+- `pipedream.saveCredentials`
+- `pipedream.catalog`
+- `pipedream.connect`
+- `pipedream.disconnect`
+- `pipedream.activate`
+- `pipedream.test`
+- `pipedream.agent.status`
+- `pipedream.agent.save`
+- `pipedream.agent.delete`
+
+When documenting or debugging, confirm the exact current implementation in gateway server methods and the agent/global Pipedream UI controllers.
+
+## Debugging guidance
+
+### Connected app missing
+Check in this order:
+1. global credentials configured
+2. correct project / environment
+3. OAuth completed successfully
+4. agent external user id is the one you expect
+5. refresh calls the live accounts API successfully
+6. app activation completed
+
+### Tool missing after app connection
+Check:
+1. connected account is present in `pipedream.agent.status`
+2. mcporter server was created for `pipedream-{externalUserId}-{appSlug}`
+3. runtime tool registration is loading MCP tools into the agent catalog
+
+### Wrong / stale icon
+Check:
+1. whether the catalog path is using authenticated Pipedream app metadata
+2. whether `img_src` is mapped to `iconUrl`
+3. whether UI is rendering from live catalog data or an old static fallback
+4. whether fallback rendering is masking an image load failure
+
+### Wrong app list behavior
+If Browse uses stale frontend constants, prefer the dynamic catalog path instead.
+
+## Shell / low-level debugging
+
+For low-level debugging only, mcporter servers follow this pattern:
 
 ```bash
-# Cron job — runs every 45 minutes
-(crontab -l 2>/dev/null; echo "*/45 * * * * /usr/bin/python3 $HOME/openclaw/skills/pipedream-connect/scripts/pipedream-token-refresh.py >> $HOME/openclaw/logs/pipedream-cron.log 2>&1") | crontab -
-```
-
-## Per-Agent Isolation
-
-Each agent uses a separate Pipedream `external_user_id`:
-
-| Agent | External User ID | Pipedream Identity |
-|-------|-----------------|-------------------|
-| `main` | `main` | Isolated OAuth tokens |
-| `scout-monitor` | `scout-monitor` | Isolated OAuth tokens |
-| `scout-spark` | `scout-spark` | Isolated OAuth tokens |
-
-Config stored at: `~/.openclaw/workspace/config/integrations/pipedream/{agentId}.json`
-
-**External User ID defaults to agent slug.** Override it in Agents → Tools → Pipedream → Edit.
-
-## RPC Reference
-
-### Global (credentials)
-| RPC | Params | Description |
-|-----|--------|-------------|
-| `pipedream.status` | — | Get global credential status + agent summaries |
-| `pipedream.saveCredentials` | `clientId, clientSecret, projectId, environment` | Save platform credentials |
-| `pipedream.getToken` | — | Get/refresh the platform OAuth access token |
-| `pipedream.getConnectUrl` | `agentId, appSlug` | Get OAuth connect URL for a user+app |
-| `pipedream.connectApp` | `agentId, appSlug` | Complete app connection + write to mcporter |
-| `pipedream.disconnectApp` | `agentId, appSlug` | Disconnect app + remove from mcporter |
-| `pipedream.refreshToken` | `agentId?, appSlug?` | Refresh token(s) — all or specific agent/app |
-| `pipedream.activate` | `agentId, appSlug` | Activate an app (add to mcporter if not present) |
-
-### Per-Agent
-| RPC | Params | Description |
-|-----|--------|-------------|
-| `pipedream.agent.status` | `agentId` | Get config + live connected apps from API |
-| `pipedream.agent.save` | `agentId, externalUserId` | Save per-agent config |
-| `pipedream.agent.delete` | `agentId` | Remove per-agent config |
-| `pipedream.connect` | `agentId, appSlug` | Get OAuth connect URL for agent |
-| `pipedream.disconnect` | `agentId, appSlug` | Disconnect app + remove from mcporter |
-| `pipedream.test` | `agentId, appSlug` | Test app connection |
-
-## Using Connected Tools
-
-```bash
-# Gmail (agent: main → externalUserId: main)
 mcporter call pipedream-main-gmail.gmail-find-email \
   instruction="Find unread emails from today"
-
-# Google Calendar (agent: scout-monitor)
-mcporter call pipedream-scout-monitor-google-calendar.google-calendar-find-event \
-  instruction="Find events for tomorrow"
 ```
 
-Server names follow the pattern: `pipedream-{externalUserId}-{appSlug}`
+But for normal OpenClaw agent use, prefer the first-class tool path rather than instructing users to call mcporter directly.
 
-## Environment: Development vs Production
+## Files commonly involved
 
-⚠️ **Use Production** for real work:
-- Development tokens expire faster and have lower rate limits
-- Set in: Pipedream tab → Edit credentials → Environment → Production
-- The agent Pipedream panel shows a warning when running in development mode
+Check these areas when updating the integration:
 
-## Security
+- gateway server methods for `pipedream.*`
+- global Pipedream UI view/controller
+- agent Pipedream UI view/controller
+- runtime tool registration path that imports connected MCP tools into the agent tool registry
+- mcporter config write / refresh path
 
-| Behavior | Detail |
-|----------|--------|
-| **clientId** | Stored in `~/.openclaw/secrets.json` (vault, 0600) |
-| **clientSecret** | Stored in `~/.openclaw/secrets.json` (vault, 0600) — never in plaintext config files |
-| Non-secret config | `~/.openclaw/workspace/config/pipedream-credentials.json` — projectId, environment, externalUserId only |
-| Per-agent config | `~/.openclaw/workspace/config/integrations/pipedream/{agentId}.json` |
-| Access tokens (JWT) | Short-lived Bearer token in `mcporter.json` Authorization header — acceptable, refreshed every 45 min |
-| mcporter env | `PIPEDREAM_CLIENT_SECRET` is **never** written to mcporter.json |
-| External API calls | `api.pipedream.com`, `remote.mcp.pipedream.net` |
-| Auto-migration | Existing plaintext credentials.json secrets automatically moved to vault on first gateway start |
+## Practical rule
 
-## Troubleshooting
-
-**Connected app not showing after OAuth**
-→ Click ↻ Refresh — the panel queries the Pipedream API live for connected accounts
-
-**`unknown method: pipedream.connect`**
-→ Rebuild and restart gateway: `pnpm build && openclaw gateway restart`
-
-**`No Pipedream credentials configured`**
-→ Set up credentials in the global Pipedream tab first
-
-**Development environment warning**
-→ Edit credentials in Pipedream tab, change Environment to `production`, save
-
-**Token expired**
-→ Set up the 45-minute cron job above, or click Connect again to re-authorize
-
-## Support
-
-- **ClawHub**: [clawhub.ai/skills/pipedream-connect](https://clawhub.ai/skills/pipedream-connect)
-- **Pipedream Docs**: [pipedream.com/docs](https://pipedream.com/docs)
-- **MCP Apps**: [mcp.pipedream.com](https://mcp.pipedream.com)
-- **OpenClaw Discord**: [discord.com/invite/clawd](https://discord.com/invite/clawd)
-
-## Reference Files
-
-| File | Purpose |
-|------|---------|
-| `reference/pipedream-backend.ts` | Gateway RPC handlers (all pipedream.* methods) |
-| `reference/pipedream-views.ts` | Global Pipedream tab UI (Lit) |
-| `reference/pipedream-controller.ts` | Global tab state management |
-| `reference/agent-pipedream-views.ts` | Per-agent Pipedream panel UI (Agents → Tools → Pipedream) |
-| `reference/agent-pipedream-controller.ts` | Per-agent state management |
-| `reference/control-ui-csp.ts` | Control UI CSP policy (connect-src allowlist) |
-| `reference/README.md` | Reference file notes |
-| `scripts/` | Token refresh and utility scripts |
+If the question is about:
+- credentials or project setup -> global tab
+- app connection / activation -> agent tools panel
+- tool availability -> runtime MCP tool registration
+- icons / catalog display -> dynamic catalog path
+- stale metadata -> remove static fallback dependence first

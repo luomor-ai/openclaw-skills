@@ -1,39 +1,27 @@
 # Changelog
 
-All notable changes to the Pipedream Connect skill will be documented in this file.
+All notable changes to the Pipedream Connect skill are documented here.
 
-## [1.5.2] - 2026-03-10
-
-### Added
-- A–Z alphabet filter in the per-agent "Browse Apps" modal to quickly narrow app list by starting letter
-- Active letter indicator in app count text (e.g. `Letter: Q`) for clearer filter state
-
-### Fixed
-- Improved letter filter matching to use first alphabetic character from app name/slug
-- Improved app card readability in modal by removing hard truncation and allowing wrapped names
-- Included latest CSP/reference updates for direct catalog fallback (`https://mcp.pipedream.com`) in reference snapshots
-
-## [1.5.1] - 2026-03-10
-
-### Fixed
-- Added explicit metadata declarations for sensitive config paths touched by the skill (`secrets.json`, `pipedream-credentials.json`, per-agent config files, `mcporter.json`, log paths)
-- Added capability declarations for file read/write, outbound network domains, and optional cron persistence
-- Clarified persistence and credential handling in metadata and docs to match real behavior
-- Corrected INSTALL.md paths to current `~/.openclaw/...` layout and vault-backed credential model
-
-## [1.5.0] - 2026-03-10
+## [1.6.0] - 2026-03-21
 
 ### Added
-- Live Pipedream app catalog loading in the per-agent app browser (`https://mcp.pipedream.com/api/apps`) with pagination, dedupe, and in-memory caching
-- Catalog loading state in the app browser modal
+- Documented the current OpenClaw Pipedream architecture around first-class MCP tool exposure, per-agent isolation, live connected-account discovery, dynamic full-catalog browsing, and authenticated icon passthrough
+- Synced bundled reference snapshots from the live OpenClaw source so the skill's code references match the current implementation
 
 ### Changed
-- Agent Pipedream app browsing now prefers the live catalog over the old hardcoded app list
-- Featured app section now sources from the loaded catalog when available
+- Updated skill guidance to treat connected Pipedream MCP tools as ordinary agent tools, not just raw mcporter endpoints
+- Updated install guidance to reflect current config paths, vault usage, dynamic catalog behavior, and icon handling
+- Updated reference documentation to emphasize live catalog loading, `img_src` / `iconUrl`, and the dynamic Browse All Apps flow
 
-### Fixed
-- Prevented indefinite "Loading…" hangs in agent Pipedream status by adding a timeout to the backend accounts fetch
-- Improved fallback behavior when Pipedream API is slow/unreachable so UI still renders
+## [1.5.0] - 2026-03-17
+
+### Added
+- Connected per-agent Pipedream MCP app tools are now injected into the OpenClaw agent runtime as first-class tools
+- `tools.catalog` now includes live connected Pipedream tools under a `Pipedream MCP` group so the agent Tools UI reflects callable runtime tools
+
+### Changed
+- Agent tool execution now routes connected Pipedream tools through the matching `pipedream-{agentId}-*` mcporter server automatically
+- Skill docs updated to describe direct in-chat tool availability, not just raw `mcporter call` usage
 
 ## [1.4.0] - 2026-03-01
 

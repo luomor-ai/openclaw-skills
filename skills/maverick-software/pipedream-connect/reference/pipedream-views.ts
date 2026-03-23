@@ -4,6 +4,7 @@ export type PipedreamApp = {
   slug: string;
   name: string;
   icon: string;
+  iconUrl?: string;
   connected: boolean;
   toolCount?: number;
   accountName?: string;
@@ -35,7 +36,12 @@ export type PipedreamState = {
   allApps: PipedreamApp[];
   loadingApps: boolean;
   manualSlug: string;
-  agentSummaries: Array<{ agentId: string; configured: boolean; externalUserId: string; appCount: number }>;
+  agentSummaries: Array<{
+    agentId: string;
+    configured: boolean;
+    externalUserId: string;
+    appCount: number;
+  }>;
 };
 
 export type PipedreamProps = PipedreamState & {
@@ -54,6 +60,26 @@ export type PipedreamProps = PipedreamState & {
   onManualSlugChange: (value: string) => void;
   onConnectManualSlug: () => void;
 };
+
+export function renderAppIcon(app: Pick<PipedreamApp, "name" | "icon" | "iconUrl">, size = 18) {
+  if (app.iconUrl) {
+    return html`<img
+      src=${app.iconUrl}
+      alt=${app.name}
+      loading="lazy"
+      referrerpolicy="no-referrer"
+      style=${`width: ${size}px; height: ${size}px; border-radius: 4px; object-fit: contain; flex-shrink: 0; background: transparent;`}
+      @error=${(e: Event) => {
+        const img = e.currentTarget as HTMLImageElement | null;
+        if (!img) return;
+        img.style.display = "none";
+        const fallback = img.nextElementSibling as HTMLElement | null;
+        if (fallback) fallback.style.display = "inline-flex";
+      }}
+    /><span style=${`display: none; width: ${size}px; height: ${size}px; align-items: center; justify-content: center; font-size: ${size}px; flex-shrink: 0;`}>${app.icon}</span>`;
+  }
+  return html`<span style=${`display: inline-flex; width: ${size}px; height: ${size}px; align-items: center; justify-content: center; font-size: ${size}px; flex-shrink: 0;`}>${app.icon}</span>`;
+}
 
 export function renderPipedream(props: PipedreamProps) {
   const statusLabel = props.configured ? "Active" : "Not Configured";
@@ -74,34 +100,46 @@ export function renderPipedream(props: PipedreamProps) {
         <span class="chip ${statusClass}" style="margin-left: 8px;">${statusLabel}</span>
       </div>
       <div class="card-sub">
-        ${props.configured
-          ? "Platform credentials configured. Go to an agent's Tools → Pipedream tab to connect apps."
-          : "Enter your Pipedream credentials below to enable OAuth app connections for your agents."}
+        ${
+          props.configured
+            ? "Platform credentials configured. Go to an agent's Tools → Pipedream tab to connect apps."
+            : "Enter your Pipedream credentials below to enable OAuth app connections for your agents."
+        }
       </div>
     </section>
 
     <section class="card" style="margin-top: 16px;">
       <div class="row" style="justify-content: space-between; align-items: center;">
         <div class="card-title">🔑 Credentials</div>
-        ${!props.showCredentialsForm
-          ? html`<button class="btn" @click=${props.onConfigure}>${props.configured ? "Edit" : "Configure"}</button>`
-          : nothing}
+        ${
+          !props.showCredentialsForm
+            ? html`<button class="btn" @click=${props.onConfigure}>${props.configured ? "Edit" : "Configure"}</button>`
+            : nothing
+        }
       </div>
-      ${props.showCredentialsForm
-        ? renderCredentialsForm(props)
-        : html`
+      ${
+        props.showCredentialsForm
+          ? renderCredentialsForm(props)
+          : html`
           <div class="card-sub" style="margin-top: 8px;">
-            ${props.configured
-              ? html`
+            ${
+              props.configured
+                ? html`
                 <div class="row" style="gap: 24px; margin-top: 12px; flex-wrap: wrap;">
                   <div><span class="muted">Project ID:</span> <code style="margin-left: 8px;">${props.credentials.projectId}</code></div>
                   <div><span class="muted">Environment:</span> <span style="margin-left: 8px;">${props.credentials.environment}</span></div>
                 </div>`
-              : html`<p class="muted">No credentials configured. Click "Configure" to get started.</p>`}
-          </div>`}
+                : html`
+                    <p class="muted">No credentials configured. Click "Configure" to get started.</p>
+                  `
+            }
+          </div>`
+      }
     </section>
 
-    ${props.configured && props.agentSummaries?.length > 0 ? html`
+    ${
+      props.configured && props.agentSummaries?.length > 0
+        ? html`
       <section class="card" style="margin-top: 16px;">
         <div class="card-title">👥 Agent Connections</div>
         <div class="card-sub">Each agent manages its own app connections. Configure in Agents → [Agent] → Tools → Pipedream.</div>
@@ -115,7 +153,8 @@ export function renderPipedream(props: PipedreamProps) {
             </tr>
           </thead>
           <tbody>
-            ${props.agentSummaries.map((agent) => html`
+            ${props.agentSummaries.map(
+              (agent) => html`
               <tr style="border-bottom: 1px solid var(--border);">
                 <td style="padding: 8px 12px;"><span class="mono" style="font-size: 13px;">${agent.agentId}</span></td>
                 <td style="padding: 8px 12px;"><code style="font-size: 12px;">${agent.externalUserId || agent.agentId}</code></td>
@@ -123,17 +162,29 @@ export function renderPipedream(props: PipedreamProps) {
                   <span class="chip ${agent.configured ? "chip-ok" : "chip-muted"}">${agent.configured ? "Configured" : "Global"}</span>
                 </td>
                 <td style="padding: 8px 12px; text-align: right;">
-                  <a href="#" style="font-size: 12px; color: var(--accent);" @click=${(e: Event) => {
+                  <a href="#" style="font-size: 12px; color: var(--accent);" @click=${(
+                    e: Event,
+                  ) => {
                     e.preventDefault();
-                    window.dispatchEvent(new CustomEvent("openclaw-navigate", {
-                      detail: { tab: "agents", agentId: agent.agentId, panel: "tools", subTab: "pipedream" }
-                    }));
+                    window.dispatchEvent(
+                      new CustomEvent("openclaw-navigate", {
+                        detail: {
+                          tab: "agents",
+                          agentId: agent.agentId,
+                          panel: "tools",
+                          subTab: "pipedream",
+                        },
+                      }),
+                    );
                   }}>Configure →</a>
                 </td>
-              </tr>`)}
+              </tr>`,
+            )}
           </tbody>
         </table>
-      </section>` : nothing}
+      </section>`
+        : nothing
+    }
 
     <section class="card" style="margin-top: 16px;">
       <div class="card-title">📚 Setup Guide</div>

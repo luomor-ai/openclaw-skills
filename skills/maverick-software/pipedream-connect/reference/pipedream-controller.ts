@@ -368,7 +368,7 @@ export async function disconnectPipedreamApp(
   setState: SetState,
 ): Promise<void> {
   const app = state.connectedApps.find((a) => a.slug === appSlug);
-  const serverName = (app)?.serverName;
+  const serverName = app?.serverName;
 
   if (!serverName) {
     setState((prev) => ({
@@ -508,7 +508,7 @@ export async function refreshPipedreamAppToken(
   setState: SetState,
 ): Promise<void> {
   const app = state.connectedApps.find((a) => a.slug === appSlug);
-  const serverName = (app)?.serverName;
+  const serverName = app?.serverName;
 
   setState((prev) => ({ ...prev, refreshingApp: appSlug, error: null, success: null }));
 
@@ -633,7 +633,9 @@ export async function connectManualSlug(
   setState: SetState,
 ): Promise<void> {
   const slug = state.manualSlug.trim().toLowerCase();
-  if (!slug) {return;}
+  if (!slug) {
+    return;
+  }
 
   // Use existing connectPipedreamApp with the manual slug
   await connectPipedreamApp(client, slug, state, setState);
@@ -644,7 +646,6 @@ export async function connectManualSlug(
     manualSlug: "",
   }));
 }
-
 
 // Load per-agent Pipedream summaries for the global tab
 export async function loadPipedreamAgentSummaries(
@@ -657,7 +658,9 @@ export async function loadPipedreamAgentSummaries(
       agents?: Array<{ id: string }>;
     }>("agents.list", {});
     const agents = agentsResult?.agents ?? [];
-    if (agents.length === 0) {return;}
+    if (agents.length === 0) {
+      return;
+    }
 
     // Fetch per-agent status in parallel
     const summaries = await Promise.all(
