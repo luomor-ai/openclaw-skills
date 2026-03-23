@@ -1,6 +1,6 @@
 ---
 name: kiln
-description: Control 3D printers with AI agents — 273 MCP tools, 107 CLI commands, text/sketch-to-3D generation, model marketplace search, multi-printer fleet support, safety enforcement, and outsourced manufacturing
+description: Control 3D printers with AI agents — 430 MCP tools, 114 CLI commands, text/sketch-to-3D generation, model marketplace search, multi-printer fleet support, safety enforcement, and outsourced manufacturing
 homepage: https://kiln3d.com
 user-invocable: true
 metadata: {"openclaw":{"emoji":"🏭","os":["darwin","linux"],"requires":{"env":["KILN_PRINTER_HOST","KILN_PRINTER_API_KEY"],"bins":["kiln"],"anyBins":["prusaslicer","orcaslicer"]},"primaryEnv":"KILN_PRINTER_HOST","install":[{"kind":"uv","pkg":"kiln3d","git":"https://github.com/codeofaxel/Kiln.git","subdirectory":"kiln"}],"optional":{"env":["KILN_PRINTER_TYPE","KILN_PRINTER_MODEL","KILN_AUTONOMY_LEVEL","KILN_HEATER_TIMEOUT","KILN_CRAFTCLOUD_API_KEY","KILN_SCULPTEO_API_KEY","KILN_MESHY_API_KEY","KILN_TRIPO3D_API_KEY","KILN_STABILITY_API_KEY","KILN_GEMINI_API_KEY"]}}}
@@ -34,7 +34,7 @@ Kiln supports **two interfaces**. Pick based on your capabilities:
 | **How it works** | `kiln <command> [flags] --json` | MCP tool calls with JSON arguments |
 | **Response format** | JSON to stdout (with `--json`) | Structured JSON objects |
 | **Setup** | Just env vars + `kiln` on PATH | `kiln serve` running as MCP server |
-| **Tool count** | 107 CLI commands | 273 MCP tools |
+| **Tool count** | 114 CLI commands | 430 MCP tools |
 | **Best for** | Quick start, debugging, simple workflows | Tight integration, full tool catalog |
 
 **Don't know which?** Try CLI first. Run `kiln status --json`. If that
@@ -336,7 +336,7 @@ Check exit code first (0 = success), then `"warnings"` in the JSON.
 
 ## MCP Interface
 
-If your platform has an MCP client, Kiln exposes 273 tools as an MCP
+If your platform has an MCP client, Kiln exposes 430 tools as an MCP
 server. Tools are called by name with JSON arguments — your MCP client
 handles the transport.
 

@@ -2,6 +2,83 @@
 
 Prioritized backlog of features and improvements.
 
+## 0.5.0 Release Prep — This Week (2026-03-20)
+
+### Full Pipeline Demo Video (Adam + Claude)
+- [ ] Script the agent conversation flow: text description → `get_design_brief` → `recommend_design_material` → `build_generation_prompt` → `generate_model` → `preview_generated_model` → `analyze_printability` → `slice_model` → `preflight_check` → `start_print` → `monitor_print` → finished object in hand
+- [ ] Adam: pick the object (something simple and visual — phone stand, headphone hook, desk organizer)
+- [ ] Adam: handle physical printer and camera work (screen record chat + film printer + photo of finished object)
+- [ ] Claude: prepare the scripted prompt sequence so the demo flows smoothly
+- [ ] Edit into a 2-3 min video showing the magic moment: "type what you want, get the object"
+- [ ] Use as hero content for website revamp and README
+
+### Website & Docs Revamp (pending attorney sign-off on positioning changes)
+- [ ] Get attorney sign-off on repositioning "Positioning Clarification" / "Non-goals" in README (email drafted)
+- [ ] Rewrite Hero.astro — emotional tagline above SEO headline
+- [ ] Rewrite FeatureGrid.astro — lead with pipeline story, not infrastructure
+- [ ] Add "Works with your printer" compatibility strip with logos
+- [ ] Rewrite subtitle from "infrastructure" to "intelligence layer"
+- [ ] Update all tool/CLI counts to verified numbers
+- [ ] Embed demo video as hero content
+
+### Version Bump
+- [ ] Bump to 0.5.0 only after website/docs are ready
+- [ ] Full CHANGELOG update
+- [ ] Tag + PyPI release
+- [ ] Update MCP registry, ClawHub, Glama, server.json
+
+## IRL Design-to-Print Validation (2026-03-10)
+
+End-to-end testing of the v0.4.0 design generation pipeline on Adam's Bambu A1 Combo. Goal: prove the full loop works (NL → template → OpenSCAD → STL → structural analysis → slice → print) and capture what breaks.
+
+### Test 1: Simple Functional Print — Cable Management Clip
+- [ ] Use `search_design_templates` to find a cable clip template
+- [ ] Use `design_to_gcode_pipeline` with a description like "cable clip for 3 cables, desk mount"
+- [ ] Inspect the generated STL — does it look right? Reasonable wall thickness?
+- [ ] Check `estimate_mesh_weight` output — does the weight estimate make sense?
+- [ ] Run structural analysis — does auto-reinforcement suggest anything?
+- [ ] Slice with slicer inference settings and upload to A1 (AMS auto-detect)
+- [ ] Print it. Does it fit real cables? Is it strong enough?
+- [ ] **Log**: what worked, what failed, parameter tweaks needed
+
+### Test 2: Parametric Constraint Solving — Shelf Bracket
+- [ ] Use `solve_template_constraints` with ratio constraints (e.g., arm_length = 2x wall_length)
+- [ ] Generate the bracket STL from solved parameters
+- [ ] Run `cross_section_view` at the stress point — does the cross-section look solid?
+- [ ] Print it. Load test by hand — does it hold a book? Flex? Snap?
+- [ ] **Log**: constraint solver accuracy, printability of solved dimensions
+
+### Test 3: Compositional Generation — Custom Multi-Part Object
+- [ ] Use `compose_from_primitives` to build something novel (e.g., phone stand with cable slot)
+- [ ] Use `merge_stl_files` if assembling from multiple generated parts
+- [ ] Run the full structural + weight + slicer pipeline
+- [ ] Print it. Does it function as intended?
+- [ ] **Log**: boolean operation quality, dimensional accuracy, fit/finish
+
+### Test 4: Infrastructure Reliability
+- [ ] Use `watch_print` with `cancel_at_percent=50` on a test print — does auto-cancel trigger?
+- [ ] Verify camera ground-truth: does `telemetry_mismatch` flag correctly when progress is real?
+- [ ] Verify AMS auto-detect: does `use_ams="auto"` correctly probe and map the loaded slot?
+- [ ] **Log**: any edge cases, timing issues, false positives
+
+### Test 5: Template Printability Sweep
+- [ ] Pick 5 diverse templates (different categories) and generate STLs with default params
+- [ ] Quick visual check: overhangs >60°? Thin walls <0.8mm? Impossible bridges?
+- [ ] Print the sketchiest-looking one — does it actually print or fail?
+- [ ] **Log**: which templates need parameter range tightening
+
+### After All Tests
+- [ ] Compile findings into LESSONS_LEARNED.md
+- [ ] File bugs / parameter fixes discovered during printing
+- [ ] Update template defaults if any produced unprintable geometry
+- [ ] Take photos of printed objects for demo materials
+
+## Bambu A1 First Print — Active Issues (2026-03-04)
+
+- **MakerWorld Cloudflare bypass** — MakerWorld (Bambu's model marketplace) is behind Cloudflare challenge pages, making programmatic 3MF downloads impossible from CLI/API. If Kiln claims marketplace support, we need this to work. Options: (1) reverse-engineer MakerWorld API with proper auth headers, (2) use BambuStudio's built-in MakerWorld integration as a proxy, (3) implement a headless browser download path. High priority for marketplace feature credibility.
+- **BambuStudio CLI STL→3MF slicing broken** — `BambuStudio --slice --export-3mf` loads STL models ("total 1 models") but never assigns them to plates ("0 objects"), preventing slicing. Known issue with v02.05.00.66. Workaround: build 3MFs manually with proper `Metadata/slice_info.config` (format documented in `bbs_3mf.cpp`). Track upstream fix.
+- **Bambu 3MF metadata structure** — Firmware requires `Metadata/slice_info.config` for layer tracking (0/0 display without it). Full format reverse-engineered from BambuStudio source. Key fields: plate index, prediction time, weight, filament info, printer_model_id. Document in LESSONS_LEARNED once confirmed working.
+
 ## Board Review — Remaining Gaps (2026-02-13)
 
 Gaps identified during the 4-judge board review (Orfalea, Bass, Andreessen, Huang). Round 1+2 fixes raised average from 69.5→82.0. These are what's left.
@@ -77,7 +154,9 @@ First test done (2026-02-13): print succeeded, 8 min, PLA, quality fine. Issues 
 - ~~**DM John (3DOS) for API access**~~ ✅ Done (2026-02-12). DM'd John personally — introduced Kiln, explained 3DOS integration (6 MCP tools, CLI commands, 46 tests), asked for API keys. Awaiting reply.
 - ~~**Craftcloud outreach**~~ ✅ Done (2026-02-12). Cold email sent to support@craftcloud3d.com + LinkedIn connection request to Mathias Plica (CEO). Introduced Kiln, explained Craftcloud adapter is built, asked for API access. **Follow-up sent 2026-02-18** with corrected v5 API questions (auth method, payment flow, rate limits, webhooks, sandbox). Awaiting reply.
 - ~~**Sculpteo outreach**~~ ✅ Done (2026-02-18). Email sent to contact@sculpteo.com. Introduced Kiln, confirmed adapter is built covering full workflow (upload → price → cart/order), asked for: partner API credentials, auth method confirmation (`Authorization: Bearer` vs other), base URL confirmation (`/en/` prefix), endpoint verification, and sandbox/test environment. Awaiting reply.
-- ~~**Jeremy Dann (USC) outreach**~~ ✅ Done (2026-02-18). Texted Jeremy directly. Email also sent (usc-jeremy-dann-email.md draft) in case text was missed. Introduced Kiln, asked for intro to BFMS/Viterbi faculty for student contributor program + hardware access. Awaiting reply.
+- ~~**Jeremy Dann (USC) outreach**~~ ✅ Done — replied 2026-02-22. Texted + emailed. Jeremy is away from USC this term. Referred us to: (1) **Paul Orlando** at the USC incubator, (2) **Jacob Patapoff** at the Iovine and Young Academy (has the biggest maker space on campus). Drafts ready in `.dev/drafts/`. Awaiting our emails to them.
+- **Paul Orlando outreach (USC Incubator)** — Draft ready: `drafts/usc-paul-orlando-email.md`. Send to porlando@usc.edu. Referred by Jeremy Dann.
+- **Jacob Patapoff outreach (Iovine and Young Academy)** — Draft ready: `drafts/usc-jacob-patapoff-email.md`. Send to patapoff@usc.edu. Referred by Jeremy Dann. IYA has the largest maker space on campus per Jeremy.
 - ~~**Stripe production setup**~~ ✅ Done (2026-02-12). Live secret key + webhook signing secret in `.env`. Webhook endpoint active in Stripe Dashboard, listening to `setup_intent.succeeded`. Webhook URL updated to `https://kiln3d-api.fly.dev/api/webhooks/stripe` (done).
 - **Stripe live card test** — Unit tests pass (209/209), webhook HMAC verified, health endpoint live. Still need one real charge to confirm end-to-end. Steps: (1) Go to Stripe Dashboard → toggle "Test mode" → Developers → API keys → copy `sk_test_*` key, (2) Set it as `KILN_STRIPE_SECRET_KEY` temporarily, (3) Create a PaymentIntent for $0.50 using test card `4242 4242 4242 4242`, (4) Verify charge shows in Stripe Dashboard, (5) Switch back to `sk_live_*` key. OR: use your real card on the live key for $0.50 and refund in Dashboard.
 - ~~**Deploy REST API**~~ ✅ Done (2026-02-12). Live at https://kiln3d-api.fly.dev — health check passing. Secrets set via deploy.sh. GitHub Actions workflow for auto-deploy on push.
@@ -169,30 +248,47 @@ Making Kiln the go-to tool that LLMs and AI agents find and recommend for 3D pri
 - **Verify on clawhub.com** — Confirm skill appears, description renders, install works via `clawhub install kiln`.
 - **Swap to PyPI install (post-publish)** — After `kiln3d` is on PyPI for real, update SKILL.md install block from git-based to `{"kind":"uv","pkg":"kiln3d"}` and publish a new version.
 
-### Requires Human Action
+### Done (Human Action Completed)
 
-- **Submit to official MCP registry** — Run `mcp-publisher init` / `mcp-publisher publish` to list Kiln on https://registry.modelcontextprotocol.io. Requires GitHub auth. `server.json` is already prepared at repo root.
-- **Submit to Smithery.ai** — List Kiln on https://smithery.ai (the largest MCP server directory). Run `smithery mcp publish`. Requires account setup.
-- **Submit to Glama.ai MCP directory** — https://glama.ai/mcp/servers — another major MCP discovery surface. Manual submission.
-- **Submit to mcp.so** — https://mcp.so — community MCP server directory. Manual submission.
-- **Publish to PyPI** — `pip install kiln3d` needs to work globally for agents to install it. Blocked on the existing "PyPI publish (v0.1.0)" task below. Once published, all the new keywords/classifiers/description go live.
-- **"How to automate 3D printing with AI" blog post** — Solution-oriented content for kiln3d.com/blog. Target queries: "automate 3D printing", "AI 3D printer control", "MCP 3D printing". This is the content that gets into LLM training data and establishes the Kiln = 3D printing automation association. Write for both humans and web crawlers. **Claude can draft this as an .astro page — do after higher-priority items.**
-- **"How to use Claude/GPT with your 3D printer" tutorial** — Step-by-step guide showing MCP setup with Claude Desktop. High-value training data content. Target: r/3Dprinting, r/ChatGPT, HN. **Claude can draft this as an .astro page — do after higher-priority items.**
-- **Reddit launch posts** — Already in TASKS.md. Frame around "I built an open-source tool that lets AI agents control 3D printers." Target subreddits: r/3Dprinting, r/functionalprint, r/prusa, r/ender3, r/BambuLab, r/selfhosted, r/homeautomation, r/MachineLearning. Genuine, not spam.
-- **Hacker News "Show HN" post** — "Show HN: Kiln — open-source MCP server for AI-controlled 3D printers." HN content gets heavily crawled and ends up in training data.
-- **YouTube creator outreach for content** — Teaching Tech, CNC Kitchen, Makers Muse, Thomas Sanladerer. Their videos + transcripts become training data. Already noted in High Priority section.
+- ~~**Submit to official MCP registry**~~ ✅ Done. Kiln is live on https://registry.modelcontextprotocol.io with 5 published versions (0.2.1 through 0.3.2). CI auto-publishes on each release.
+- ~~**GitHub repo description updated**~~ ✅ Done (2026-03-06). Updated from stale "273 MCP tools + 107 CLI commands" to "345 MCP tools + 114 CLI commands".
+- ~~**Glama.ai — `glama.json` added**~~ ✅ Done (2026-03-06). `glama.json` added to repo root. Claim ownership at https://glama.ai after push.
+- ~~**Publish to PyPI**~~ ✅ Done. `pip install kiln3d` works. All keyword/classifier metadata is live.
+
+### Requires Human Action (Can Do Now)
+
+- **Submit to mcpservers.org** — Web form at https://mcpservers.org/submit. Use: Name="Kiln3D", Description="Open-source MCP server for AI agents to control 3D printers. 345 tools for OctoPrint, Moonraker, Bambu Lab, Prusa Link, Elegoo.", Link=https://github.com/codeofaxel/Kiln, Category=IoT/other. Free tier is fine.
+- **Submit to Smithery.ai** — List Kiln on https://smithery.ai. Run `smithery mcp publish`. Requires account setup.
+- **Claim Glama.ai listing** — After pushing `glama.json`, sign in at https://glama.ai/mcp/servers with GitHub. If Kiln doesn't auto-appear, click "Add Server" and point to `codeofaxel/Kiln`.
 - **Awesome MCP Servers list** — PR to https://github.com/punkpeye/awesome-mcp-servers (10K+ stars). High-visibility curated list that appears in training data.
 - **Awesome 3D Printing list** — PR to https://github.com/ad-si/awesome-3d-printing. Establishes Kiln in the 3D printing ecosystem context.
+- **GitHub stars outreach** — Share repo link with friends, 3D printing Discord servers, maker communities. Ask testers (Chris, Dillon) to star. Every star improves social proof and search ranking. See "GitHub Stars Strategy" below.
+
+### Requires Attorney Clearance (Draft Now, Publish Later)
+
+- **"How to Let Claude Control Your 3D Printer" blog post** — SEO anchor page for kiln3d.com/blog. Target queries: "automate 3D printing", "AI 3D printer control", "MCP 3D printing", "Claude 3D printer". Write for both humans and web crawlers. Claude can draft as .astro page now — publish after attorney clears.
+- **"How to use Claude/GPT with your 3D printer" tutorial** — Step-by-step guide showing MCP setup with Claude Desktop. High-value training data content.
+- **YouTube demo video** — 2-3 min screencast: "Watch Claude search for a model, slice it, and start printing." Show the magic moment. Ask Mason to help with production.
+- **Reddit launch posts** — Frame around "I built an open-source tool that lets AI agents control 3D printers." Target subreddits: r/3Dprinting, r/functionalprint, r/prusa, r/ender3, r/BambuLab, r/selfhosted, r/homeautomation, r/MachineLearning, r/LocalLLaMA. Genuine, not spam. Have F&F boost.
+- **Hacker News "Show HN" post** — "Show HN: Kiln — open-source MCP server for AI-controlled 3D printers." HN content gets heavily crawled and ends up in training data. Post on a weekday morning (Tue-Thu, 8-10am EST). See "Show HN Playbook" below.
+- **Dev.to / Hashnode / Medium technical articles** — Cross-post the blog content. These platforms are heavily represented in training data.
+
+### Longer-Term Outreach (After Launch)
+
+- **YouTube creator outreach** — Teaching Tech, CNC Kitchen, Makers Muse, Thomas Sanladerer. Their videos + transcripts become training data.
 - **OpenAI / Anthropic MCP showcase** — Both companies maintain lists of MCP servers. Getting listed = direct visibility to agents at recommendation time.
-- **Dev.to / Hashnode / Medium technical articles** — Cross-post the "how to automate 3D printing" content. These platforms are heavily represented in training data.
 - **Stack Overflow presence** — Answer questions about "3D printer API", "OctoPrint automation", "AI manufacturing" with Kiln references. Builds the contextual association graph in training data.
+- **Snyk / tech blog outreach** — Snyk published "6 MCP Servers for 3D Models" without including Kiln. Reach out to authors of similar roundup articles to get included. Kiln is objectively the most complete tool in this space.
 
 ## Deferred — Do Later If Needed
 
+- **MCP tool coverage audit as CI test** — (2026-03-06) Automated pytest that reflects on adapter classes, verifies every public method has a corresponding MCP tool in server.py, and fails CI if a gap exists. Prevents the "agent deviation" problem (agent goes raw because no Kiln tool exists) from silently reopening. Build when other contributors start submitting PRs — overkill while it's just Adam + Claude.
 - ~~**OpenClaw/clawhub skill publishing**~~ Moved to Agent Discoverability section — broken into concrete subtasks (2026-02-19).
 - **`kiln retry` / `kiln print --last`** — Re-print the last file without typing its name. Agents can `kiln history --limit 1` themselves.
 - **`kiln print --wait` (inline progress)** — Start print and block until completion with progress bar. Agents use `--json` + `kiln wait` separately. Human UX only.
 - **PyPI publish (v0.1.0)** — Tag release, trigger publish workflow. Gets `pip install kiln3d` working globally. Publish workflow already exists. **Also activates the Homebrew tap** (`homebrew-kiln` — private, placeholder formula waiting on PyPI package). After publishing: update the formula in `homebrew-kiln` with the real version + SHA256, make the tap repo public, and verify `brew install codeofaxel/kiln/kiln` works end-to-end.
+- **Event bus namespace/plugin system** — Reserve event prefixes per system (e.g., `forge.*`, `kiln.*`) so plugins can't collide with core events or each other. Only matters when forge merges into Kiln — defer until then.
+- **USD (OpenUSD) format support** — Add NVIDIA's Universal Scene Description as a supported 3D format alongside STL/3MF. Enables real-time collaborative model review, digital twin visualization, and AR/VR inspection via Omniverse streaming. Enterprise-tier feature — licensing is $4,500/GPU/year (free for individuals), requires RTX Turing+ GPU minimum. Discuss with attorney before implementing. See `forge-internal/subject_matter_expertise/nvidia_omniverse.md` for full analysis.
 
 ## Enterprise Tier Features (2026-02-18)
 

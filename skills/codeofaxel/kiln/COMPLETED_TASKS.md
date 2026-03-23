@@ -2,6 +2,69 @@
 
 Record of finished features and milestones, newest first.
 
+## 2026-03-09
+
+### v0.3.3 Release — Bambu Adapter Hardening + Test Fixes
+
+**Bambu Adapter Hardening (6 fixes):**
+- **MQTT disconnect timeout** — `_safe_stop_client()` prevents `loop_stop()` from hanging indefinitely via daemon thread + configurable timeout
+- **FTPS retry with backoff** — `_ftp_connect()` wrapper retries up to 3 times with exponential backoff for transient connection failures (printer waking)
+- **Camera snapshot timeout** — Reduced from 15s→5s (JPEG) and 10s→5s (RTSPS) to prevent long hangs
+- **AMS pushall on empty cache** — A1/AMS Lite printers now get a `pushall` MQTT command when AMS cache is empty, solving data staleness
+- **`update_credentials()` method** — Allows agents to rotate the LAN access code without rebuilding the adapter
+- **CLI `report` command** — Cross-brand print monitoring command matching `monitor_print()` MCP tool output format
+
+**Bug Fixes:**
+- **AMS dict-wrapper unwrap** — A1/AMS Lite printers nest AMS data in a dict wrapper; unwrap before parsing
+- **AMS mapping from filament IDs** — Build `ams_mapping` from 3MF `filament_ids` for non-contiguous ID support
+- **`test_material_show_empty`** — Mock `_get_adapter_from_ctx` to hit the correct "No materials loaded" branch
+- **REST API test env leakage** — `load_dotenv()` in `create_app()` loaded `KILN_API_AUTH_TOKEN` from `.env`, contaminating no-auth test fixtures
+
+**Marketplace:**
+- `upload_model` added to Thingiverse + MyMiniFactory adapters
+
+**Infrastructure:**
+- `kiln monitor` — persistent print safety monitoring CLI command
+- `kiln material show --live` — live AMS/filament query
+- Orientation stability check — warns before printing wobbly parts
+- Tool count: 353→358 MCP tools
+- Test count: 7,586→7,621
+
+## 2026-03-06
+
+### monitor_print + multi_copy_print MCP tools
+
+**New Features:**
+- **`monitor_print`** — Standardized print status report with progress, temps, speed, camera snapshot, and auto-generated health comments. Works across all printer brands (Bambu, OctoPrint, Moonraker) — gracefully handles None for brand-specific fields (layers, speed profile, chamber temp).
+- **`multi_copy_print`** — Arrange N copies on one build plate, slice, and print. PrusaSlicer uses `--duplicate` flag; OrcaSlicer falls back to STL mesh duplication via `duplicate_stl_on_plate()` in auto_orient.py. Looks up bed dimensions from safety profiles when printer_id provided.
+- **`duplicate_stl_on_plate()`** — Parse STL, compute bounding box, grid-arrange copies with spacing, write merged binary STL.
+- **`extra_args` pipeline param** — `reslice_and_print` now accepts `extra_args: list[str]` passed through to `slice_file()` for slicer CLI flags.
+- **Auth scope audit fix** — `async def` parser in `test_auth_scope_audit.py` now detects async MCP tools. Added `monitor_print` + `check_orientation` to READ_ONLY_TOOLS.
+- **Tool count 343→345** across README, PROJECT_DOCS, server.json, pyproject.toml, site.
+
+**Testing:** 7476 tests passing, 0 failures. 61 new tests added. Ruff lint clean. CI green on Python 3.10–3.13.
+
+## 2026-02-20
+
+### Dillon's Bug Reports + Generation Pipeline Overhaul
+
+Source: Dillon (Misery) + his agent Clawdene ran a full idea-to-print loop (Valentine heart via Gemini DeepThink → Prusa Mini+). Fixed all reported bugs and implemented every suggested improvement.
+
+**Bug Fixes:**
+- **`kiln --version` crash** — `package_name="kiln"` → `"kiln3d"` to match pyproject.toml (`cli/main.py:393`)
+- **CLI `--provider` hardcoded to meshy/openscad** — All 4 generation commands now accept `gemini`, `tripo3d`, `stability` via registry-based provider instantiation (`cli/main.py`)
+- **Gemini default model deprecated** — `gemini-2.0-flash` → `gemini-2.5-flash` + `KILN_GEMINI_MODEL` env var override (`generation/gemini.py:44`)
+- **No self-healing on OpenSCAD compile failure** — Added retry loop (up to 3 attempts) that feeds compiler errors back to Gemini for corrected code (`generation/gemini.py`)
+
+**New Features:**
+- **Material-aware slicing** — `kiln slice --material PLA` auto-sets nozzle/bed temperatures in slicer profile overrides. 7 materials supported (`cli/main.py`)
+- **Material-aware G-code validation** — `validate_gcode_for_material()` warns when temps are outside material ranges or bed temp is 0 for materials requiring heated bed (`gcode.py`)
+- **External camera support** — `kiln snapshot --source URL` or `cmd:ffmpeg ...` for printers without built-in webcams + `KILN_CAMERA_SOURCE` env var (`cli/main.py`)
+- **Generate-and-print CLI pipeline** — `kiln generate-and-print "description" --provider gemini --material PLA` runs the full generate → slice → upload pipeline in one command (`cli/main.py`)
+- **Print time display** — `kiln status` now shows elapsed time and total estimated time during prints. `kiln files` shows estimated print time per file (`cli/output.py`)
+
+**Testing:** 6,141 tests passing, 0 failures. Ruff lint clean.
+
 ## 2026-02-19
 
 ### Think → Print → Earn: 12 New Subsystems

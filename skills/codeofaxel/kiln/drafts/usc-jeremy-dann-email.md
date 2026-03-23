@@ -1,7 +1,7 @@
 # Email Draft: Professor Jeremy Dann — USC x Kiln Partnership
 
-**Status:** Ready to send (updated 2026-02-18 — Kiln is now live)
-**Date:** February 18, 2026
+**Status:** Ready to send (updated 2026-02-21)
+**Date:** February 21, 2026
 **To:** Professor Jeremy Dann
 
 ---
@@ -12,21 +12,23 @@ Professor Dann,
 
 Hope you're doing well. I wanted to reach out about something that connects back to the fabrication lab you brought us to.
 
-I just launched an open-source project called **Kiln** — it's infrastructure that lets AI agents (Claude, GPT, etc.) control physical manufacturing equipment. It's live at kiln3d.com and on GitHub. Right now it handles 3D printers (OctoPrint, Klipper, Bambu Lab, Prusa Connect), but the architecture is designed to generalize to any fabrication device: resin printers, laser cutters, and CNC routers.
+I launched an open-source project called **Kiln** — it's infrastructure that lets AI agents (Claude, GPT, etc.) control physical manufacturing equipment. It's live at kiln3d.com and on GitHub. Right now it handles 3D printers (OctoPrint, Klipper, Bambu Lab, Prusa Connect), but the architecture is designed to generalize to any fabrication device: resin printers, laser cutters, and CNC routers.
 
-The next phase is building adapters for those new device types, and USC's labs have exactly the hardware I need — the Baum Family Maker Space has FormLabs SLA printers, a CO2 laser cutter, Stratasys industrial FDM printers, and the machine shop has mills and CNC equipment. The Architecture school's digital fabrication lab covers even more.
+I was just at ETH Denver and got a chance to demo Kiln to the person running the maker lab they had set up at the conference. He told me it was the coolest thing anyone had shown him in a long time — which felt like a good sign that the direction is right.
+
+The next phase is building adapters for those new device types, and USC's labs have exactly the hardware I need — SLA printers, laser cutters, industrial FDM printers, mills, and CNC equipment across the Baum Family Maker Space, the machine shop, and the Architecture school's digital fabrication lab.
 
 **What I'm exploring:**
 
 I'd love to connect with the right people at USC to set up a student contributor program around Kiln. This isn't just beta testing — students would be building real infrastructure:
 
-- **Resin/SLA adapter** — Build support for the FormLabs Form 3L in the Maker Space, including UV curing safety profiles and resin toxicity handling. Estimated 2-3 week core build, but a full semester allows proper safety validation.
+- **Resin/SLA adapter** — Build support for SLA printers in the Maker Space, including UV curing safety profiles and resin toxicity handling. Estimated 2-3 week core build, but a full semester allows proper safety validation.
 
-- **Laser cutter adapter** — Build support for the ULS CO2 laser, including a material safety database (some materials release toxic fumes when cut — real safety engineering). This is publishable-quality work.
+- **Laser cutter adapter** — Build support for the CO2 laser, including a material safety database (some materials release toxic fumes when cut — real safety engineering). This is publishable-quality work.
 
 - **CNC adapter** — The most ambitious: feeds/speeds validation, tool breakage detection, workholding verification. A serious engineering project for advanced students.
 
-- **Fleet testing** — Validate Kiln's multi-printer scheduling across the six Prusas, Stratasys F900/F370, and Markforged X7. Build adapters for printer brands Kiln doesn't support yet.
+- **Fleet testing** — Validate Kiln's multi-printer scheduling across the lab's FDM printers. Build adapters for printer brands Kiln doesn't support yet.
 
 The long-term vision is **multi-device job decomposition** — an agent that can take a product design and automatically route the acrylic panels to the laser cutter, the aluminum brackets to the CNC, the internal parts to FDM, and the cosmetic pieces to SLA. All with per-device safety checks, managed through a single job queue. That's a demo that would be impressive at any showcase or competition.
 
