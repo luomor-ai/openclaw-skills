@@ -1,25 +1,35 @@
 ---
 name: byted-infoquest-search
-description: AI-optimized web search and content extraction via BytePlus InfoQuest API. Returns concise, relevant results for AI agents with time filtering and site-specific search. Get API key from https://console.byteplus.com/infoquest/infoquests
+description: AI-optimized web search, image search and content extraction via BytePlus InfoQuest API. Use this skill when you need to gather concise and up-to-date information from the web, find images, or extract clean content from specific URLs.
 metadata: {"clawdbot":{"emoji":"🔍","requires":{"bins":["node"],"env":["INFOQUEST_API_KEY"]},"primaryEnv":"INFOQUEST_API_KEY"}}
 ---
 
 # Byted InfoQuest Search
 
-AI-optimized web search and content extraction using BytePlus InfoQuest API. Returns concise, relevant results with time filtering and site-specific search capabilities.
+AI-optimized web search, image search and content extraction using BytePlus InfoQuest API. Returns concise, relevant results with time filtering and site-specific search and image search capabilities.
 
 ## Search
 
+### Web Search
 ```bash
 node {baseDir}/search.mjs "query"
 node {baseDir}/search.mjs "query" -d 7
 node {baseDir}/search.mjs "query" -s github.com
 ```
 
+### Image Search
+```bash
+node {baseDir}/search.mjs "query" -i
+node {baseDir}/search.mjs "query" -i -z l
+node {baseDir}/search.mjs "query" -i -z i -s github.com
+```
+
 ## Options
 
 - `-d, --days <number>`: Search within last N days (default: all time)
 - `-s, --site <domain>`: Search within specific site (e.g., `github.com`)
+- `-i, --image`: Perform image search instead of web search
+- `-z, --image-size <size>`: Image size filter: `l` (large), `m` (medium), `i` (icon)
 
 ## Extract content from URL
 
@@ -41,6 +51,18 @@ node search.mjs "artificial intelligence news" -d 3
 node search.mjs "Python machine learning" -s github.com
 ```
 
+### Image Search
+```bash
+# Search for cat images
+node search.mjs "cat" -i
+
+# Search for large landscape images
+node search.mjs "landscape" -i -z l
+
+# Search for icons on GitHub
+node search.mjs "logo" -i -z i -s github.com
+```
+
 ### Content Extraction
 ```bash
 # Extract content from a single article
@@ -57,6 +79,8 @@ node extract.mjs "https://example.com/article"
 ### Search Features
 - **Time Filtering**: Use `-d` for searches within last N days (e.g., `-d 7`)
 - **Site Filtering**: Use `-s` for site-specific searches (e.g., `-s github.com`)
+- **Image Search**: Use `-i` for image search instead of web search
+- **Image Size Filter**: Use `-z` with `l` (large), `m` (medium), or `i` (icon) for image size filtering
 
 ## Quick Setup
 
