@@ -1,11 +1,17 @@
 {
   "owner": "sealawyer2026",
   "slug": "zhang-international-arbitration",
-  "displayName": "国际仲裁",
+  "displayName": "九章国际仲裁专家V1.1.0",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773714557052,
-    "commit": "https://github.com/openclaw/skills/commit/ae43d5b324d74ff83e18a32ecae050fcb9b1f24e"
+    "version": "1.1.0",
+    "publishedAt": 1774248255233,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773714557052,
+      "commit": "https://github.com/openclaw/skills/commit/ae43d5b324d74ff83e18a32ecae050fcb9b1f24e"
+    }
+  ]
 }
