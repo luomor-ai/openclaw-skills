@@ -1,52 +1,35 @@
 ---
-version: "2.0.0"
-name: Dive
-description: "A tool for exploring each layer in a docker image container-inspect, go, cli, docker, docker-image, explorer, inspector. Use when you need container-inspect capabilities. Triggers on: container-inspect."
-author: BytesAgain
+name: "container-inspect"
+version: "3.0.1"
+description: "Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Container Inspect concepts, best practices, and implementation pa..."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [container,inspect, reference]
+category: "devtools"
 ---
 
-# Dive
+# Container Inspect
 
-A tool for exploring each layer in a docker image ## Commands
+Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for Container Inspect concepts, best practices, and implementation pa... No API keys or credentials required.
 
-- `help` - Help
-- `run` - Run
-- `info` - Info
-- `status` - Status
+## Commands
 
-## Features
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
 
-- Core functionality from wagoodman/container-inspect
+## Output Format
 
-## Usage
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
 
-Run any command: `container-inspect <command> [args]`
 ---
-💬 Feedback & Feature Requests: https://bytesagain.com/feedback
-Powered by BytesAgain | bytesagain.com
 
-## Examples
-
-```bash
-# Show help
-container-inspect help
-
-# Run
-container-inspect run
-```
-
-- Run `container-inspect help` for commands
-- No API keys needed
-
-- Run `container-inspect help` for all commands
-
-- Run `container-inspect help` for all commands
-
-## Configuration
-
-Set `CONTAINER_INSPECT_DIR` to change data directory. Default: `~/.local/share/container-inspect/`
-
-## When to Use
-
-- Quick container tasks from terminal
-- Automation pipelines
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
