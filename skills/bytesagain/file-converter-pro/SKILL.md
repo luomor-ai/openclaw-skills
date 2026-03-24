@@ -1,33 +1,35 @@
 ---
-name: File Converter Pro
-description: "💾 Self-hosted online file converter. Supports 1000+ formats ⚙️ Based on C4illin/ConvertX (16,173+ GitHub stars). file converter pro, typescript, bun, conversion, convert, converter, document-conversion"
-version: 1.0.0
-license: AGPL-3.0
-runtime: python3
+name: "file-converter-pro"
+version: "2.0.3"
+description: "Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for File Converter PRO concepts, best practices, and implementation p..."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
+source: "https://github.com/bytesagain/ai-skills"
+tags: [file,converter,pro, reference]
+category: "devtools"
 ---
 
 # File Converter Pro
 
-💾 Self-hosted online file converter. Supports 1000+ formats ⚙️
-
-Inspired by [C4illin/ConvertX](https://github.com/C4illin/ConvertX) (16,173+ GitHub stars).
+Reference tool for devtools — covers intro, quickstart, patterns and more. Quick lookup for File Converter PRO concepts, best practices, and implementation p... No API keys or credentials required.
 
 ## Commands
 
-- `help` - Help
-- `run` - Run
-- `info` - Info
-- `status` - Status
+| Command | Description |
+|---------|-------------|
+| `intro` | intro reference |
+| `quickstart` | quickstart reference |
+| `patterns` | patterns reference |
+| `debugging` | debugging reference |
+| `performance` | performance reference |
+| `security` | security reference |
+| `migration` | migration reference |
+| `cheatsheet` | cheatsheet reference |
 
-## Features
+## Output Format
 
-- Core functionality from C4illin/ConvertX
-
-## Usage
-
-Run any command: `file-converter-pro <command> [args]`
+All commands output plain-text reference documentation via heredoc. No external API calls, no credentials needed, no network access.
 
 ---
-> **Disclaimer**: This skill is an independent, original implementation. It is not affiliated with, endorsed by, or derived from the referenced open-source project. No code was copied. The reference is for context only.
 
-Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
