@@ -25,6 +25,9 @@ metadata:
 | getContractEnergyStatistic | Energy usage | Total and daily energy consumption |
 | getContractTriggerTransactions | Trigger txs | Contract-triggered transactions in time range |
 | getContractAnalysis | Daily analysis | Balance, transfers, energy, bandwidth, calls, fee |
+| getCallerAddressStatistic | Caller address stats | Contract call count per period with max/min |
+| getContractTriggerStatistic | Daily trigger stats | Daily call count for a contract in a time range |
+| getHolderTokenBasicInfo | Holder token info | Token balance and holding duration for an account |
 
 ## Use Cases
 
@@ -45,7 +48,7 @@ metadata:
 
 - **API**: `getContractDetail` — Get contract details (balance, verification status, call count, method map)
 - **Use when**: User asks for "contract info", "contract address", or "is contract verified".
-- **Input**: Contract address.
+- **Input**: `contract` (contract address) — Note: parameter name is `contract`, not `address`.
 - **Response**: Balance, verified flag, call count, method map.
 
 ### getContractCallStatistic
@@ -86,6 +89,25 @@ metadata:
 
 - **API**: `getContractAnalysis` — Get contract daily analysis (balance, transfers, energy, bandwidth, calls, fee)
 - **Use when**: User asks for "contract activity over time".
+
+### getCallerAddressStatistic
+
+- **API**: `getCallerAddressStatistic` — Get contract call count per period (with max/min) on TRON
+- **Use when**: User asks for "call volume over time" or "contract call statistics by period".
+- **Input**: `startTimestamp`, `endTimestamp` (required); optional `limit`.
+
+### getContractTriggerStatistic
+
+- **API**: `getContractTriggerStatistic` — Get daily call count for a contract within a time range
+- **Use when**: User asks for "daily call count", "contract trigger trend", or "how often is this contract called".
+- **Input**: `address`, `startTimestamp`, `endTimestamp` (all required).
+- **Response**: Daily call count and total call count.
+
+### getHolderTokenBasicInfo
+
+- **API**: `getHolderTokenBasicInfo` — Get token balance and holding duration for an account
+- **Use when**: User asks for "how long has this address held this token" or "token holding details".
+- **Input**: `accountAddress`, `tokenAddress` (both required).
 
 ## Troubleshooting
 
