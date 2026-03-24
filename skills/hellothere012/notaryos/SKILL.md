@@ -1,13 +1,11 @@
 ---
 name: notaryos
 description: Seal AI agent actions with Ed25519 cryptographic receipts. Verify what your agent did and prove what it chose not to do.
-version: 2.3.0
+version: 2.4.0
 metadata:
-  clawdbot:
+  openclaw:
     emoji: "\U0001F6E1\uFE0F"
     requires:
-      env:
-        - NOTARY_API_KEY
       bins:
         - python3
     primaryEnv: NOTARY_API_KEY
@@ -63,12 +61,12 @@ No other endpoints are contacted. No telemetry, analytics, or tracking.
 pip install notaryos
 ```
 
-> **No key required to start.** The SDK auto-injects a demo key (10 req/min). Set `NOTARY_API_KEY` for production rates. Get a key at https://notaryos.org/sign-up
+> **No API key required.** The SDK auto-injects a free demo key (10 req/min) when `NOTARY_API_KEY` is not set. For production rates, get a key at https://notaryos.org/sign-up and set `NOTARY_API_KEY` in your environment or OpenClaw config.
 
 ```python
 from notaryos import NotaryClient
 
-notary = NotaryClient()  # works immediately, no config needed
+notary = NotaryClient()  # works immediately — uses demo key if NOTARY_API_KEY is not set
 ```
 
 ## Seal an Action
@@ -175,13 +173,19 @@ except ValidationError:
     pass  # bad request
 ```
 
+## Dependencies
+
+- **`sanitize.py` (included):** Zero external dependencies — uses only Python standard library (`typing`). Pure function, no I/O, no network, no side effects.
+- **`notaryos` SDK (installed via pip):** Also uses only the Python standard library — zero third-party dependencies. Source: https://pypi.org/project/notaryos/ | GitHub: https://github.com/hellothere012/notaryos
+
 ## Key Points
 
-- Zero external dependencies (Python stdlib only)
-- No signup needed (demo key auto-injected, 10 req/min)
+- `NOTARY_API_KEY` is **optional** — a demo key is auto-injected when not set (10 req/min)
+- Set `NOTARY_API_KEY` for production rates (get a key at https://notaryos.org/sign-up)
+- Both `sanitize.py` and the `notaryos` SDK use only the Python standard library (zero third-party deps)
 - Payloads transmitted via HTTPS to `api.agenttownsquare.com`
 - Use `sanitize_payload()` to strip sensitive fields before sealing
-- Verification is free and public
+- Verification is free and public — no API key needed
 - Ed25519 signatures (same scheme as SSH and TLS)
 
 ## Links
