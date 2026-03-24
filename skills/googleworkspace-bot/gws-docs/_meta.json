@@ -3,11 +3,16 @@
   "slug": "gws-docs",
   "displayName": "Gws Docs",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774300436517,
-    "commit": "https://github.com/openclaw/skills/commit/7ab4bd403a1c17d56a2a288f372a40b5be2f2ed2"
+    "version": "1.0.3",
+    "publishedAt": 1774380368967,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774300436517,
+      "commit": "https://github.com/openclaw/skills/commit/7ab4bd403a1c17d56a2a288f372a40b5be2f2ed2"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1772665493152,
