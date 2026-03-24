@@ -42,7 +42,7 @@ CONFIG_SCHEMA = {
     "poly_agent_id":    {"env": "SIMMER_BTCMC_AGENT_ID",  "default": "",      "type": str},
     "bet_size":         {"env": "SIMMER_BTCMC_BET_SIZE",  "default": 5.0,     "type": float},
     "momentum_threshold":{"env": "SIMMER_BTCMC_THRESHOLD","default": 0.0015,  "type": float},
-    "min_volume_ratio": {"env": "SIMMER_BTCMC_VOL_RATIO", "default": 1.2,     "type": float},
+    "min_volume_ratio": {"env": "SIMMER_BTCMC_VOL_RATIO", "default": 0.0,     "type": float},
     "min_entry_price":  {"env": "SIMMER_BTCMC_MIN_ENTRY", "default": 0.45,    "type": float},
     "max_entry_price":  {"env": "SIMMER_BTCMC_MAX_ENTRY", "default": 0.65,    "type": float},
     "enable_1m_confirm":{"env": "SIMMER_BTCMC_1M_CONFIRM","default": False,   "type": bool},
@@ -78,6 +78,7 @@ except Exception:
     SKIP_HOURS = {2, 9, 10, 11, 15}
 MAX_POSITION_USD    = _config["max_position_usd"]
 SMART_SIZING_PCT    = _config["sizing_pct"]
+MAX_CONSECUTIVE_LOSSES = _config["max_consecutive_losses"]
 
 # Polymarket minimums
 MIN_SHARES_PER_ORDER = 5.0
@@ -156,11 +157,12 @@ def check_context_safeguards(context):
             return False, [f"Slippage too high: {slippage_pct:.1%}"]
     return True, reasons
 
-def execute_trade(market_id, side, amount, reasoning=""):
+def execute_trade(market_id, side, amount, reasoning="", signal_data=None):
     try:
         result = get_client().trade(
             market_id=market_id, side=side, amount=amount,
             source=TRADE_SOURCE, skill_slug=SKILL_SLUG, reasoning=reasoning,
+            signal_data=signal_data if signal_data else None,
         )
         return {
             "success": result.success,
@@ -469,7 +471,15 @@ def run_strategy(dry_run=True, positions_only=False, show_config=False,
     print(f"\n🚀 Placing {side.upper()} ${position_size:.2f} — {reasoning}")
 
     trades_attempted += 1
-    result = execute_trade(market["id"], side, position_size, reasoning)
+    _signal_data = {
+        "momentum_pct": round(c5, 4),
+        "change_3m_pct": round(c3, 4),
+        "volume_ratio": round(vol_ratio, 2),
+        "entry_price": round(entry_price, 4),
+        "mins_remaining": mins_remaining,
+        "signal_source": "btc_5m_momentum",
+    }
+    result = execute_trade(market["id"], side, position_size, reasoning, signal_data=_signal_data)
 
     if result.get("success"):
         shares = result.get("shares_bought", 0) or 0
@@ -487,6 +497,7 @@ def run_strategy(dry_run=True, positions_only=False, show_config=False,
     else:
         err = result.get("error", "unknown error")
         print(f"❌ Trade failed: {err}")
+        record_trade_outcome(False)
         execution_errors.append(err)
         if result.get("skip_reason"):
             skip_reasons.append(result["skip_reason"])

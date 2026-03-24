@@ -3,7 +3,7 @@ name: polymarket-btc-midcandle
 description: "BTC Mid-Candle Scalper — 75%+ win rate on Polymarket BTC 15-minute markets. Enters mid-candle (2–12 min remaining) when intracandle momentum is confirmed by 5m + 3m price change. Fully configurable: tune the momentum threshold, volume gate, and entry price window to dial in your own edge. Proven on real money. Use when you want a battle-tested, high-WR crypto trading bot running 24/7 on Polymarket."
 metadata:
   author: "DjDyll"
-  version: "1.0.0"
+  version: "1.1.1"
   displayName: "BTC Mid-Candle Scalper"
   difficulty: "intermediate"
 ---
