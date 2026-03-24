@@ -1,11 +1,17 @@
 {
   "owner": "cowboy231",
   "slug": "kids-points",
-  "displayName": "Kids Points",
+  "displayName": "孩子积分管理",
   "latest": {
-    "version": "1.2.0",
-    "publishedAt": 1773543517395,
-    "commit": "https://github.com/openclaw/skills/commit/86a0ca65617003652cecb8a7a5073058b2d9cfdc"
+    "version": "1.3.0",
+    "publishedAt": 1774228910000,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.2.0",
+      "publishedAt": 1773543517395,
+      "commit": "https://github.com/openclaw/skills/commit/86a0ca65617003652cecb8a7a5073058b2d9cfdc"
+    }
+  ]
 }

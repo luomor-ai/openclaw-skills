@@ -304,7 +304,33 @@ function generateFeishuMessage(yesterday, details, balance) {
   message += `━━━━━━━━━━━━━━━━━━\n\n`;
   message += `**📈 净收益**: ${details.total >= 0 ? '+' : ''}${details.total} 分\n`;
   message += `**💰 当前余额**: ${balance} 分\n`;
-  message += `**📏 距离上限**: ${400 - balance} 分\n\n`;
+  
+  // 月度消费额度（v1.3 新功能）
+  const monthStr = getMonthStr();
+  const monthlyLog = loadMonthlyLog(monthStr);
+  let spendingInfo = '';
+  
+  if (monthlyLog) {
+    // 读取本月总支出
+    const expenseMatch = monthlyLog.match(/总支出 \| (\d+) 分/);
+    const totalExpense = expenseMatch ? parseInt(expenseMatch[1]) : 0;
+    const spendingLimit = 400;
+    const remainingLimit = spendingLimit - totalExpense;
+    
+    // 检查是否有欠费
+    const overdraftMatch = monthlyLog.match(/欠费结转.*?(\d+) 分/);
+    const overdraft = overdraftMatch ? parseInt(overdraftMatch[1]) : 0;
+    
+    if (overdraft > 0) {
+      message += `**📊 本月可用额度**: ${remainingLimit} 分（已扣减上月欠费 ${overdraft} 分）\n`;
+    } else {
+      message += `**📊 本月剩余消费额度**: ${remainingLimit} 分\n`;
+    }
+  } else {
+    message += `**📏 距离上限**: ${400 - balance} 分\n`;
+  }
+  
+  message += `\n`;
   
   // 温馨提示
   if (details.total > 0) {

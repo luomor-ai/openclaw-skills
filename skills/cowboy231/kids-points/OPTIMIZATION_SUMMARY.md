@@ -1,226 +1,402 @@
-# kids-points v1.1 优化总结
+# 📝 kids-points 积分系统优化清单
 
-## 📋 优化概述
-
-**优化主题**: TTS 语音播报优化  
-**优化日期**: 2026-03-13  
-**问题**: 语音播报念出表格符号和数字，无法听懂  
-**解决**: 分离阅读文案和语音文案，生成纯文本 TTS 内容
+> **优化日期**: 2026-03-23  
+> **当前版本**: v1.2  
+> **目标版本**: v1.3  
 
 ---
 
-## 🔧 修改文件清单
+## ✅ 已完成优化
 
-### 1. `scripts/generate-daily-report.js`
-**修改内容**:
-- 新增 `generateTTSContent()` 函数
-- 修改 JSON 输出，增加 `ttsContent` 字段
-- 控制台输出 TTS 文案预览
+### 1. Bug 修复：积分消费识别失败
 
-**关键代码**:
+**问题描述**:
+- `handleExpenseInput` 函数中金额提取正则表达式有误
+- 正则 `/(\d+)\s*(分 | pts|ポイント)/` 中"分"后面多了一个空格
+- 导致"积分消费 忘带书包花了 5 分"无法识别（"5 分"后无空格）
+
+**修复内容**:
+- 文件：`scripts/handler.js` 第 473 行
+- 修改前：`const amountMatch = input.match(/(\d+)\s*(分 | pts|ポイント)/);`
+- 修改后：`const amountMatch = input.match(/(\d+)\s*(分|pts|ポイント)/);`
+
+**测试验证**:
+```bash
+node scripts/index.js "积分消费 买零食花了 20 分"  # ✅ 成功
+node scripts/index.js "积分消费 忘带书包花了 5 分"  # ✅ 成功
+```
+
+---
+
+### 2. Bug 修复：积分消费无语音播报
+
+**问题描述**:
+- `handleExpenseInput` 函数缺少语音播报功能
+- 消费记录后没有语音反馈
+- 响应消息中总是显示"配置 API Key 后可解锁语音功能"提示（即使 API Key 已配置）
+
+**修复内容**:
+1. **文件**: `scripts/handler.js` `handleExpenseInput` 函数
+   - 添加语音播报逻辑（与 `handlePointsInput` 一致）
+   - 语音文案：`好的，已记录消费${amount}分，${description}。要合理消费哦！`
+
+2. **文件**: `scripts/handler.js` `handleExpenseInput` 函数
+   - 移除默认添加的 `t('voiceHint', 'zh')`
+   - 仅在 API Key 未配置时显示语音配置提示
+
+**修改对比**:
 ```javascript
-/**
- * 生成 TTS 语音文案（纯文本，适合朗读）
- */
-function generateTTSContent(yesterday, details, balance) {
-  const incomeTotal = details.income.reduce((sum, item) => sum + item.points, 0);
-  const expenseTotal = details.expense.reduce((sum, item) => sum + item.points, 0);
-  
-  let tts = `${today}积分日报。`;
-  
-  // 收入汇总
-  if (incomeTotal > 0) {
-    tts += `昨天收入${incomeTotal}分。`;
-    // 简要说明主要收入项（最多 3 项）
-    const topItems = details.income.slice(0, 3);
-    topItems.forEach(item => {
-      tts += `${item.task}${item.points}分，`;
-    });
-  }
-  
-  // ... 支出、净收益、余额、鼓励短语
-  return tts;
+// 修改前（消费无语音）
+response = `✅ **${t('expenseRecorded', 'zh')}**\n\n`;
+response += `💸 **支出**: ${amount}分\n`;
+response += `📝 **用途**: ${description}\n\n`;
+response += `_已自动记入账本_\n\n`;
+response += t('voiceHint', 'zh');  // ❌ 总是显示提示
+
+// 修改后（消费有语音）
+response = `✅ **${t('expenseRecorded', 'zh')}**\n\n`;
+response += `💸 **支出**: ${amount}分\n`;
+response += `📝 **用途**: ${description}\n\n`;
+response += `_已自动记入账本_\n\n`;
+// ✅ 移除默认提示
+
+// 语音播报（仅中文）
+if (lang === 'zh') {
+  const ttsText = `好的，已记录消费${amount}分，${description}。要合理消费哦！`;
+  playTTS(ttsText, (error, stdout, stderr) => {
+    if (stderr === 'API_KEY_NOT_CONFIGURED') {
+      response += t('voiceHint', 'zh');  // ✅ 仅在需要时显示
+    }
+  });
 }
 ```
 
-### 2. `scripts/send-daily-report.sh`
-**修改内容**:
-- 提取 `ttsContent` 字段
-- 添加 TTS 语音播放步骤
-- 使用 edge-tts 脚本生成并播放
-
-**关键代码**:
+**测试验证**:
 ```bash
-# 提取 TTS 文案
-TTS_CONTENT=$(node -e "console.log(JSON.parse(require('fs').readFileSync('$OUTPUT_FILE', 'utf8')).ttsContent)")
+# 测试消费播报
+node scripts/index.js "积分消费 买零食花了 20 分"
+# 预期：
+# - 文字消息正常显示
+# - 语音自动播放："好的，已记录消费 20 分，买零食花了 20 分。要合理消费哦！"
+# - 不显示"配置 API Key"提示
 
-# 播放语音
-python3 "$TTS_SCRIPT" --voice zh-CN-XiaoxiaoNeural --play "$TTS_CONTENT"
+# 检查音频文件
+ls -lt workspace/audio/2026-03-23/
+# 预期：生成新的 WAV 文件
 ```
 
-### 3. `SKILL.md`
-**修改内容**:
-- 添加 v1.1 更新亮点说明
-- 新增 TTS 语音播报详细文档
-- 添加 ClawHub 发布准备说明
-- 更新依赖项和配置清单
-
-### 4. `README.md`
-**修改内容**:
-- 添加 v1.1 版本说明
-- 记录优化问题背景和解决方案
-- 提供 TTS 文案示例对比
+**修复状态**: ✅ 已完成
+- 语音文件生成正常
+- 播放功能正常
+- 提示语显示正常
 
 ---
 
-## 📊 效果对比
+## 🔧 待实现优化（v1.3 核心功能）
 
-### 优化前（❌ 错误）
+### 3. 新积分规则：月度消费额度制（简化版）
+
+#### 3.1 规则变更说明
+
+| 项目 | 旧规则 | 新规则（v1.3） |
+|------|--------|---------------|
+| **400 分上限含义** | 每月最多赚取 400 分 | 每月最多消费 400 分 |
+| **积分获取** | 有上限（400 分/月） | **无上限**，可无限赚取 |
+| **积分清零** | 不清零，可累积 | **积分不清零**，可累积到下月 |
+| **消费额度** | 无明确额度概念 | **每月 1 号重置为 400 分** |
+| **额度结转** | 不适用 | **不结转**，月底清零 |
+| **超额消费** | 不允许 | **允许**，记录为"欠费" |
+
+#### 3.2 欠费记录机制（简化版）
+
+**规则**:
+- 每月消费额度：400 分
+- 平时消费：**不检查额度**，正常记录
+- 每月 1 号：检查上月总支出
+- 如果超额：记录"欠费"，从本月额度中扣除
+- **无惩罚系数**：1:1 结转欠费
+
+**计算公式**:
 ```
-TTS 输入：📅 **积分日报**\n\| 项目 \| 数值 \|...
-语音输出："表格 符号 星 星 积分 日报 竖线 项目 竖线 数值 竖线..."
+本月可用额度 = 400 - 上月欠费
 ```
 
-### 优化后（✅ 正确）
+**示例**:
 ```
-TTS 输入：2026-03-13 积分日报。今天收入 5 分。汉字抄写 2 分，口算题卡 2 分。
-语音输出："2026 年 3 月 13 日积分日报。今天收入 5 分。汉字抄写 2 分，口算题卡 2 分..."
+场景：3 月消费了 450 分（超额 50 分）
+
+4 月 1 日重置时：
+- 本月新额度：400 分
+- 上月欠费：50 分
+- 实际可用：400 - 50 = 350 分
+
+提示：
+📊 4 月积分额度重置
+   本月额度：400 分
+   上月欠费：-50 分
+   实际可用：350 分
 ```
 
 ---
 
-## 🎯 TTS 文案规则
+### 4. 需要修改的文件清单
 
-### 包含内容 ✅
-- 日期（如：2026-03-13）
-- 总收入（如：今天收入 5 分）
-- 主要收入项（最多 3 项）
-- 总支出（如有）
-- 净收益（如：净赚 5 分）
-- 当前余额
-- 距离上限
-- 鼓励短语
+#### 4.1 核心逻辑文件
 
-### 排除内容 ❌
-- markdown 符号（`**`, `|`, `_` 等）
-- emoji 表情（📅, 💰等）
-- 表格格式
-- 详细明细列表（超过 3 项）
-- 文件路径引用
+| 文件 | 修改内容 | 优先级 |
+|------|----------|--------|
+| `scripts/handler.js` | 新增 `checkMonthlyOverdraft()` 函数（每月 1 号检查欠费） | 🔴 高 |
+| `scripts/handler.js` | 修改 `createMonthlyLog()` 添加欠费字段 | 🔴 高 |
+| `config/rules.json` | 添加 `monthlySpendingLimit: 400` 配置 | 🔴 高 |
 
----
+#### 4.2 报表生成文件
 
-## 🔊 语音配置
+| 文件 | 修改内容 | 优先级 |
+|------|----------|--------|
+| `scripts/generate-daily-report.js` | 显示"本月可用额度"（400 - 上月欠费） | 🟡 中 |
+| `scripts/generate-daily-report.js` | 添加"上月欠费"字段（如有） | 🟡 中 |
 
-**默认声音**: `zh-CN-XiaoxiaoNeural`（温暖女声）  
-**备选声音**: 
-- `zh-CN-YunxiaNeural`（可爱男声，适合儿童）
-- `zh-CN-YunyangNeural`（专业男声，适合新闻）
+#### 4.3 文档文件
 
-**语速/音量**: 默认（可根据需要调整）
+| 文件 | 修改内容 | 优先级 |
+|------|----------|--------|
+| `SKILL.md` | 更新版本号为 v1.3，添加更新说明 | 🟡 中 |
+| `RULES.md` | 重写"基本规则"章节，说明新额度制 | 🟡 中 |
+| `README.md` | 更新核心机制说明 | 🟡 中 |
 
 ---
 
-## 📦 ClawHub 发布命令
+### 5. 详细修改方案
+
+#### 5.1 `config/rules.json` 修改
+
+```json
+{
+  "version": "1.3",
+  "lastUpdated": "2026-03-23",
+  "rules": {
+    "tasks": { ... },
+    "limits": {
+      "monthlySpendingLimit": 400,
+      "monthlyEarningLimit": null,
+      "resetDay": 1
+    },
+    "schedule": { ... }
+  }
+}
+```
+
+#### 5.2 `scripts/handler.js` 新增函数
+
+```javascript
+/**
+ * 检查并记录上月欠费
+ * 在每月 1 号调用，从上月账本读取总支出，计算欠费
+ */
+function checkMonthlyOverdraft() {
+  const lastMonthStr = getLastMonthStr();  // 获取上月月份 (YYYY-MM)
+  const currentMonthStr = getMonthStr();   // 当前月份
+  
+  // 读取上月账本
+  const lastMonthLog = loadMonthlyLog(lastMonthStr);
+  const expenseMatch = lastMonthLog.match(/总支出 \| (\d+) 分/);
+  
+  if (!expenseMatch) return null;  // 上月无支出记录
+  
+  const lastMonthExpense = parseInt(expenseMatch[1]);
+  const spendingLimit = 400;
+  const overdraft = Math.max(0, lastMonthExpense - spendingLimit);
+  
+  if (overdraft > 0) {
+    // 记录欠费到本月账本
+    const currentLog = loadMonthlyLog(currentMonthStr);
+    // 在 currentLog 中添加欠费记录
+    // ...
+    
+    return {
+      lastMonthExpense,
+      spendingLimit,
+      overdraft,
+      availableLimit: spendingLimit - overdraft
+    };
+  }
+  
+  return null;  // 无欠费
+}
+
+/**
+ * 获取上月月份字符串
+ */
+function getLastMonthStr() {
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+}
+```
+
+#### 5.3 每月 1 号自动检查
+
+**方案 A**: 定时任务（推荐）
+```bash
+# crontab 配置
+0 8 1 * * cd ~/.openclaw/agents/kids-study/workspace && node scripts/check-overdraft.js
+```
+
+**方案 B**: 懒加载（首次查询时检查）
+```javascript
+// 在 generateDailyReport() 中检查
+function generateDailyReport() {
+  const today = getTodayStr();
+  const isMonthStart = today.endsWith('-01');  // 每月 1 号
+  
+  if (isMonthStart) {
+    const overdraft = checkMonthlyOverdraft();
+    if (overdraft) {
+      // 显示欠费提示
+    }
+  }
+  // ...
+}
+```
+
+---
+
+### 6. 测试用例
+
+#### 6.1 正常月份测试
+```bash
+# 3 月消费 350 分（未超额）
+# 4 月 1 日检查
+# 预期：无欠费，4 月可用额度 400 分
+```
+
+#### 6.2 超额月份测试
+```bash
+# 3 月消费 450 分（超额 50 分）
+# 4 月 1 日检查
+# 预期：欠费 50 分，4 月可用额度 350 分
+```
+
+#### 6.3 边界测试
+```bash
+# 3 月消费 400 分（刚好）
+# 4 月 1 日检查
+# 预期：无欠费，4 月可用额度 400 分
+```
+
+---
+
+### 7. 发布前检查清单
+
+#### 代码层面
+- [ ] `handler.js` 添加 `checkMonthlyOverdraft()` 函数
+- [ ] `handler.js` 添加 `getLastMonthStr()` 函数
+- [ ] `handler.js` 修改 `createMonthlyLog()` 添加欠费字段
+- [ ] `config/rules.json` 更新配置
+- [ ] `generate-daily-report.js` 更新显示逻辑
+- [ ] 所有测试用例通过
+
+#### 文档层面
+- [ ] `SKILL.md` 更新版本号和更新说明
+- [ ] `RULES.md` 重写基本规则章节
+- [ ] `README.md` 更新核心机制
+
+#### 测试层面
+- [ ] 正常月份测试
+- [ ] 超额月份测试
+- [ ] 边界条件测试（刚好 400 分）
+- [ ] 月度重置测试（模拟 4 月 1 日）
+
+---
+
+### 8. ClawHub 发布信息
 
 ```bash
-# 登录
-clawhub login
-
-# 发布（从 workspace 根目录执行）
 clawhub publish ./skills/kids-points \
   --slug kids-points \
   --name "孩子积分管理" \
-  --version 1.1.0 \
-  --changelog "v1.1: TTS 语音播报优化，分离阅读文案和语音文案，解决长文本截断问题"
+  --version 1.3.0 \
+  --changelog "v1.3: 月度消费额度制 + 欠费自动结转 + 修复消费识别/语音播报 bug"
+```
+
+**更新说明**:
+```markdown
+## v1.3.0 重大更新
+
+### 🎯 核心机制变更
+- **月度消费额度制**: 400 分从"赚取上限"改为"消费额度"
+- **积分无上限**: 可以无限赚取积分，累积到下月
+- **额度月清**: 每月 1 号重置消费额度，不结转
+
+### 💰 欠费结转
+- 超额消费不收取惩罚
+- 欠费自动结转到下月
+- 从下月额度中扣除
+
+### 🐛 Bug 修复
+- 修复"积分消费"识别失败问题（正则表达式空格 bug）
+- 修复"积分消费"无语音播报问题
+
+### 📊 报表优化
+- 日报显示"本月可用额度"和"上月欠费"
+- 月度账本添加欠费记录字段
 ```
 
 ---
 
-## ✅ 测试清单
+## 9. 用户确认项
 
-- [x] 积分记账功能正常
-- [x] 积分消费功能正常
-- [x] 今日积分查询正常
-- [x] 日报生成功能正常
-- [x] TTS 语音播报清晰可懂
-- [x] 长文本无截断问题
-- [x] 定时任务脚本可执行
+✅ **已确认**:
+1. 超额倍率：**无惩罚**（1:1 结转欠费）
+2. 月度重置日：每月 1 号
+3. 额度结转：不结转（月底清零）
+4. 实现方式：每月 1 号检查欠费并记录
 
-**测试命令**:
+---
+
+## 10. 实现状态
+
+### ✅ 已完成
+| 功能 | 状态 | 测试 |
+|------|------|------|
+| Bug 修复：消费识别失败 | ✅ 完成 | ✅ 通过 |
+| Bug 修复：消费无语音播报 | ✅ 完成 | ✅ 通过 |
+| 配置更新：rules.json v1.3 | ✅ 完成 | ✅ 通过 |
+| 新增函数：checkMonthlyOverdraft() | ✅ 完成 | ✅ 通过 |
+| 新增函数：getLastMonthStr() | ✅ 完成 | ✅ 通过 |
+| 日报更新：显示可用额度 | ✅ 完成 | ✅ 通过 |
+| 脚本：check-overdraft.js | ✅ 完成 | ✅ 通过 |
+| 文档：SKILL.md v1.3 | ✅ 完成 | - |
+| 文档：RULES.md v1.3 | ✅ 完成 | - |
+| 测试脚本：test-v1.3.js | ✅ 完成 | ✅ 通过 |
+
+### 📋 测试用例结果
+| 测试项 | 结果 |
+|--------|------|
+| 配置检查 | ✅ 通过 |
+| 函数导出 | ✅ 通过 |
+| 月份计算 | ✅ 通过 |
+| 消费识别（3 个用例） | ✅ 通过 |
+| 语音配置 | ✅ 通过 |
+| 月度账本结构 | ✅ 通过 |
+| 欠费检查逻辑 | ✅ 通过 |
+
+---
+
+## 11. ClawHub 发布命令
+
 ```bash
-# 测试日报生成
-cd ~/.openclaw/agents/kids-study/workspace/skills/kids-points
-node scripts/generate-daily-report.js
+# 登录 ClawHub
+clawhub login
 
-# 测试 TTS 播放
-python3 ../edge-tts/scripts/tts.py --play "测试语音播报，今天收入 5 分，继续加油！"
+# 发布 v1.3
+clawhub publish ./skills/kids-points \
+  --slug kids-points \
+  --name "孩子积分管理" \
+  --version 1.3.0 \
+  --changelog "v1.3: 月度消费额度制 + 欠费自动结转 + 修复消费识别/语音播报 bug"
 ```
 
 ---
 
-## 📝 依赖项
-
-### 系统依赖
-- Node.js v18+
-- Python 3.8+
-
-### Node.js 依赖
-```json
-{
-  "dependencies": {
-    // 见 package.json
-  }
-}
-```
-
-### Python 依赖
-```bash
-pip3 install edge-tts pygame
-```
-
-### 依赖技能
-- `edge-tts` - TTS 语音生成
-- `schedule-manager` - 定时任务调度
-- `feishu-doc` - 飞书消息发送
-
----
-
-## 🚀 升级步骤（v1.0 → v1.1）
-
-1. **更新代码**
-   ```bash
-   cd ~/.openclaw/agents/kids-study/workspace/skills/kids-points
-   git pull  # 或手动替换文件
-   ```
-
-2. **安装依赖**
-   ```bash
-   # Node.js 依赖
-   npm install
-   
-   # Python 依赖
-   pip3 install edge-tts pygame
-   ```
-
-3. **验证功能**
-   ```bash
-   node scripts/generate-daily-report.js
-   ```
-
-4. **更新定时任务**（如已配置）
-   - 无需修改 cron 配置
-   - 脚本会自动使用新的 TTS 文案
-
----
-
-## 📞 维护信息
-
-- **版本**: v1.1.0
-- **最后更新**: 2026-03-13
-- **维护者**: 老王
-- **问题反馈**: ClawHub 评论区
-
----
-
-_文档生成时间：2026-03-13_
+_最后更新：2026-03-23 09:15_

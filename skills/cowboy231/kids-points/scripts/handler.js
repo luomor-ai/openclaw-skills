@@ -41,7 +41,7 @@ const WORKSPACE = process.env.WORKSPACE || '/home/wang/.openclaw/agents/kids-stu
 const POINTS_DIR = process.env.POINTS_DIR || path.join(WORKSPACE, 'kids-points');
 const RULES_FILE = path.join(__dirname, '..', 'config', 'rules.json');
 // 使用 Kid Point Voice Component
-const TTS_SCRIPT = path.join(WORKSPACE, 'skills/kid-point-voice-component/scripts/tts.py');
+const TTS_SCRIPT = path.join(WORKSPACE, 'skills/senseaudio-voice/scripts/tts.py');
 
 /**
  * 获取今日日期字符串
@@ -327,6 +327,109 @@ function recordExpense(dateStr, amount, description) {
 }
 
 /**
+ * 获取上月月份字符串
+ */
+function getLastMonthStr() {
+  const now = new Date();
+  const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+  return `${lastMonth.getFullYear()}-${String(lastMonth.getMonth() + 1).padStart(2, '0')}`;
+}
+
+/**
+ * 检查并记录上月欠费
+ * 在每月 1 号调用，从上月账本读取总支出，计算欠费
+ * @returns {Object|null} - 欠费信息或 null（无欠费）
+ */
+function checkMonthlyOverdraft() {
+  const lastMonthStr = getLastMonthStr();
+  const currentMonthStr = getMonthStr();
+  const spendingLimit = 400;
+  
+  // 读取上月账本
+  const lastMonthFile = path.join(POINTS_DIR, 'monthly', `${lastMonthStr}.md`);
+  if (!fs.existsSync(lastMonthFile)) {
+    return null;  // 上月无账本
+  }
+  
+  const lastMonthLog = fs.readFileSync(lastMonthFile, 'utf8');
+  const expenseMatch = lastMonthLog.match(/总支出 \| (\d+) 分/);
+  
+  if (!expenseMatch) {
+    return null;  // 上月无支出记录
+  }
+  
+  const lastMonthExpense = parseInt(expenseMatch[1]);
+  const overdraft = Math.max(0, lastMonthExpense - spendingLimit);
+  
+  if (overdraft > 0) {
+    // 有欠费，记录到本月账本
+    const currentMonthFile = path.join(POINTS_DIR, 'monthly', `${currentMonthStr}.md`);
+    let currentLog = '';
+    
+    if (fs.existsSync(currentMonthFile)) {
+      currentLog = fs.readFileSync(currentMonthFile, 'utf8');
+    } else {
+      currentLog = createMonthlyLog(currentMonthStr);
+    }
+    
+    // 检查是否已记录过欠费
+    if (currentLog.includes('上月欠费结转')) {
+      return {
+        lastMonthExpense,
+        spendingLimit,
+        overdraft,
+        availableLimit: spendingLimit - overdraft,
+        alreadyRecorded: true
+      };
+    }
+    
+    // 在本月账本中添加欠费记录
+    const overdraftLine = `| ${currentMonthStr}-01 | 欠费结转 | -${overdraft} | 上月超额消费结转 |`;
+    
+    // 找到调账记录部分，插入欠费记录
+    const adjustmentIndex = currentLog.indexOf('## 调账记录');
+    if (adjustmentIndex !== -1) {
+      // 找到调账记录表格的末尾
+      const tableEnd = currentLog.indexOf('---', adjustmentIndex);
+      if (tableEnd !== -1) {
+        const insertPos = currentLog.lastIndexOf('\n', tableEnd);
+        currentLog = currentLog.slice(0, insertPos) + '\n' + overdraftLine + currentLog.slice(insertPos);
+      }
+    }
+    
+    // 更新本月汇总（减去欠费）
+    const balanceMatch = currentLog.match(/当前结余 \| (\d+) 分/);
+    if (balanceMatch) {
+      const currentBalance = parseInt(balanceMatch[1]);
+      const newBalance = currentBalance - overdraft;
+      currentLog = currentLog.replace(/当前结余 \| \d+ 分/, `当前结余 | ${newBalance} 分`);
+    }
+    
+    // 计算可用额度
+    const availableLimit = spendingLimit - overdraft;
+    
+    // 更新距离上限显示
+    const remainingMatch = currentLog.match(/距离上限 \(400 分\) \| \d+ 分/);
+    if (remainingMatch) {
+      currentLog = currentLog.replace(/距离上限 \(400 分\) \| \d+ 分/, `距离上限 (400 分) | ${Math.max(0, availableLimit)} 分`);
+    }
+    
+    // 保存更新后的账本
+    fs.writeFileSync(currentMonthFile, currentLog);
+    
+    return {
+      lastMonthExpense,
+      spendingLimit,
+      overdraft,
+      availableLimit,
+      alreadyRecorded: false
+    };
+  }
+  
+  return null;  // 无欠费
+}
+
+/**
  * 检查 SenseAudio API Key 是否配置
  */
 function checkSenseApiKey() {
@@ -470,7 +573,7 @@ function handleExpenseInput(input, lang = 'zh') {
   };
   
   // 提取金额（支持多种格式）
-  const amountMatch = input.match(/(\d+)\s*(分 | pts|ポイント)/);
+  const amountMatch = input.match(/(\d+)\s*(分|pts|ポイント)/);
   const amount = amountMatch ? parseInt(amountMatch[1]) : 0;
   
   if (amount <= 0) {
@@ -515,7 +618,17 @@ function handleExpenseInput(input, lang = 'zh') {
     response += `💸 **支出**: ${amount}分\n`;
     response += `📝 **用途**: ${description}\n\n`;
     response += `_已自动记入账本_\n\n`;
-    response += t('voiceHint', 'zh');
+  }
+  
+  // 语音播报（仅中文）
+  if (lang === 'zh') {
+    const ttsText = `好的，已记录消费${amount}分，${description}。要合理消费哦！`;
+    playTTS(ttsText, (error, stdout, stderr) => {
+      if (stderr === 'API_KEY_NOT_CONFIGURED') {
+        // 仅在 API Key 未配置时显示提示
+        response += t('voiceHint', 'zh');
+      }
+    });
   }
   
   return {
@@ -558,7 +671,7 @@ ${getApiKeyHint()}`
   }
   
   // API Key 已配置，调用 ASR 识别
-  const ASR_SCRIPT = path.join(WORKSPACE, 'skills/kid-point-voice-component/scripts/asr.py');
+  const ASR_SCRIPT = path.join(WORKSPACE, 'skills/senseaudio-voice/scripts/asr.py');
   const cmd = `python3 "${ASR_SCRIPT}" "${audioPath}"`;
   
   return new Promise((resolve) => {
@@ -793,6 +906,8 @@ module.exports = {
   generateWeeklyReport,
   getTodayStr,
   getMonthStr,
+  getLastMonthStr,
+  checkMonthlyOverdraft,
   checkSenseApiKey,
   getApiKeyHint,
   detectLanguage,
