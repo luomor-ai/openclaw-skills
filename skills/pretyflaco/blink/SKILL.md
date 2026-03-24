@@ -1,46 +1,48 @@
 ---
 name: blink
-description: Bitcoin Lightning wallet for agents — balances, invoices, payments, BTC/USD swaps, QR codes, price conversion, and transaction history via the Blink API. All output is JSON.
-version: 1.3.0
+description: Bitcoin Lightning wallet for agents — balances, invoices, payments, BTC/USD swaps, QR codes, price conversion, transaction history, and L402 auto-pay client via the Blink API. All output is JSON.
+version: 1.4.6
 repository: https://github.com/blinkbitcoin/blink-skill
 metadata:
   oa:
     project: blink
     identifier: blink
-    version: "1.3.0"
+    version: '1.4.6'
     expires_at_unix: 1798761600
     capabilities:
       - http:outbound
       - filesystem:read
-      - process:spawn
+      - filesystem:write
   openclaw:
     requires:
       env: [BLINK_API_KEY]
       bins: [node]
     primaryEnv: BLINK_API_KEY
-    emoji: "⚡"
-    homepage: "https://github.com/blinkbitcoin/blink-skill"
+    emoji: '⚡'
+    homepage: 'https://github.com/blinkbitcoin/blink-skill'
     security:
-      secrets: ["BLINK_API_KEY"]
-      network: "outbound HTTPS to api.blink.sv (or BLINK_API_URL override); outbound WSS to ws.blink.sv for subscriptions"
-      filesystem: "reads ~/.profile, ~/.bashrc, ~/.bash_profile, ~/.zshrc to locate BLINK_API_KEY export (env var checked first); writes temporary QR PNGs to /tmp"
-      persistence: "none — stateless, no data stored between runs"
-      notes: "Zero npm runtime dependencies. Only Node.js built-in modules used. No global installs required — scripts run standalone via node."
+      secrets: ['BLINK_API_KEY']
+      network: 'outbound HTTPS to api.blink.sv (or BLINK_API_URL override); outbound WSS to ws.blink.sv for subscriptions'
+      filesystem: 'reads ~/.profile, ~/.bashrc, ~/.bash_profile, ~/.zshrc to locate BLINK_API_KEY export (env var checked first); writes temporary QR PNGs to /tmp; writes L402 token cache to ~/.blink/l402-tokens.json'
+      persistence: 'L402 token cache stored at ~/.blink/l402-tokens.json; all other operations are stateless'
+      notes: 'Zero npm runtime dependencies. Only Node.js built-in modules used. No global installs required — scripts run standalone via node.'
 ---
 
 # Blink Skill
 
-Bitcoin Lightning wallet operations via the Blink API. Enables agents to check balances, receive payments via invoices, send payments over Lightning, track transactions, and monitor prices.
+Bitcoin Lightning wallet operations via the Blink API. Enables agents to check balances, receive payments via invoices, send payments over Lightning, track transactions, monitor prices, and automatically pay for L402-gated web services.
 
 ## What is Blink?
 
 Blink is a custodial Bitcoin Lightning wallet with a GraphQL API. Key concepts:
+
 - **API Key** — authentication token (format: `blink_...`) with scoped permissions (Read, Receive, Write)
 - **BTC Wallet** — balance denominated in satoshis
 - **USD Wallet** — balance denominated in cents (stablecoin pegged to USD)
 - **Lightning Invoice** — BOLT-11 payment request string (`lnbc...`) used to receive payments
 - **Lightning Address** — human-readable address (`user@domain`) for sending payments without an invoice
 - **LNURL** — protocol for interacting with Lightning services via encoded URLs
+- **L402** — HTTP payment protocol (RFC draft) that gates resources behind a Lightning invoice. Servers return HTTP 402 with a macaroon + invoice; clients pay and retry with the token.
 
 ## Environment
 
@@ -64,6 +66,7 @@ export BLINK_API_KEY="blink_..."
 ```
 
 **API Key Scopes:**
+
 - **Read** — query balances, transaction history, price, account info
 - **Receive** — create invoices
 - **Write** — send payments (use with caution)
@@ -81,6 +84,7 @@ If you see JSON with your wallet balances, you're ready.
 ### 3. Staging / Testnet (recommended for first-time setup)
 
 To use the Blink staging environment (signet) instead of real money:
+
 ```bash
 export BLINK_API_URL="https://api.staging.blink.sv/graphql"
 ```
@@ -92,6 +96,7 @@ If `BLINK_API_URL` is not set, production (`https://api.blink.sv/graphql`) is us
 ### API key auto-detection
 
 Scripts automatically resolve `BLINK_API_KEY` using this order:
+
 1. `process.env.BLINK_API_KEY` (checked first)
 2. Shell rc files: `~/.profile`, `~/.bashrc`, `~/.bash_profile`, `~/.zshrc` — scanned for an `export BLINK_API_KEY=...` line only
 
@@ -121,6 +126,7 @@ These rules are mandatory for any AI agent using this skill:
 6. **Never log or display the API key.** Treat `BLINK_API_KEY` as a secret. Do not echo it, include it in messages, or write it to files.
 7. **Prefer staging for testing.** When the user is testing or learning, suggest setting `BLINK_API_URL` to the staging endpoint.
 8. **Respect irreversibility.** Warn the user that Lightning payments and swaps cannot be reversed once executed.
+9. **L402 auto-pay requires confirmation.** Never call `l402-pay` without dry-running first (`--dry-run`) and confirming the satoshi amount with the user. The token cache (`~/.blink/l402-tokens.json`) means subsequent calls may reuse a paid token silently — inform the user when a cached token is used.
 
 ## Bitcoin Units
 
@@ -133,35 +139,48 @@ These rules are mandatory for any AI agent using this skill:
 ## Workflow
 
 1. Pick the operation path first:
+
 - Receive payments (invoice creation, QR codes, payment monitoring).
 - Send payments (invoice pay, Lightning Address, LNURL, BTC or USD wallet).
 - Swap between wallets (BTC <-> USD internal conversion).
 - Read-only queries (balance, transactions, price, account info).
 
 2. Configure API access from [blink-api-and-auth](references/blink-api-and-auth.md):
+
 - Set `BLINK_API_KEY` with the correct scopes for your operation.
 - Optionally set `BLINK_API_URL` for staging/testnet.
 - Verify connectivity with `blink balance`.
 
 3. For sending payments, follow [payment-operations](references/payment-operations.md):
+
 - Check balance before sending.
 - Probe fees with `blink fee-probe`.
 - Choose BTC or USD wallet with `--wallet` flag.
 - Execute payment and verify in transaction history.
 
 4. For receiving payments, follow [invoice-lifecycle](references/invoice-lifecycle.md):
+
 - Create BTC or USD invoice.
 - Parse two-phase output (invoice created, then payment resolution).
 - Generate QR code and send to payer.
 - Monitor via auto-subscribe, polling, or standalone subscription.
 
 5. For swapping between wallets, follow [swap-operations](references/swap-operations.md):
+
 - Quote first with `blink swap-quote`.
 - Review quote terms (amountIn/amountOut, exchange rate).
 - Execute with `blink swap-execute` (use `--dry-run` first).
 - Verify settlement from `postBalance`/`balanceDelta`.
 
-6. Apply safety constraints:
+6. For accessing L402-gated services:
+
+- Discover price with `blink l402-discover <url>` (no payment needed).
+- Dry-run with `blink l402-pay <url> --dry-run` and confirm cost with user.
+- Pay with `blink l402-pay <url> --max-amount <sats>` (Write scope required).
+- Token is cached; subsequent requests reuse it without re-paying.
+
+7. Apply safety constraints:
+
 - Use minimum API key scopes for the task.
 - Test on staging before production.
 - Always check balance before sending.
@@ -190,11 +209,22 @@ blink swap-execute btc-to-usd 1000
 
 # Get swap quote without executing
 blink swap-quote usd-to-btc 500 --unit cents
+
+# Probe an L402-gated URL (discover price without paying)
+blink l402-discover https://api.example.com/resource
+
+# Pay for an L402-gated resource (dry-run first)
+blink l402-pay https://api.example.com/resource --dry-run
+blink l402-pay https://api.example.com/resource --max-amount 1000
+
+# List cached L402 tokens
+blink l402-store list
 ```
 
 ## Core Commands
 
 ### Check Wallet Balances
+
 ```bash
 blink balance
 ```
@@ -202,6 +232,7 @@ blink balance
 Returns JSON with all wallet balances (BTC in sats, USD in cents), wallet IDs, pending incoming amounts, and a **pre-computed USD estimate** for the BTC wallet. Use `btcBalanceUsd` for the BTC wallet's USD value — do not calculate it yourself.
 
 ### Create Lightning Invoice (BTC)
+
 ```bash
 blink create-invoice <amount_sats> [--timeout <seconds>] [--no-subscribe] [memo...]
 ```
@@ -209,6 +240,7 @@ blink create-invoice <amount_sats> [--timeout <seconds>] [--no-subscribe] [memo.
 Generates a BOLT-11 Lightning invoice for the specified amount in satoshis. Returns the `paymentRequest` string that can be paid by any Lightning wallet. The BTC wallet ID is resolved automatically.
 
 **Auto-subscribe**: After creating the invoice, the script automatically opens a WebSocket subscription and waits for payment. It outputs **two JSON objects** to stdout:
+
 1. **Immediately** — `{"event": "invoice_created", ...}` with `paymentRequest`, `paymentHash`, etc.
 2. **When resolved** — `{"event": "subscription_result", "status": "PAID"|"EXPIRED"|"TIMEOUT", ...}`
 
@@ -220,6 +252,7 @@ The agent should read the first JSON to share the invoice/QR with the user right
 - `memo...` — optional description attached to the invoice (remaining args joined)
 
 ### Create Lightning Invoice (USD)
+
 ```bash
 blink create-invoice-usd <amount_cents> [--timeout <seconds>] [--no-subscribe] [memo...]
 ```
@@ -234,6 +267,7 @@ Creates a Lightning invoice denominated in USD cents. The sender pays in BTC/Lig
 - `memo...` — optional description attached to the invoice (remaining args joined)
 
 ### Check Invoice Status
+
 ```bash
 blink check-invoice <payment_hash>
 ```
@@ -243,6 +277,7 @@ Checks the payment status of a Lightning invoice by its payment hash. Use after 
 - `payment_hash` — the 64-char hex payment hash from `create-invoice` output (required)
 
 ### Pay Lightning Invoice
+
 ```bash
 blink pay-invoice <bolt11_invoice> [--wallet BTC|USD]
 ```
@@ -257,6 +292,7 @@ Pays a BOLT-11 Lightning invoice from the BTC or USD wallet. Returns payment sta
 > **AGENT:** This command spends funds. Always run `balance` and `fee-probe` first, then confirm amount and recipient with the user before executing.
 
 ### Pay to Lightning Address
+
 ```bash
 blink pay-lnaddress <lightning_address> <amount_sats> [--wallet BTC|USD]
 ```
@@ -272,6 +308,7 @@ Sends satoshis to a Lightning Address (e.g. `user@blink.sv`). Returns payment st
 > **AGENT:** This command spends funds. Always run `balance` first, confirm the Lightning Address and amount with the user, then execute.
 
 ### Pay to LNURL
+
 ```bash
 blink pay-lnurl <lnurl> <amount_sats> [--wallet BTC|USD]
 ```
@@ -287,6 +324,7 @@ Sends satoshis to a raw LNURL payRequest string. For Lightning Addresses (`user@
 > **AGENT:** This command spends funds. Always run `balance` first, confirm the LNURL and amount with the user, then execute.
 
 ### Estimate Payment Fee
+
 ```bash
 blink fee-probe <bolt11_invoice> [--wallet BTC|USD]
 ```
@@ -297,6 +335,7 @@ Estimates the fee for paying a Lightning invoice without actually sending. Use b
 - `--wallet BTC|USD` — wallet to probe from (default: BTC). When USD is selected, uses `lnUsdInvoiceFeeProbe` to estimate fees from the USD wallet's perspective.
 
 ### Render Invoice QR Code
+
 ```bash
 blink qr <bolt11_invoice>
 ```
@@ -308,6 +347,7 @@ Renders a terminal QR code for a Lightning invoice (BOLT-11) to stderr and gener
 - `bolt11_invoice` — the BOLT-11 payment request string (required)
 
 Output JSON includes:
+
 - `invoice` — uppercased invoice string
 - `qrRendered` — always `true`
 - `qrSize` — QR module count
@@ -316,6 +356,7 @@ Output JSON includes:
 - `pngBytes` — file size in bytes
 
 ### List Transactions
+
 ```bash
 blink transactions [--first N] [--after CURSOR] [--wallet BTC|USD]
 ```
@@ -327,6 +368,7 @@ Lists recent transactions (incoming and outgoing) with pagination. Returns direc
 - `--wallet BTC|USD` — filter to a specific wallet currency
 
 ### Get BTC/USD Price
+
 ```bash
 blink price [amount_sats]
 blink price --usd <amount_usd>
@@ -337,6 +379,7 @@ blink price --currencies
 Multi-purpose exchange rate tool. All price queries are **public (no API key required)**, though the key is sent if available.
 
 **Modes:**
+
 - **No args** — current BTC/USD price and sats-per-dollar rate
 - **`<amount_sats>`** — convert a satoshi amount to USD (e.g. `blink price 1760` → `$1.20`)
 - **`--usd <amount>`** — convert a USD amount to sats (e.g. `blink price --usd 5.00` → `7350 sats`)
@@ -344,6 +387,7 @@ Multi-purpose exchange rate tool. All price queries are **public (no API key req
 - **`--currencies`** — list all supported display currencies (IDs, names, symbols, flags)
 
 ### Account Info
+
 ```bash
 blink account-info
 ```
@@ -355,6 +399,7 @@ Shows account level, spending limits (withdrawal, internal send, convert), defau
 Blink supports GraphQL subscriptions over WebSocket using the `graphql-transport-ws` protocol. Requires Node 22+ for native WebSocket, or Node 20+ with the `--experimental-websocket` flag.
 
 ### Subscribe to Invoice Payment Status
+
 ```bash
 blink subscribe-invoice <bolt11_invoice> [--timeout <seconds>]
 ```
@@ -362,6 +407,7 @@ blink subscribe-invoice <bolt11_invoice> [--timeout <seconds>]
 Watches a single invoice and exits when it is **PAID** or **EXPIRED**. Status updates are printed to stderr. JSON result is printed to stdout.
 
 ### Subscribe to Account Updates (myUpdates)
+
 ```bash
 blink subscribe-updates [--timeout <seconds>] [--max <count>]
 ```
@@ -370,27 +416,29 @@ Streams account updates in real time. Each event is output as a JSON line (NDJSO
 
 ## API Reference
 
-| Operation | GraphQL | Scope Required |
-|-----------|---------|----------------|
-| Check balance | `query me` + `currencyConversionEstimation` | Read |
-| Create BTC invoice | `mutation lnInvoiceCreate` | Receive |
-| Create USD invoice | `mutation lnUsdInvoiceCreate` | Receive |
-| Check invoice | `query invoiceByPaymentHash` | Read |
-| Pay invoice | `mutation lnInvoicePaymentSend` | Write |
-| Pay LN address | `mutation lnAddressPaymentSend` | Write |
-| Pay LNURL | `mutation lnurlPaymentSend` | Write |
-| Fee estimate (BTC) | `mutation lnInvoiceFeeProbe` | Read |
-| Fee estimate (USD) | `mutation lnUsdInvoiceFeeProbe` | Read |
-| Swap BTC→USD | `mutation intraLedgerPaymentSend` | Write |
-| Swap USD→BTC | `mutation intraLedgerUsdPaymentSend` | Write |
-| Transactions | `query transactions` | Read |
-| Price / convert | `query currencyConversionEstimation` | **None (public)** |
-| Price history | `query btcPriceList` | **None (public)** |
-| Currency list | `query currencyList` | **None (public)** |
-| Realtime price | `query realtimePrice` | **None (public)** |
-| Account info | `query me` + `currencyConversionEstimation` | Read |
-| Subscribe invoice | `subscription lnInvoicePaymentStatus` | Read |
-| Subscribe updates | `subscription myUpdates` | Read |
+| Operation          | GraphQL                                     | Scope Required    |
+| ------------------ | ------------------------------------------- | ----------------- |
+| Check balance      | `query me` + `currencyConversionEstimation` | Read              |
+| Create BTC invoice | `mutation lnInvoiceCreate`                  | Receive           |
+| Create USD invoice | `mutation lnUsdInvoiceCreate`               | Receive           |
+| Check invoice      | `query invoiceByPaymentHash`                | Read              |
+| Pay invoice        | `mutation lnInvoicePaymentSend`             | Write             |
+| Pay LN address     | `mutation lnAddressPaymentSend`             | Write             |
+| Pay LNURL          | `mutation lnurlPaymentSend`                 | Write             |
+| Fee estimate (BTC) | `mutation lnInvoiceFeeProbe`                | Read              |
+| Fee estimate (USD) | `mutation lnUsdInvoiceFeeProbe`             | Read              |
+| Swap BTC→USD       | `mutation intraLedgerPaymentSend`           | Write             |
+| Swap USD→BTC       | `mutation intraLedgerUsdPaymentSend`        | Write             |
+| Transactions       | `query transactions`                        | Read              |
+| Price / convert    | `query currencyConversionEstimation`        | **None (public)** |
+| Price history      | `query btcPriceList`                        | **None (public)** |
+| Currency list      | `query currencyList`                        | **None (public)** |
+| Realtime price     | `query realtimePrice`                       | **None (public)** |
+| Account info       | `query me` + `currencyConversionEstimation` | Read              |
+| Subscribe invoice  | `subscription lnInvoicePaymentStatus`       | Read              |
+| Subscribe updates  | `subscription myUpdates`                    | Read              |
+| L402 discover      | external HTTP (no Blink API)                | **None**          |
+| L402 pay           | `mutation lnInvoicePaymentSend` (on 402)    | Write             |
 
 **API Endpoint:** `https://api.blink.sv/graphql` (production)
 **Authentication:** `X-API-KEY` header
@@ -402,6 +450,7 @@ Streams account updates in real time. Each event is output as a JSON line (NDJSO
 All commands output structured JSON to stdout. Status messages and errors go to stderr. Exit code 0 on success, 1 on failure.
 
 ### Balance output example
+
 ```json
 {
   "wallets": [
@@ -421,7 +470,9 @@ All commands output structured JSON to stdout. Status messages and errors go to 
 ```
 
 ### Invoice creation output example (two-phase)
+
 First JSON (immediate):
+
 ```json
 {
   "event": "invoice_created",
@@ -433,7 +484,9 @@ First JSON (immediate):
   "walletId": "abc123"
 }
 ```
+
 Second JSON (when payment resolves):
+
 ```json
 {
   "event": "subscription_result",
@@ -446,6 +499,7 @@ Second JSON (when payment resolves):
 ```
 
 ### Invoice status output example
+
 ```json
 {
   "paymentHash": "abc123...",
@@ -458,6 +512,7 @@ Second JSON (when payment resolves):
 ```
 
 ### Payment output example (BTC wallet)
+
 ```json
 {
   "status": "SUCCESS",
@@ -468,6 +523,7 @@ Second JSON (when payment resolves):
 ```
 
 ### Payment output example (USD wallet)
+
 ```json
 {
   "status": "SUCCESS",
@@ -479,6 +535,7 @@ Second JSON (when payment resolves):
 ```
 
 ### Price output example
+
 ```json
 {
   "btcPriceUsd": 68036.95,
@@ -492,6 +549,7 @@ Second JSON (when payment resolves):
 ```
 
 ### USD-to-sats conversion output example
+
 ```json
 {
   "btcPriceUsd": 68036.95,
@@ -505,25 +563,25 @@ Second JSON (when payment resolves):
 ```
 
 ### Price history output example
+
 ```json
 {
   "range": "ONE_DAY",
   "dataPoints": 24,
   "summary": {
     "current": 68036.95,
-    "oldest": 67500.00,
-    "high": 68500.00,
-    "low": 67200.00,
+    "oldest": 67500.0,
+    "high": 68500.0,
+    "low": 67200.0,
     "changeUsd": 536.95,
     "changePct": 0.8
   },
-  "prices": [
-    { "timestamp": 1740000000, "date": "2025-02-20T00:00:00.000Z", "btcPriceUsd": 67500.00 }
-  ]
+  "prices": [{ "timestamp": 1740000000, "date": "2025-02-20T00:00:00.000Z", "btcPriceUsd": 67500.0 }]
 }
 ```
 
 ### Transaction list output example
+
 ```json
 {
   "transactions": [
@@ -549,6 +607,7 @@ Second JSON (when payment resolves):
 ## Typical Agent Workflows
 
 ### Receive a payment (recommended — auto-subscribe + QR image)
+
 ```bash
 # 1. Create invoice — script auto-subscribes and outputs two JSON objects
 blink create-invoice 1000 "Payment for service"
@@ -569,6 +628,7 @@ blink qr <paymentRequest>
 **Important**: The `create-invoice` command outputs two JSON objects separated by a newline. Parse them as separate JSON objects, not as a single JSON array. The first object arrives immediately; the second arrives when payment status resolves.
 
 ### Receive a payment (polling fallback)
+
 ```bash
 # 1. Create invoice without auto-subscribe
 blink create-invoice 1000 --no-subscribe "Payment for service"
@@ -580,6 +640,7 @@ blink balance
 ```
 
 ### Receive a USD payment
+
 ```bash
 # Same two-phase pattern as BTC, but using create-invoice-usd
 # Note: USD invoices expire in ~5 minutes
@@ -589,6 +650,7 @@ blink create-invoice-usd 500 "Five dollars for service"
 ```
 
 ### Send a payment (with fee check)
+
 ```bash
 # 1. Check current balance
 blink balance
@@ -601,6 +663,7 @@ blink transactions --first 1
 ```
 
 ### Send from the USD wallet
+
 ```bash
 # Pay an invoice from the USD wallet
 blink fee-probe lnbc1000n1... --wallet USD
@@ -617,6 +680,7 @@ blink pay-lnurl lnurl1... 1000 --wallet USD
 ```
 
 ### Convert sats to USD value
+
 ```bash
 # Check how much 1760 sats is worth in USD
 blink price 1760
@@ -624,6 +688,7 @@ blink price 1760
 ```
 
 ### Convert USD to sats
+
 ```bash
 # How many sats is $5.00?
 blink price --usd 5.00
@@ -631,6 +696,7 @@ blink price --usd 5.00
 ```
 
 ### Swap BTC to USD (internal conversion)
+
 ```bash
 # 1. Get a quote first
 blink swap-quote btc-to-usd 2000
@@ -649,13 +715,38 @@ blink balance
 ```
 
 ### Swap USD to BTC (internal conversion)
+
 ```bash
 # Convert $5.00 (500 cents) to BTC
 blink swap-execute usd-to-btc 500 --unit cents
 # → Converts 500 cents from USD wallet to ~7350 sats in BTC wallet
 ```
 
+### Pay for an L402-gated service
+
+```bash
+# 1. Discover what the service costs (no payment)
+blink l402-discover https://api.example.com/resource
+# → shows satoshis, format, macaroon
+
+# 2. Dry-run to confirm price with user before spending
+blink l402-pay https://api.example.com/resource --dry-run
+# → {"event": "l402_dry_run", "satoshis": 100, ...}
+
+# 3. Check your balance first
+blink balance
+
+# 4. Pay (with optional safety limit)
+blink l402-pay https://api.example.com/resource --max-amount 500
+# → pays invoice, caches token, returns resource data
+
+# 5. Subsequent calls reuse cached token (no re-payment)
+blink l402-pay https://api.example.com/resource
+# → {"event": "l402_paid", "tokenReused": true, ...}
+```
+
 ### Check price history
+
 ```bash
 # Get BTC price over the last 24 hours
 blink price --history ONE_DAY
@@ -668,6 +759,7 @@ blink price --history ONE_MONTH
 Swap between your BTC and USD wallets using Blink's intra-ledger transfer. This is an internal conversion (not a Lightning payment), so there are no routing fees — only minor rounding spread.
 
 ### Get Swap Quote
+
 ```bash
 blink swap-quote <direction> <amount> [--unit sats|cents] [--ttl-seconds N] [--immediate]
 ```
@@ -683,6 +775,7 @@ Estimates the conversion terms without moving funds. Returns wallet balances, ex
 **No API key scope beyond Read is required for quotes.**
 
 ### Execute Swap
+
 ```bash
 blink swap-execute <direction> <amount> [--unit sats|cents] [--dry-run] [--memo "text"]
 ```
@@ -702,6 +795,7 @@ Executes a real BTC <-> USD conversion. First generates a quote, then performs t
 ### Swap Output Examples
 
 **Quote output:**
+
 ```json
 {
   "event": "swap_quote",
@@ -729,6 +823,7 @@ Executes a real BTC <-> USD conversion. First generates a quote, then performs t
 ```
 
 **Execution output:**
+
 ```json
 {
   "event": "swap_execution",
@@ -746,6 +841,137 @@ Executes a real BTC <-> USD conversion. First generates a quote, then performs t
 }
 ```
 
+## L402 Client Commands
+
+L402 is an HTTP payment protocol: a server returns HTTP 402 with a Lightning invoice, the client pays, and retries the request with a proof-of-payment token. This skill can act as an L402 client.
+
+Supports two L402 formats:
+
+- **Lightning Labs** — `WWW-Authenticate: L402 macaroon="...", invoice="lnbc..."`
+- **l402-protocol.org** — JSON body with `payment_request_url` and `offers` array
+
+### Discover L402 Pricing (no payment)
+
+```bash
+blink l402-discover <url> [--method GET|POST] [--header key:value]
+```
+
+Probes a URL for L402 payment requirements without paying. Returns the detected format, invoice, and decoded satoshi amount.
+
+- `url` — the URL to probe (required)
+- `--method GET|POST` — HTTP method to use (default: GET)
+- `--header key:value` — extra request header (repeatable)
+
+**No API key required for discovery.**
+
+### Pay for an L402-Gated Resource
+
+```bash
+blink l402-pay <url> [options]
+```
+
+Makes an HTTP request. If the server returns 402, automatically parses the challenge, pays the invoice via Blink, caches the token, and retries with the payment proof.
+
+- `url` — URL to access (required)
+- `--wallet BTC|USD` — wallet to pay from (default: BTC)
+- `--max-amount <sats>` — refuse to pay more than N sats (safety limit)
+- `--dry-run` — discover price without paying; always bypasses the token cache so the current invoice price is always shown even if a cached token exists
+- `--method GET|POST|PUT|DELETE|PATCH` — HTTP method (default: GET)
+- `--header key:value` — extra request header (repeatable)
+- `--body <string>` — request body for POST/PUT
+- `--no-store` — disable token cache (do not read or write `~/.blink/l402-tokens.json`)
+- `--force` — pay even if a valid cached token exists
+- `--probe` — run a fee probe (`lnInvoiceFeeProbe`) before paying to estimate routing fees; warns and continues if the probe fails; adds a `feeProbe` field to the `l402_paid` output
+
+**Requires Write scope on the API key.**
+
+> **AGENT:** Always run with `--dry-run` first to show the satoshi cost to the user. Confirm the amount and target URL before executing without `--dry-run`.
+
+### Manage Token Cache
+
+```bash
+blink l402-store list
+blink l402-store get <domain>
+blink l402-store clear [--expired]
+```
+
+- `list` — show all cached tokens (masks preimage for security)
+- `get <domain>` — retrieve the full token for a specific domain
+- `clear` — remove all cached tokens
+- `clear --expired` — remove only expired tokens
+
+Token cache location: `~/.blink/l402-tokens.json`
+
+### L402 Output Examples
+
+**l402-discover (Lightning Labs format):**
+
+```json
+{
+  "url": "https://api.example.com/resource",
+  "l402_detected": true,
+  "format": "lightning-labs",
+  "macaroon": "AgELZXhhbXBsZS...",
+  "invoice": "lnbc1000n1...",
+  "satoshis": 100,
+  "satoshisFormatted": "100 sats"
+}
+```
+
+**l402-pay (dry-run):**
+
+```json
+{
+  "event": "l402_dry_run",
+  "url": "https://api.example.com/resource",
+  "format": "lightning-labs",
+  "invoice": "lnbc1000n1...",
+  "satoshis": 100,
+  "satoshisFormatted": "100 sats",
+  "maxAmount": 1000,
+  "withinBudget": true,
+  "message": "Dry-run: would pay this invoice to access the resource. No payment made."
+}
+```
+
+**l402-pay (after payment):**
+
+```json
+{
+  "event": "l402_paid",
+  "url": "https://api.example.com/resource",
+  "format": "lightning-labs",
+  "paymentStatus": "SUCCESS",
+  "walletId": "abc123",
+  "walletCurrency": "BTC",
+  "satoshis": 100,
+  "tokenReused": false,
+  "retryStatus": 200,
+  "data": { "...": "response from the protected resource" }
+}
+```
+
+**l402-pay (after payment, with --probe):**
+
+```json
+{
+  "event": "l402_paid",
+  "url": "https://api.example.com/resource",
+  "format": "lightning-labs",
+  "paymentStatus": "SUCCESS",
+  "walletId": "abc123",
+  "walletCurrency": "BTC",
+  "satoshis": 100,
+  "tokenReused": false,
+  "retryStatus": 200,
+  "feeProbe": {
+    "estimatedFeeSats": 1,
+    "error": null
+  },
+  "data": { "...": "response from the protected resource" }
+}
+```
+
 ## Security
 
 ### API Key Handling
@@ -759,17 +985,18 @@ Executes a real BTC <-> USD conversion. First generates a quote, then performs t
 
 - **Outbound HTTPS** to `api.blink.sv` (or `BLINK_API_URL` override) for all GraphQL queries and mutations.
 - **Outbound WSS** to `ws.blink.sv` (or `BLINK_WS_URL` override) for subscription WebSockets.
-- **No other network calls.** Scripts do not phone home, send telemetry, or contact any third-party services.
+- **L402 requests** go directly to the third-party URL you provide to `l402-discover` or `l402-pay`. The Blink API is contacted only when a payment is needed.
+- **No other network calls.** Scripts do not phone home, send telemetry, or contact any undisclosed third-party services.
 
 ### Filesystem Access
 
 - **RC file reading:** If `BLINK_API_KEY` is not found in `process.env`, the client scans `~/.profile`, `~/.bashrc`, `~/.bash_profile`, and `~/.zshrc` for a line matching `export BLINK_API_KEY=...`. Only the value of that specific export is extracted — no other data is read from these files. The environment variable is always checked first.
 - **QR PNG generation:** The `qr` command writes temporary PNG files to `/tmp/blink_qr_*.png`. These are standard image files with no embedded metadata beyond the QR content.
-- **No other filesystem writes.** Scripts do not create config files, databases, or caches.
+- **L402 token cache:** The `l402-pay` command writes paid tokens to `~/.blink/l402-tokens.json`. This file contains macaroons and preimages for previously-paid L402 services. Use `blink l402-store clear` to remove all cached tokens. Pass `--no-store` to disable caching entirely.
 
 ### Stateless Design
 
-This skill stores no data between runs. There are no databases, config files, session tokens, or caches. Each script invocation is independent — it reads the API key, makes API calls, outputs JSON, and exits.
+Most scripts are stateless. The exception is `l402-pay`, which maintains a token cache at `~/.blink/l402-tokens.json` to avoid re-paying for previously-accessed L402 services. Use `--no-store` to run without any persistence.
 
 ### Payment Safety
 
@@ -777,6 +1004,7 @@ This skill stores no data between runs. There are no databases, config files, se
 - **Test on staging first** — use `BLINK_API_URL=https://api.staging.blink.sv/graphql` to point at the signet staging environment with test funds.
 - **USD invoices expire fast** — ~5 minutes due to exchange rate lock.
 - **Price queries are public** — `blink price` works without an API key; only wallet operations require authentication.
+- **L402 preimage resolution** — After payment, `l402-pay` retrieves the preimage inline from the mutation response (`settlementVia.preImage`). If the inline preimage is unavailable (e.g. race condition or network issue), it falls back to a `transactions` query matched by payment hash. If the transaction is not yet indexed, it falls back to a SHA-256(invoice) placeholder, which works with servers using token-based verification but may fail with servers that cryptographically verify the preimage against the payment hash.
 
 ## Reference Files
 
@@ -804,3 +1032,6 @@ This skill stores no data between runs. There are no databases, config files, se
 - `{baseDir}/scripts/_swap_common.js` — Shared swap helpers (quote estimation, execution, wallet pair management)
 - `{baseDir}/scripts/swap_quote.js` — Get BTC <-> USD conversion quote
 - `{baseDir}/scripts/swap_execute.js` — Execute BTC <-> USD wallet conversion
+- `{baseDir}/scripts/l402_discover.js` — Probe a URL for L402 payment requirements (no payment)
+- `{baseDir}/scripts/l402_pay.js` — Auto-pay L402-gated resources via Blink + token caching
+- `{baseDir}/scripts/l402_store.js` — Manage the L402 token cache (~/.blink/l402-tokens.json)
