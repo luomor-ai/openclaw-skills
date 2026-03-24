@@ -105,6 +105,140 @@ UNIVERSAL_REQUIRED = [
     ("visual_style", "视觉风格", "希望什么视觉风格？写实、动漫、3D渲染、水彩、油画？"),
 ]
 
+# ── 提取模式字典 ─────────────────────────────────────────────────────────────
+
+SHOT_TYPE_PATTERNS = {
+    "ECU": ["特写", "大特写", "extreme close", "ECU"],
+    "CU": ["近景", "close up", "close-up", "CU"],
+    "MS": ["中景", "medium shot", "MS"],
+    "FS": ["全景", "full shot", "FS"],
+    "WS": ["远景", "wide shot", "wide"],
+    "aerial": ["鸟瞰", "俯瞰", "aerial", "bird's eye"],
+    "low_angle": ["仰拍", "仰角", "low angle"],
+    "dutch_angle": ["荷兰角", "dutch angle"],
+    "OTS": ["过肩", "over the shoulder"],
+}
+
+CAMERA_MOVEMENT_PATTERNS = {
+    "static": ["固定", "static", "still"],
+    "pan": ["横摇", "pan", "panning"],
+    "dolly_in": ["推轨", "dolly", "推进", "缓慢推进", "push in"],
+    "tracking": ["跟拍", "tracking", "follow shot"],
+    "handheld": ["手持", "handheld", "shaky cam"],
+    "steadicam": ["斯坦尼康", "steadicam"],
+    "crane": ["摇臂", "crane", "jib"],
+    "whip_pan": ["甩镜", "whip pan"],
+}
+
+LIGHTING_PATTERNS = {
+    "rembrandt": ["伦勃朗", "rembrandt"],
+    "golden_hour": ["黄金时刻", "golden hour", "magic hour", "黄昏", "日落", "夕阳"],
+    "neon": ["霓虹", "neon"],
+    "volumetric": ["体积光", "volumetric", "god rays", "光束"],
+    "backlit": ["逆光", "轮廓光", "backlit", "rim light"],
+    "silhouette": ["剪影", "silhouette"],
+    "soft": ["柔光", "soft light", "soft"],
+}
+
+COLOR_GRADE_PATTERNS = {
+    "teal_orange": ["青橙", "teal orange", "teal and orange"],
+    "desaturated": ["去饱和", "desaturated", "低饱和", "muted"],
+    "warm": ["暖色", "warm", "orange tones"],
+    "cool": ["冷色", "cool", "blue tones"],
+    "film": ["胶片", "film grain", "analog", "胶片感"],
+    "monochrome": ["黑白", "单色", "monochrome", "black and white"],
+}
+
+TEMPORAL_PATTERNS = {
+    "slow_motion": ["慢动作", "慢镜", "slow motion", "slow-mo", "bullet time", "升格"],
+    "timelapse": ["延时", "time-lapse", "timelapse"],
+    "speed_ramp": ["变速", "speed ramp"],
+    "freeze": ["定格", "freeze frame", "freeze"],
+}
+
+IMPACT_LEVEL_PATTERNS = {
+    "light": ["轻触"],
+    "heavy": ["重击"],
+    "exaggerated": ["夸张"],
+    "intense": ["猛烈"],
+}
+
+IMPACT_EFFECT_PATTERNS = {
+    "sparks": ["火花"],
+    "debris": ["碎片"],
+    "shockwave": ["冲击波"],
+    "dust": ["扬尘"],
+}
+
+# Emotion words used for expression hint extraction
+EMOTION_WORDS = [
+    "平静", "悲伤", "迷茫", "欢笑", "释然", "坚定",
+    "愤怒", "恐惧", "惊讶", "快乐", "痛苦", "冷静",
+    "绝望", "希望", "紧张", "放松", "自信", "怀疑",
+]
+
+
+def _match_patterns(text: str, patterns: dict) -> Optional[str]:
+    """Return the first pattern key whose keyword list has a match in text."""
+    text_lower = text.lower()
+    for label, keywords in patterns.items():
+        for kw in keywords:
+            if kw.lower() in text_lower:
+                return label
+    return None
+
+
+def extract_cinematic_elements(description: str) -> CinematicElements:
+    """
+    Scan *description* for cinematography keywords and return a populated
+    CinematicElements dataclass.  Fields that cannot be inferred stay None.
+    """
+    return CinematicElements(
+        shot_type=_match_patterns(description, SHOT_TYPE_PATTERNS),
+        camera_movement=_match_patterns(description, CAMERA_MOVEMENT_PATTERNS),
+        lighting=_match_patterns(description, LIGHTING_PATTERNS),
+        color_grade=_match_patterns(description, COLOR_GRADE_PATTERNS),
+        temporal=_match_patterns(description, TEMPORAL_PATTERNS),
+        # aspect_ratio / duration_seconds / visual_style are not pattern-detectable
+        # from free-form text in a reliable way; leave them for user clarification.
+    )
+
+
+def extract_character_dynamics(description: str) -> CharacterDynamics:
+    """
+    Scan *description* for character / impact keywords and return a populated
+    CharacterDynamics dataclass.
+    """
+    dynamics = CharacterDynamics()
+
+    # Impact level
+    dynamics.impact_level = _match_patterns(description, IMPACT_LEVEL_PATTERNS)
+
+    # Impact effects – collect ALL matching effects
+    effects = []
+    desc_lower = description.lower()
+    for effect_label, keywords in IMPACT_EFFECT_PATTERNS.items():
+        for kw in keywords:
+            if kw.lower() in desc_lower:
+                effects.append(effect_label)
+                break
+    dynamics.impact_effects = effects
+
+    # Expression hints: look for emotion words in roughly the first / last
+    # quarter of the description to guess start → end expression.
+    tokens = description.split()
+    quarter = max(1, len(tokens) // 4)
+    start_text = " ".join(tokens[:quarter])
+    end_text = " ".join(tokens[-quarter:])
+
+    for word in EMOTION_WORDS:
+        if word in start_text and dynamics.expression_start is None:
+            dynamics.expression_start = word
+        if word in end_text and dynamics.expression_end is None:
+            dynamics.expression_end = word
+
+    return dynamics
+
 
 def detect_scene_type(description: str) -> str:
     """根据描述内容检测场景类型。"""
@@ -127,6 +261,49 @@ def detect_scene_type(description: str) -> str:
     return max(scores, key=scores.get)
 
 
+def detect_all_scene_types(description: str) -> list:
+    """
+    Return ALL scene types that score > 0, sorted by descending score.
+    Allows a scene to be both 'action' and 'emotional' at the same time.
+    """
+    description_lower = description.lower()
+    scores = {}
+
+    for scene_type, keywords in SCENE_TYPE_KEYWORDS.items():
+        score = sum(1 for kw in keywords if kw in description_lower)
+        if score > 0:
+            scores[scene_type] = score
+
+    if not scores:
+        return ["general"]
+
+    priority_boost = {"mecha": 0.5, "emotional": 0.5, "character": 0.3}
+    for scene_type in scores:
+        scores[scene_type] += priority_boost.get(scene_type, 0)
+
+    return sorted(scores, key=scores.get, reverse=True)
+
+
+def _dynamics_field_filled(dynamics: CharacterDynamics, field_name: str) -> bool:
+    """Return True if a CharacterDynamics field has been populated."""
+    value = getattr(dynamics, field_name, None)
+    if value is None:
+        return False
+    if isinstance(value, list):
+        return len(value) > 0
+    if isinstance(value, bool):
+        return True  # False is still a real answer
+    return bool(value)
+
+
+def _cinematic_field_filled(cinematic: CinematicElements, field_name: str) -> bool:
+    """Return True if a CinematicElements field has been populated."""
+    value = getattr(cinematic, field_name, None)
+    if value is None:
+        return False
+    return bool(value)
+
+
 def analyze_scene(description: str) -> SceneAnalysis:
     """
     分析用户描述，提取影视元素，识别缺失要素。
@@ -137,29 +314,54 @@ def analyze_scene(description: str) -> SceneAnalysis:
     Returns:
         SceneAnalysis 对象，包含分析结果和需要询问的问题
     """
+    # Detect all matching scene types
+    scene_types = detect_all_scene_types(description)
+    primary_scene_type = scene_types[0]
+
     analysis = SceneAnalysis(
         user_input=description,
-        scene_type=detect_scene_type(description),
+        scene_type=primary_scene_type,
     )
 
-    # 检测场景类型特定的缺失元素
-    scene_required = REQUIRED_ELEMENTS.get(analysis.scene_type, [])
-    for field_name, element_name, question in scene_required:
-        analysis.missing_elements.append(element_name)
-        analysis.questions_for_user.append({
-            "field": field_name,
-            "element": element_name,
-            "question": question,
-        })
+    # Extract cinematic elements and character dynamics from description
+    analysis.cinematic = extract_cinematic_elements(description)
+    analysis.dynamics = extract_character_dynamics(description)
 
-    # 检测通用必需元素
+    # Merge required-element lists for ALL detected scene types, deduplicating
+    seen_fields = set()
+    merged_required: list = []
+    for scene_type in scene_types:
+        for item in REQUIRED_ELEMENTS.get(scene_type, []):
+            field_name = item[0]
+            if field_name not in seen_fields:
+                seen_fields.add(field_name)
+                merged_required.append(item)
+
+    # Only add to missing_elements / questions if the field is STILL None after extraction
+    for field_name, element_name, question in merged_required:
+        # Check both dynamics and cinematic objects
+        already_filled = (
+            _dynamics_field_filled(analysis.dynamics, field_name)
+            or _cinematic_field_filled(analysis.cinematic, field_name)
+        )
+        if not already_filled:
+            analysis.missing_elements.append(element_name)
+            analysis.questions_for_user.append({
+                "field": field_name,
+                "element": element_name,
+                "question": question,
+            })
+
+    # Check universal required elements (only those still None)
     for field_name, element_name, question in UNIVERSAL_REQUIRED:
-        analysis.missing_elements.append(element_name)
-        analysis.questions_for_user.append({
-            "field": field_name,
-            "element": element_name,
-            "question": question,
-        })
+        already_filled = _cinematic_field_filled(analysis.cinematic, field_name)
+        if not already_filled:
+            analysis.missing_elements.append(element_name)
+            analysis.questions_for_user.append({
+                "field": field_name,
+                "element": element_name,
+                "question": question,
+            })
 
     return analysis
 
@@ -191,6 +393,20 @@ def format_for_provider(analysis: SceneAnalysis, provider: str,
         return _format_generic(analysis, user_answers)
 
 
+def _resolve(analysis: SceneAnalysis, answers: dict, key: str):
+    """
+    Helper: return the value for *key* from user_answers if present,
+    otherwise fall back to the matching field in dynamics or cinematic.
+    """
+    if answers and key in answers and answers[key]:
+        return answers[key]
+    dyn_val = getattr(analysis.dynamics, key, None)
+    if dyn_val is not None and dyn_val != [] and dyn_val is not False:
+        return dyn_val
+    cin_val = getattr(analysis.cinematic, key, None)
+    return cin_val
+
+
 def _format_lumaai(analysis: SceneAnalysis, answers: dict = None) -> str:
     """LumaAI 偏好自然语言嵌入镜头指令。"""
     parts = []
@@ -212,17 +428,24 @@ def _format_lumaai(analysis: SceneAnalysis, answers: dict = None) -> str:
     if analysis.cinematic.color_grade:
         parts.append(f"{analysis.cinematic.color_grade} color grading")
 
-    # 动态元素
-    if answers:
-        if answers.get("impact_level"):
-            parts.append(f"with {answers['impact_level']} impact force")
-        if answers.get("impact_effects"):
-            parts.append(f"creating {answers['impact_effects']}")
-        if answers.get("expression_start") and answers.get("expression_end"):
-            parts.append(
-                f"expression transitioning from {answers['expression_start']} "
-                f"to {answers['expression_end']}"
-            )
+    # 动态元素 – prefer extracted values, fall back to user_answers
+    impact_level = _resolve(analysis, answers, "impact_level")
+    if impact_level:
+        parts.append(f"with {impact_level} impact force")
+
+    impact_effects = _resolve(analysis, answers, "impact_effects")
+    if impact_effects:
+        effects_str = impact_effects if isinstance(impact_effects, str) else ", ".join(impact_effects)
+        if effects_str:
+            parts.append(f"creating {effects_str}")
+
+    expression_start = _resolve(analysis, answers, "expression_start")
+    expression_end = _resolve(analysis, answers, "expression_end")
+    if expression_start and expression_end:
+        parts.append(
+            f"expression transitioning from {expression_start} "
+            f"to {expression_end}"
+        )
 
     # 时间控制
     if analysis.cinematic.temporal:
@@ -261,20 +484,31 @@ def _format_runway(analysis: SceneAnalysis, answers: dict = None) -> str:
         style_parts.append(analysis.cinematic.color_grade)
     sections.append(f"Style: {', '.join(style_parts)}")
 
-    # 动态
-    if answers:
-        action_parts = []
-        if answers.get("impact_level"):
-            action_parts.append(f"{answers['impact_level']} impact")
-        if answers.get("impact_effects"):
-            action_parts.append(answers["impact_effects"])
-        if answers.get("impact_reaction"):
-            action_parts.append(f"target reacts with {answers['impact_reaction']}")
-        if action_parts:
-            sections.append(f"Action: {', '.join(action_parts)}")
+    # 动态 – prefer extracted values, fall back to user_answers
+    action_parts = []
+    impact_level = _resolve(analysis, answers, "impact_level")
+    if impact_level:
+        action_parts.append(f"{impact_level} impact")
 
-        if answers.get("expression_start"):
-            sections.append(f"Expression: {answers['expression_start']} → {answers.get('expression_end', 'determined')}")
+    impact_effects = _resolve(analysis, answers, "impact_effects")
+    if impact_effects:
+        effects_str = impact_effects if isinstance(impact_effects, str) else ", ".join(impact_effects)
+        if effects_str:
+            action_parts.append(effects_str)
+
+    impact_reaction = _resolve(analysis, answers, "impact_reaction")
+    if impact_reaction:
+        action_parts.append(f"target reacts with {impact_reaction}")
+
+    if action_parts:
+        sections.append(f"Action: {', '.join(action_parts)}")
+
+    expression_start = _resolve(analysis, answers, "expression_start")
+    expression_end = _resolve(analysis, answers, "expression_end")
+    if expression_start:
+        sections.append(
+            f"Expression: {expression_start} → {expression_end or 'determined'}"
+        )
 
     return "\n".join(sections)
 

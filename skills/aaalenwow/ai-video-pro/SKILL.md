@@ -1,240 +1,187 @@
 ---
 name: ai-video-pro
-description: Professional AI video generation with cinematic prompt optimization, auto-detection of optimal generation backends (ComfyUI/LumaAI/Runway/Replicate/DALL-E), and multi-platform publishing to Chinese social platforms (Weibo, Xiaohongshu, Douyin). Analyzes camera language, character dynamics, hit-impact feel, facial expressions, and mecha motion. Beta stage - not for production use.
+description: 电影级镜头语言解码器。零依赖可用：将创意描述解码为影视级提示词，系统化建模打击感/面部表情渐变/机甲运动五维镜头语言。可选配 API Key 直接生成视频（LumaAI/Runway/Replicate/ComfyUI）。提示词优化本身无需任何外部服务。
 user-invocable: true
-metadata: {"openclaw":{"requires":{"env":["LUMAAI_API_KEY","RUNWAY_API_KEY","REPLICATE_API_TOKEN","OPENAI_API_KEY"],"anyBins":["python3","python"],"bins":["ffmpeg"]},"primaryEnv":"LUMAAI_API_KEY","stage":"beta","version":"0.1.0"}}
+metadata: {"openclaw":{"requires":{"env":[],"anyBins":[]},"primaryEnv":"LUMAAI_API_KEY","stage":"beta","version":"0.2.0"}}
 ---
 
-This skill generates professional AI videos with cinematic-quality prompt engineering. It transforms casual user descriptions into film-industry-grade prompts, auto-detects the best available video generation backend, and supports publishing to Chinese social platforms (Weibo, Xiaohongshu, Douyin).
+用户提供创意描述，输出影视级提示词。可选连接生成后端直接产出视频。
 
-**⚠️ BETA 测试阶段** — 本技能包正在测试中，请勿用于生产环境。
-
-用户提供视频概念、场景描述或创意简报，本技能将优化提示词、选择最佳生成方案、生产视频，并可选择发布到多个平台。
-
----
-
-## Phase 1: 镜头语言提示词优化引擎
-
-当用户描述想要创建的视频时，在调用任何视频生成 API 之前，必须先执行以下影视级分析流程：
-
-### 1.1 场景分解
-
-将用户描述拆解为结构化的影视元素：
-
-- **镜头类型 (Shot Type)**: 特写(ECU)、近景(CU)、中景(MS)、全景(FS)、远景(WS)、大远景(EWS)、鸟瞰、仰拍、荷兰角、过肩镜头
-- **运镜方式 (Camera Movement)**: 固定、横摇(Pan)、纵摇(Tilt)、推轨(Dolly)、跟拍(Tracking)、摇臂(Crane)、手持、斯坦尼康、甩镜(Whip Pan)、变焦拉伸(Rack Focus)
-- **灯光设计 (Lighting)**: 主光、补光、轮廓光、伦勃朗光、蝴蝶光、劈裂光、剪影、明暗对比、黄金时刻、霓虹光、体积光
-- **色彩分级 (Color Grading)**: 青橙对比、去饱和、高对比、柔和色调、单色、暖色调、冷色调、胶片模拟
-- **时间控制 (Temporal)**: 慢动作、延时摄影、正常速度、变速、定格
-
-### 1.2 角色动态分析
-
-对于涉及角色的场景，必须明确建模以下要素：
-
-- **空间关系**: 角色相对位置、距离、朝向
-- **动作动态**: 冲击力、动量、加速度（对战斗/动作场景至关重要）
-- **打击感 (Hit/Impact Feel)**:
-  - 打击的重量感和力度反馈
-  - 反应时间和节奏感
-  - 冲击形变效果（身体弯曲、衣物飘动）
-  - 粒子效果（火花、碎片、冲击波）
-  - 画面震动等同效果
-- **面部表情渐变**: 镜头时间内的微表情序列变化（如：惊讶 → 坚定 → 胜利）
-- **身体语言**: 姿态转换、手势弧线、重心转移
-- **机甲/机器人运动**: 关节铰接运动、液压运动、质量惯性、变形序列
-
-### 1.3 缺失元素检测
-
-在最终确定提示词之前，主动检查并向用户询问缺失的关键元素：
-
-**必须询问（如未指定）：**
-- 画面比例？(16:9 横屏, 9:16 竖屏适用于抖音, 1:1 方形适用于小红书)
-- 目标时长？(3秒/5秒/10秒，取决于生成后端)
-- 视觉风格？(写实、动漫、3D渲染、水彩、油画)
-
-**动作场景必须询问（如未指定）：**
-- 打击/冲击力度级别？(轻触、重击、影视夸张)
-- 是否需要反应特效？(火花、碎片、冲击波、慢动作冲击)
-- 被击中角色的状态变化？(倒退、倒地、防御姿态)
-- 角色受伤效果？(划痕、破损、变形)
-- 场景的情感弧线是什么？
-
-**角色场景必须询问（如未指定）：**
-- 镜头起止的面部表情分别是什么？
-- 角色的服装以及运动中服装如何交互？
-- 角色之间是否有眼神交流？
-
-### 1.4 Provider 适配输出
-
-不同视频生成 API 对 prompt 风格的响应不同，优化后的镜头语言 prompt 需要适配：
-
-- **LumaAI (Dream Machine)**: 偏好自然语言嵌入镜头指令，如 "camera slowly pans", "in the style of"。单次最长5秒
-- **Runway Gen-3/Gen-4**: 结构化 prompt 效果更好，分离镜头/主体/风格描述。支持图生视频
-- **DALL-E + FFmpeg 管线**: 先生成关键帧图片再插值，适合保持风格一致性
-- **Replicate (各模型)**: 按模型调整。Stable Video Diffusion 偏好简洁描述，AnimateDiff 偏好 LoRA 风格标签
-- **ComfyUI (本地)**: 基于节点的工作流，需指定 checkpoint + scheduler + sampler
-
-向用户同时展示原始描述和优化后的 prompt，供确认或修改。
+**⚠️ BETA** — 勿用于生产环境。
 
 ---
 
-## Phase 2: 环境自动探测与最优后端选择
+## 运行模式
 
-在生成视频之前，执行环境检测流程：
+| 模式 | 依赖 | 输出 |
+|------|------|------|
+| **提示词模式**（默认） | 无 | 影视级优化 prompt，可复制到任意生成工具 |
+| **生成模式** | API Key 或本地 GPU | 直接调用后端生成视频文件 |
 
-### 2.1 环境检测
+> 提示词模式是核心价值所在：无需任何配置，立即可用，输出的 prompt 可直接用于 LumaAI / Runway / ComfyUI 等任意工具。
 
-运行检测脚本：
-```bash
-python3 scripts/env_detect.py
+---
+
+## 调用示例
+
+```
+# 基础描述 → 影视级 prompt
+帮我把这个描述转成视频 prompt：一个武士在雨中拔刀
+
+# 指定风格和平台
+生成一个抖音竖屏的动作场景 prompt，风格写实，要有打击感
+
+# 迭代优化
+上一个 prompt 的打击感不够，帮我加强一下
+
+# 生成模式（需配置 API Key）
+用 LumaAI 生成这个场景：[场景描述]
 ```
 
-检测内容：
-1. **GPU**: NVIDIA (CUDA) / AMD (ROCm) / Apple Silicon (MPS) / 仅CPU
-2. **显存**: 可用 GPU 显存（决定本地模型可行性）
-3. **已安装工具**: ffmpeg、ComfyUI、Python 包 (torch, diffusers 等)
-4. **可用 API 密钥**: 哪些 Provider 凭证已配置
-5. **网络**: 互联网连通性、API 端点可达性
-6. **磁盘空间**: 可用空间（模型下载需要）
+---
 
-### 2.2 后端选择优先级（最小代价优先）
+## 核心方法论：五维镜头语言解码
 
-| 优先级 | 后端 | 条件 | 成本 | 质量 |
-|--------|------|------|------|------|
-| 1 | ComfyUI 本地 | NVIDIA GPU 8GB+ VRAM | 免费 | 高 |
-| 2 | Replicate 免费层 | API Key | 免费(有限) | 中 |
-| 3 | LumaAI 免费层 | API Key | 免费(有限) | 高 |
-| 4 | Runway 试用额度 | API Key | 免费试用 | 极高 |
-| 5 | LumaAI 付费 | API Key + 计费 | ~¥3.5/视频 | 高 |
-| 6 | Runway 付费 | API Key + 计费 | ~¥7/视频 | 极高 |
-| 7 | DALL-E + FFmpeg | OpenAI Key | ~¥0.5/帧 | 中 |
-
-向用户展示推荐方案及预估成本，获得确认后再继续。
-
-### 2.3 自动安装
-
-如果选定后端需要尚未安装的工具，提供自动安装：
-```bash
-python3 scripts/install_deps.py --backend <selected_backend>
+```
+用户描述 ──解码──→ [镜头类型 × 运镜 × 灯光 × 色彩 × 时间] ──适配──→ Provider Prompt
 ```
 
-支持安装：
-- **ffmpeg**: winget (Windows) / brew (macOS) / apt (Linux)
-- **ComfyUI**: git clone + pip install
-- **Python 依赖包**: pip install API 客户端库
+普通描述和电影级描述的差异在于**隐性专业知识的显性化**：
 
-**始终在安装前征得用户确认。**
+| 维度 | 解码内容 | 关键判断点 |
+|------|---------|-----------|
+| 镜头类型 | ECU/CU/MS/FS/WS/鸟瞰/仰拍/荷兰角 | 情感距离与叙事权力 |
+| 运镜方式 | 固定/Pan/Dolly/Tracking/手持/斯坦尼康 | 观众与场景的关系感 |
+| 灯光设计 | 轮廓光/伦勃朗/体积光/黄金时刻/霓虹 | 情绪基调与质感 |
+| 色彩分级 | 青橙对比/去饱和/胶片模拟/冷暖对比 | 风格化程度 |
+| 时间控制 | 慢动作/延时/变速/定格 | 叙事节奏 |
 
 ---
 
-## Phase 3: 视频生成与预览
+## Phase 1: 镜头语言解码（提示词模式，零依赖）
 
-### 3.1 生成执行
+### 1.1 动作/冲击场景 — 打击感五要素
 
-1. 向用户展示优化后的 prompt 供审批
-2. 通过 `scripts/provider_manager.py` 调用选定的 Provider API
-3. 展示进度（异步 API 轮询状态）
-4. 下载生成的视频到本地工作目录
+国内短视频最核心的差异化维度，必须精确建模：
 
-### 3.2 在线预览
+```
+① 重量感    — 攻击者的预备动作幅度、身体质量感
+② 力度反馈  — 被击中者的形变程度（衣物/头发/身体弯曲）
+③ 冲击特效  — 火花/碎片/冲击波的密度和扩散方向
+④ 时间节奏  — 预备→接触→反应的帧率变化（慢进快出 / 快进慢出）
+⑤ 画面反应  — 镜头抖动幅度、运动模糊方向、色差效果
+```
 
-启动本地预览服务器：
+未指定时询问：打击力度（轻触/重击/影视夸张）、特效风格（写实/漫画/机甲）。
+
+### 1.2 角色场景 — 面部表情渐变序列
+
+建模表情的**时间序列变化**，而非静态描述：
+
+```
+示例：[0s] 惊讶（眉上扬、瞳孔扩张）→ [2s] 坚定（下颌收紧、目光聚焦）→ [5s] 胜利（嘴角微扬）
+```
+
+未指定时询问：镜头起止的表情分别是什么、是否有眼神交流。
+
+### 1.3 机甲/硬核运动
+
+额外建模：关节铰接方向、液压延迟感、质量惯性（重型机甲响应慢）、变形序列节点。
+
+### 1.4 缺失维度补全
+
+解码时主动检查必要参数，如未指定则询问：
+
+- 画面比例（16:9 横屏 / 9:16 抖音竖屏 / 1:1 小红书）
+- 目标时长（3s/5s/10s）
+- 视觉风格（写实/动漫/3D/水彩）
+
+### 1.5 Provider 适配输出
+
+根据目标平台重新编码 prompt 风格（或同时输出多平台版本）：
+
+| Provider | Prompt 偏好 |
+|---------|------------|
+| LumaAI Dream Machine | 自然语言嵌入镜头指令，"camera slowly pans…" |
+| Runway Gen-3/4 | 结构化，镜头/主体/风格分段 |
+| Replicate/SVD | 简洁，强调主体动态 |
+| ComfyUI 本地 | checkpoint + scheduler + LoRA 标签 |
+
+**同时展示原始描述和优化后 prompt**，用户确认后再进行下一步。
+
+---
+
+## Phase 2: 视频生成（生成模式，需 API Key 或 GPU）
+
+**后端选择（最小代价优先）：**
+
+| 优先级 | 后端 | 条件 | 成本 |
+|--------|------|------|------|
+| 1 | ComfyUI 本地 | NVIDIA 8GB+ VRAM | 免费 |
+| 2 | Replicate 免费层 | API Token | 免费(有限) |
+| 3 | LumaAI 免费层 | API Key | 免费(有限) |
+| 4 | LumaAI 付费 | API Key | ~¥3.5/视频 |
+| 5 | Runway 付费 | API Key | ~¥7/视频 |
+
+推荐方案和预估成本先展示给用户确认，再调用 API。
+
 ```bash
+python3 scripts/env_detect.py          # 检测可用后端
+python3 scripts/provider_manager.py --backend <backend> --prompt <prompt_file>
 python3 scripts/preview_server.py --file <video_path> --port 8765
 ```
 
-预览功能：
-- 带播放控制的视频播放器
-- 逐帧导航
-- 多版本并列对比（如果有多次生成）
-
-预览地址: `http://localhost:8765`
-
-### 3.3 迭代优化
-
-如果用户希望修改：
-- 基于反馈修改 prompt
-- 使用相同或不同的 Provider 重新生成
-- 支持图生视频优化（上传关键帧）
+**数据流向**：优化后的 prompt 发送至用户选择的生成后端（LumaAI/Runway/Replicate）。原始描述仅在本次会话中处理，不向其他第三方传输。
 
 ---
 
-## Phase 4: 多平台发布
+## Phase 3: 迭代优化
 
-### 4.1 平台规格适配
+保留解码结构，仅调整目标维度：
 
-发布前自动转码至平台要求：
+| 反馈 | 调整方向 |
+|------|---------|
+| 打击感不足 | 增加特效密度、加强时间节奏对比 |
+| 镜头感弱 | 升级运镜（手持 → 斯坦尼康 / 固定 → Dolly） |
+| 情绪不对 | 调整色彩分级基调 + 表情序列终点 |
+| 风格漂移 | 固定 LoRA/风格标签，切换 Provider |
 
-| 平台 | 最大分辨率 | 最大时长 | 最大文件 | 推荐比例 | 格式 |
-|------|-----------|---------|---------|---------|------|
-| 微博 | 1080p | 15分钟 | 500MB | 16:9, 9:16 | MP4 (H.264) |
-| 小红书 | 1080p | 15分钟 | 100MB | 3:4, 1:1, 9:16 | MP4 (H.264) |
-| 抖音 | 1080p | 15分钟 | 128MB | 9:16 | MP4 (H.264) |
-| 云存储 | 不限 | 不限 | 不限 | 不限 | 不限 |
-
-### 4.2 发布流程
-
-```bash
-python3 scripts/publish.py --platform <platform> --mode <draft|publish> --file <video_path>
-```
-
-- **草稿模式 (draft)**: 准备元数据和转码，不上传。生成发布就绪的打包文件
-- **发布模式 (publish)**: 上传到指定平台（需要平台凭证）
-- **云存储模式 (cloud)**: 上传到配置的云存储 (S3/OSS/COS) 并返回分享链接
-
-### 4.3 版本管理
-
-在本地 `.ai-video-pro/projects.json` 维护项目清单：
-- 记录所有生成的视频及元数据
-- 标记为草稿或已发布
-- 记录各平台接收的版本
-- 支持更新版本重新发布
+支持图生视频：上传关键帧作为风格锚点，保持角色一致性。
 
 ---
 
-## 凭证安全
+## 输出格式（提示词模式）
 
-### 环境变量配置
-
-**视频生成（至少配置一个）：**
-- `LUMAAI_API_KEY` — LumaAI Dream Machine API
-- `RUNWAY_API_KEY` — Runway Gen-3/Gen-4 API
-- `REPLICATE_API_TOKEN` — Replicate API
-- `OPENAI_API_KEY` — OpenAI DALL-E（用于关键帧生成）
-
-**平台发布（可选）：**
-- `WEIBO_ACCESS_TOKEN` — 微博开放平台
-- `XHS_COOKIE` — 小红书会话（无官方 API，注意 TOS 风险）
-- `DOUYIN_ACCESS_TOKEN` — 抖音开放平台
-
-**安全原则：**
-- 所有凭证仅通过环境变量读取，零持久化
-- 不记录、不打印、不缓存任何密钥值
-- 首次使用时通过最小化测试调用验证密钥有效性
-- 如果缺少凭证，引导用户逐步完成设置
-
-### OpenClaw 凭证集成
-
-在 `openclaw.json` 中配置：
 ```json
 {
-  "skills": {
-    "entries": {
-      "ai-video-pro": {
-        "apiKey": { "source": "env", "name": "LUMAAI_API_KEY" }
-      }
-    }
-  }
+  "original_description": "用户原始描述",
+  "decoded_dimensions": {
+    "shot_type": "CU 近景",
+    "camera_movement": "手持跟拍",
+    "lighting": "伦勃朗光 + 轮廓光",
+    "color_grading": "青橙对比，高饱和",
+    "temporal": "接触瞬间慢动作 0.3x"
+  },
+  "prompts": {
+    "lumai": "A close-up shot, handheld camera following...",
+    "runway": "Shot type: CU. Subject: ...",
+    "universal": "通用版本（可用于任意平台）"
+  },
+  "missing_params": ["画面比例未指定，建议确认"]
 }
 ```
 
 ---
 
-## 错误处理
+## 边界与合规
 
-- 无 API 密钥 → 引导用户逐步设置
-- Provider 失败 → 自动降级到下一优先级 Provider
-- ffmpeg 缺失 → 提供自动安装
-- 网络不可用 → 明确说明哪些操作需要网络
-- 视频生成失败 → 展示错误、建议修改 prompt、提供切换 Provider 的选项
-- 平台发布失败 → 保存发布就绪的本地包，提供手动上传指引
+**本技能做什么：** 提示词工程优化、镜头语言建模、生成后端调度。
+
+**本技能不做什么：**
+- 提示词模式不需要、不访问任何外部服务
+- 不存储用户提交的创意描述
+- 不自动发布到任何平台（发布需要用户显式授权和凭证配置）
+
+**凭证（均为可选，仅生成模式需要）：**
+- `LUMAAI_API_KEY` / `RUNWAY_API_KEY` / `REPLICATE_API_TOKEN` / `OPENAI_API_KEY`
+- 所有凭证仅通过环境变量读取，不持久化、不记录
