@@ -1,13 +1,18 @@
 {
   "owner": "wuhen9nine",
   "slug": "protein-key-fragment-analysis",
-  "displayName": "蛋白质关键序列片段预测分析",
+  "displayName": "Protein Key Fragment Analysis",
   "latest": {
-    "version": "1.0.3",
-    "publishedAt": 1773637287372,
-    "commit": "https://github.com/openclaw/skills/commit/817410a67d04206d963fa1463125f4f81dfc9f1d"
+    "version": "1.0.5",
+    "publishedAt": 1774243261350,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.3",
+      "publishedAt": 1773637287372,
+      "commit": "https://github.com/openclaw/skills/commit/817410a67d04206d963fa1463125f4f81dfc9f1d"
+    },
     {
       "version": "1.0.1",
       "publishedAt": 1773224370631,

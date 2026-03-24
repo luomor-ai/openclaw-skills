@@ -7,7 +7,7 @@ from pathlib import Path
 from datetime import datetime
 
 sys.path.insert(0, str(Path(__file__).parent))
-from serine_protease_analysis import (
+from protein_key_fragment_analysis import (
     parse_fasta, extract_consensus, find_conserved_blocks,
     analyze_key_fragments, generate_report, generate_summary_report,
     run_clustalo, THRESHOLD
@@ -230,7 +230,7 @@ if __name__ == "__main__":
     print(f"{'='*60}")
     
     with open(OUTPUT_DIR / "汇总分析报告.md", 'w', encoding='utf-8') as f:
-        f.write(f"# 哺乳动物丝氨酸蛋白酶关键片段预测 — 完整分析报告\n\n")
+        f.write(f"# 蛋白质关键片段预测 — 完整分析报告\n\n")
         f.write(f"**分析日期：** {datetime.now().strftime('%Y-%m-%d %H:%M')}  \n")
         f.write(f"**分析物种总数：** {len(all_results)}  \n\n")
         f.write("## 各物种分析摘要\n\n")
