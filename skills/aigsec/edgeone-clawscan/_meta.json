@@ -3,11 +3,16 @@
   "slug": "edgeone-clawscan",
   "displayName": "EdgeOne ClawScan",
   "latest": {
-    "version": "1.0.14",
-    "publishedAt": 1773913315451,
-    "commit": "https://github.com/openclaw/skills/commit/b970e4329dd87518dc72b69fa67f64e2e600027d"
+    "version": "1.0.15",
+    "publishedAt": 1774237086035,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.14",
+      "publishedAt": 1773913315451,
+      "commit": "https://github.com/openclaw/skills/commit/b970e4329dd87518dc72b69fa67f64e2e600027d"
+    },
     {
       "version": "1.0.9",
       "publishedAt": 1773319253463,
