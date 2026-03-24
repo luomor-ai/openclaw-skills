@@ -3,11 +3,16 @@
   "slug": "neo-browser",
   "displayName": "Neo — Web App API Discovery",
   "latest": {
-    "version": "1.4.1",
-    "publishedAt": 1773856374461,
-    "commit": "https://github.com/openclaw/skills/commit/d383d1e035ee9ca781a2ebf2a7febf7c86d8d4cb"
+    "version": "2.0.0-skill.6",
+    "publishedAt": 1774151472852,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.4.1",
+      "publishedAt": 1773856374461,
+      "commit": "https://github.com/openclaw/skills/commit/d383d1e035ee9ca781a2ebf2a7febf7c86d8d4cb"
+    },
     {
       "version": "1.4.0",
       "publishedAt": 1773504791308,
