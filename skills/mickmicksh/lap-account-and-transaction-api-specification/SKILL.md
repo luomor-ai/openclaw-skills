@@ -143,6 +143,16 @@ Match user requests to endpoints in references/api-spec.lap. Key patterns:
 - Check response schemas in references/api-spec.lap for field details
 - Create/update endpoints typically return the created/updated object
 
+## CLI
+
+```bash
+# Update this spec to the latest version
+npx @lap-platform/lapsh get account-and-transaction-api-specification -o references/api-spec.lap
+
+# Search for related APIs
+npx @lap-platform/lapsh search account-and-transaction-api-specification
+```
+
 ## References
 - Full spec: See references/api-spec.lap for complete endpoint details, parameter tables, and response schemas
 
