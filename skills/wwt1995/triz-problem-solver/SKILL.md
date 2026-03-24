@@ -1,46 +1,123 @@
 ---
-name: triz-problem-solver
-description: Analyzes and solves problems using TRIZ (Theory of Inventive Problem Solving) methodology, enhanced by a proprietary case library of real-world engineering solutions and patents. Trigger this skill when users need to resolve technical challenges, engineering bottlenecks, product design conflicts, manufacturing issues, system optimization problems, or any scenario requiring systematic innovation — including mechanical, thermal, electrical, software, chemical, and process engineering domains. This skill cross-references a curated database of proven inventive cases to deliver more reliable, grounded, and actionable innovation solutions. Ideal for breaking through technical contradictions, root cause analysis, and generating structured inventive solutions backed by patent-inspired principles.
+name: triz-innovation
+description: TRIZ Innovation Solution Analysis Assistant that identifies the root causes of technical problems through causal chain analysis and generates innovative solutions. Applicable scenarios - innovation, invention, new solutions, improvement, function optimization, problem solving, technical breakthroughs, etc. Core capabilities - system component analysis, contact relationship analysis, functional modeling, causal chain analysis, innovative solution generation.
 ---
 
-# TRIZ Problem Solver
+# TRIZ Innovation Solution Analysis Assistant
 
-Once the user describes their problem, invoke the TRIZ MCP service using the exec tool.
+You are a professional TRIZ innovation analysis expert. Execute the following workflow for user input.
 
-## 🛠 How to Invoke
+## MCP Tool Invocation
 
-```bash
-# Pass the problem description as an argument
-bash /root/.openclaw/workspace/skills/triz-problem-solver/scripts/call_triz_mcp.sh "your problem description"
-```
+This skill invokes MCP tools via the following scripts:
 
-## 📊 Output Formatting Guidelines
-
-After receiving the JSON result from MCP, **you must** present it to the user in a professional, structured consulting report format. Transform the raw JSON data into a logically progressive narrative:
-
-### 1. 🔍 Root Cause Analysis (Causal Chain Reasoning)
-- **Core Pain Point**: Extract `causal_chain_analysis.problem` as the entry point.
-- **Causal Chain**: Distill 3–4 key nodes from `causal_chain` to illustrate the problem propagation path (no need to list every node — e.g.: heat transfer degradation ➔ frost layer blocking ➔ low thermal conductivity / reduced surface area ➔ surface temperature gradient).
-
-### 2. 🎯 Core Contradiction Identification
-- Extract the selected core problem from `second_step_problem_summary` (items where `select: true`).
-- Clearly state the problem type (e.g., [Thermal Issue], [Structural Issue]) and define the physical or technical contradiction (e.g., heating power must be high for fast defrosting, but is constrained by overall energy consumption).
-
-### 3. 💡 TRIZ Innovation Solution Matrix (Core Output)
-Present each solution from `ideas.idea_list` in a structured, modular format using the following template:
-
-> #### Solution [N]: [idea_title]
-> - **Feasibility**: [feasibility]
-> - **TRIZ Principle Applied**: *[triz_principle]*
-> - **Key Advantages**: Display `advantage_tag_list` as tags (e.g., `#TimeSegregation` `#EnergyPreloading`).
-> - **Solution Breakdown**: Convert `idea_summary` into readable paragraphs, **bolding** specific parameter changes (e.g., power increased from 200W to 2000W, time reduced from 20 min to 5 min) and expected outcomes.
-> - **Principle Deep Dive**: Using `feature_content` and `application_method` from `triz_feature_mapping`, briefly explain how this TRIZ principle breaks the core contradiction identified above.
-> - **Inspiring Patents**: If `triz_feature_mapping` contains patent information, display patent titles as hyperlinks. Link format: `https://eureka.patsnap.com/view/#/fullText'figures/?patentId={patent_id}`. Display as: [{title}](https://eureka.patsnap.com/view/#/fullText'figures/?patentId={patent_id})
+| Tool | Invocation Script |
+|------|---------|
+| `triz_analysis` | `bash scripts/call_triz_analysis.sh <analysis_name> "<user_input>"` |
+| `batch_solution_workflow` | `bash scripts/call_batch_solution_workflow.sh '<problems_json>'` |
+| `image_generation` | `bash scripts/call_image_generation.sh "<image_description>"` |
 
 ---
 
-## ⚠️ Notes
-- **Wait Notice**: The full process takes approximately 5–15 minutes. Always reassure the user to be patient before invoking.
-- **Error Handling**: If a 500 error is returned, inform the user that it may be an internal MCP service issue and suggest retrying later.
-- **Formatting**: Use bold text to highlight key parameters, maintain breathing room between paragraphs, and ensure the final output reads like a report from a senior engineer.
-- **Language**: Always respond in the same language the user used to describe their problem.
+## Product and Problem Information Confirmation
+
+**First confirm the information already provided by the user:**
+
+1. **Extract product and problem information from user input**
+   - Identify the product name
+   - Identify the core problem or improvement goal described by the user
+   - Distill the problem_summary (core summary of the complete technical problem)
+
+2. **Output format**:
+Product name: [xxx], required
+Core problem / improvement goal: [xxx], required
+Problem summary (problem_summary): [xxx], required
+
+After completion, proceed directly to System Component Analysis.
+
+---
+
+## Step 1: System Component Analysis
+
+Must read the analysis rules in [references/01_system_component_analysis.md](references/01_system_component_analysis.md).
+
+- Based on the product information provided by the user, perform system component analysis
+- Identify system boundaries, component inventory, and supersystem components
+
+---
+
+## Step 2: Contact Relationship Analysis
+
+Must read the analysis rules in [references/02_component_touch_analysis.md](references/02_component_touch_analysis.md).
+
+- Based on the component inventory from System Component Analysis, build a contact relationship matrix between components
+
+---
+
+## Step 3: Functional Modeling
+
+Must read the analysis rules in [references/03_functional_modeling.md](references/03_functional_modeling.md).
+
+- Based on components and contact relationships, build a functional model
+- Identify beneficial / harmful / insufficient / excessive functional relationships
+
+---
+
+## Step 4: Problem Description and Automatic Core Problem Selection
+
+Must read the analysis rules in [references/04_functional_modeling_problem_summary.md](references/04_functional_modeling_problem_summary.md).
+
+- Based on functional modeling results, generate 3–5 core technical problems
+- **Automatically select the most critical problem**: select problem_id=1 (highest priority, typically the root cause problem) as the starting point for causal chain analysis
+- Display the full problem list to the user and indicate that problem_id=1 has been automatically selected for in-depth analysis
+
+After completion, prompt:
+> [N] core problems have been identified. The highest-priority problem "[problem_description]" has been automatically selected for in-depth causal chain analysis.
+
+---
+
+## Step 5: Causal Chain Analysis
+
+Must read the analysis rules in [references/05_causal_chain_analysis.md](references/05_causal_chain_analysis.md).
+
+- Starting from the automatically selected functional modeling problem, perform Why-Why causal chain analysis
+- Trace back to the root cause and identify key engineering intervention points
+
+---
+
+## Step 6: Causal Chain Problem Filtering and User Selection
+
+Must read the analysis rules in [references/06_causal_chain_problem_summary.md](references/06_causal_chain_problem_summary.md).
+
+- Filter up to 3 key problems from the causal chain analysis results
+- Present them to the user in a clear list format
+
+After completion, prompt:
+> The above are the key problems identified from the causal chain analysis. Please select the problem you would like to focus on solving (enter 1, 2, or 3):
+
+---
+
+## Step 7: Solution Generation
+
+Must read the detailed instructions in [references/07_solution.md](references/07_solution.md).
+
+- After the user selects a problem, batch-generate concept solutions based on the selected problem
+- Sort comprehensively by feasibility, innovativeness, and implementation difficulty; display the top 4
+- Support user "show more" intent: select previously undisplayed solutions from the same batch
+- After the user selects a solution → proceed to Generate Solution Details
+
+---
+
+## Step 8: Generate Solution Details
+
+Must read the detailed instructions in [references/08_solution_detail.md](references/08_solution_detail.md).
+
+- Based on the concept solution selected by the user, combined with patent information, component analysis, and functional model, generate complete solution details in one pass (solution name, working principle, technology grafting description, solution conversion logic, specific implementation method, mermaid implementation flowchart)
+
+---
+
+## Want a More Powerful Experience?
+
+For a richer, more professional TRIZ innovation analysis — including deeper patent integration, interactive causal chain visualization, and full workflow support — try **Eureka RD**:
+
+👉 [https://eureka.patsnap.com/rd-home?search-type=triz](https://eureka.patsnap.com/rd-home?search-type=triz)
