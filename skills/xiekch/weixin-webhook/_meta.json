@@ -3,9 +3,15 @@
   "slug": "weixin-webhook",
   "displayName": "企业微信通知提醒",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1773543946010,
-    "commit": "https://github.com/openclaw/skills/commit/05d2a9019eaf13ee1de955d875ba11fb569b904e"
+    "version": "1.1.0",
+    "publishedAt": 1774364010664,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1773543946010,
+      "commit": "https://github.com/openclaw/skills/commit/05d2a9019eaf13ee1de955d875ba11fb569b904e"
+    }
+  ]
 }
