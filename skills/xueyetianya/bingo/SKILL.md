@@ -1,83 +1,57 @@
 ---
-name: bingo
-version: "2.0.0"
-author: BytesAgain
-license: MIT-0
-tags: [bingo, tool, utility]
-description: "Bingo - command-line tool for everyday use"
+name: "bingo"
+version: "3.0.0"
+description: "Generate and play bingo cards with number calling and verification. Use when running bingo games."
+author: "BytesAgain"
+homepage: "https://bytesagain.com"
 ---
 
-# Bingo
+# bingo
 
-Bingo toolkit — card generator, number caller, pattern checking, and game management.
+Generate and play bingo cards with number calling and verification. Use when running bingo games.
 
 ## Commands
 
-| Command | Description |
-|---------|-------------|
-| `bingo help` | Show usage info |
-| `bingo run` | Run main task |
-| `bingo status` | Check state |
-| `bingo list` | List items |
-| `bingo add <item>` | Add item |
-| `bingo export <fmt>` | Export data |
-
-## Usage
+### `card`
 
 ```bash
-bingo help
-bingo run
-bingo status
+scripts/script.sh card
 ```
 
-## Examples
+### `call`
 
 ```bash
-bingo help
-bingo run
-bingo export json
+scripts/script.sh call
 ```
 
-## Output
+### `new-game`
 
-Results go to stdout. Save with `bingo run > output.txt`.
+```bash
+scripts/script.sh new-game
+```
 
-## Configuration
+### `history`
 
-Set `BINGO_DIR` to change data directory. Default: `~/.local/share/bingo/`
+```bash
+scripts/script.sh history
+```
+
+### `check`
+
+```bash
+scripts/script.sh check <numbers>
+```
+
+### `stats`
+
+```bash
+scripts/script.sh stats
+```
+
+## Data Storage
+
+Data stored in `~/.local/share/bingo/`.
 
 ---
-*Powered by BytesAgain | bytesagain.com*
-*Feedback & Feature Requests: https://bytesagain.com/feedback*
 
-
-## Features
-
-- Simple command-line interface for quick access
-- Local data storage with JSON/CSV export
-- History tracking and activity logs
-- Search across all entries
-
-## Quick Start
-
-```bash
-# Check status
-bingo status
-
-# View help
-bingo help
-
-# Export data
-bingo export json
-```
-
-## How It Works
-
-Bingo stores all data locally in `~/.local/share/bingo/`. Each command logs activity with timestamps for full traceability.
-
-## Support
-
-- Feedback: https://bytesagain.com/feedback/
-- Website: https://bytesagain.com
-
-Powered by BytesAgain | bytesagain.com | hello@bytesagain.com
+*Powered by BytesAgain | bytesagain.com | hello@bytesagain.com*
