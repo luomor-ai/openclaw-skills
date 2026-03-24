@@ -3,11 +3,16 @@
   "slug": "dream-interpreter",
   "displayName": "Dream Interpreter",
   "latest": {
-    "version": "3.0.0",
-    "publishedAt": 1773920571249,
-    "commit": "https://github.com/openclaw/skills/commit/e5ab029fe343bfddc9ef8dd294c104dc5ffa9e42"
+    "version": "4.0.2",
+    "publishedAt": 1774314898249,
+    "commit": null
   },
   "history": [
+    {
+      "version": "3.0.0",
+      "publishedAt": 1773920571249,
+      "commit": "https://github.com/openclaw/skills/commit/e5ab029fe343bfddc9ef8dd294c104dc5ffa9e42"
+    },
     {
       "version": "2.3.6",
       "publishedAt": 1773665826177,
