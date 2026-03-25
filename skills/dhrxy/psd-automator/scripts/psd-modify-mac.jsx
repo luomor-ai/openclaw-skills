@@ -4,31 +4,81 @@ function fail(message) {
   throw new Error(message);
 }
 
-function normalizeLayerName(name) {
+// Replace every Unicode whitespace variant with an ASCII space.
+// Covers NBSP (U+00A0), ideographic space (U+3000), various en/em/thin spaces,
+// zero-width spaces, and the BOM character that sometimes leaks into layer names.
+function normalizeUnicodeSpaces(name) {
+  return String(name).replace(/[\u00A0\u1680\u2000-\u200B\u202F\u205F\u3000\uFEFF]/g, " ");
+}
+
+// Normalize full-width symbols that are visually identical to ASCII counterparts
+// but have different code points (e.g. ￥ U+FFE5 vs ¥ U+00A5).
+function normalizeFullWidth(name) {
+  var s = String(name);
+  // Full-width ASCII block U+FF01..U+FF5E → half-width U+0021..U+007E
+  s = s.replace(/[\uFF01-\uFF5E]/g, function(c) {
+    return String.fromCharCode(c.charCodeAt(0) - 0xFEE0);
+  });
+  // Full-width yen ￥ → ¥
+  s = s.replace(/\uFFE5/g, "\u00A5");
+  return s;
+}
+
+function trimSpaces(name) {
   return String(name).replace(/^\s+|\s+$/g, "");
 }
 
-function findTextLayer(parent, name) {
-  var requested = String(name);
-  var normalizedRequested = normalizeLayerName(requested);
-  var normalizedMatch = null;
+function collapseSpaces(name) {
+  return String(name).replace(/\s+/g, " ").replace(/^\s+|\s+$/g, "");
+}
+
+function stripAllSpaces(name) {
+  return String(name).replace(/\s/g, "");
+}
+
+// Build a multi-level normalized key for a layer name.
+// Returns an array of candidate keys in descending precision order.
+function layerKeys(name) {
+  var s = normalizeUnicodeSpaces(normalizeFullWidth(String(name)));
+  return [
+    String(name),             // 0: exact
+    trimSpaces(s),            // 1: unicode-normalized + trimmed
+    collapseSpaces(s),        // 2: collapsed spaces
+    trimSpaces(String(name)), // 3: trim only (original, no full-width remap)
+    stripAllSpaces(s),        // 4: strip all whitespace (last resort)
+  ];
+}
+
+// Multi-level fuzzy layer search.
+// Returns { layer, level } where level 0 = exact, 4 = strip-all-whitespace.
+function findTextLayerFuzzy(parent, name, best) {
+  var reqKeys = layerKeys(name);
+  if (!best) { best = { layer: null, level: 999 }; }
   for (var i = 0; i < parent.layers.length; i++) {
     var layer = parent.layers[i];
     if (layer.typename === "ArtLayer" && layer.kind === LayerKind.TEXT) {
-      var layerName = String(layer.name);
-      if (layerName === requested) {
-        return layer;
-      }
-      if (!normalizedMatch && normalizeLayerName(layerName) === normalizedRequested) {
-        normalizedMatch = layer;
+      var candidateKeys = layerKeys(String(layer.name));
+      for (var level = 0; level < reqKeys.length; level++) {
+        if (level >= best.level) break; // already have a better match
+        if (reqKeys[level] === candidateKeys[level]) {
+          best.layer = layer;
+          best.level = level;
+          if (level === 0) return best; // exact — stop immediately
+          break;
+        }
       }
     }
     if (layer.typename === "LayerSet") {
-      var nested = findTextLayer(layer, name);
-      if (nested) return nested;
+      findTextLayerFuzzy(layer, name, best);
+      if (best.level === 0) return best;
     }
   }
-  return normalizedMatch;
+  return best;
+}
+
+function findTextLayer(parent, name) {
+  var result = findTextLayerFuzzy(parent, name, null);
+  return result.layer;
 }
 
 function listTextLayers(parent, out) {

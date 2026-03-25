@@ -36,22 +36,73 @@ export function validateTask(task) {
       message: "input.edits[] or input.layerName/input.newText is required.",
     };
   }
+  if (hasEdits) {
+    for (const item of edits) {
+      if (!item || typeof item !== "object") {
+        return { ok: false, code: ErrorCodes.E_TASK_INVALID, message: "input.edits[] item must be an object." };
+      }
+      const op = item.op === "delete_text" ? "delete_text"
+        : item.op === "place_image" ? "place_image"
+        : "replace_text";
+      if (op === "place_image") {
+        if (!item.imagePath || typeof item.imagePath !== "string" || item.imagePath.trim().length === 0) {
+          return {
+            ok: false,
+            code: ErrorCodes.E_TASK_INVALID,
+            message: "input.edits[].imagePath is required for place_image.",
+          };
+        }
+      } else {
+        if (!item.layerName || typeof item.layerName !== "string" || item.layerName.trim().length === 0) {
+          return {
+            ok: false,
+            code: ErrorCodes.E_TASK_INVALID,
+            message: "input.edits[].layerName is required for replace_text/delete_text.",
+          };
+        }
+        if (op !== "delete_text" && typeof item.newText !== "string") {
+          return {
+            ok: false,
+            code: ErrorCodes.E_TASK_INVALID,
+            message: "input.edits[].newText is required for replace_text.",
+          };
+        }
+      }
+    }
+  }
   return { ok: true, code: ErrorCodes.OK };
 }
 
 export function normalizeTask(task) {
   const edits = Array.isArray(task.input.edits)
     ? task.input.edits
-    : [{ layerName: task.input.layerName, newText: task.input.newText }];
+    : [{ layerName: task.input.layerName, newText: task.input.newText, op: "replace_text" }];
   const normalizedEdits = edits
-    .filter(
-      (item) => item && typeof item.layerName === "string" && typeof item.newText === "string",
-    )
-    .map((item) => ({
-      layerName: item.layerName.trim(),
-      newText: item.newText,
-    }))
-    .filter((item) => item.layerName.length > 0);
+    .filter((item) => item && typeof item === "object")
+    .map((item) => {
+      const op = item.op === "delete_text" ? "delete_text"
+        : item.op === "place_image" ? "place_image"
+        : "replace_text";
+      if (op === "place_image") {
+        return {
+          op: "place_image",
+          imagePath: String(item.imagePath || "").trim(),
+          layerName: typeof item.layerName === "string" ? item.layerName.trim() : "",
+          position: typeof item.position === "string" ? item.position : "top",
+          visible: item.visible !== false,
+          targetArtboard: typeof item.targetArtboard === "string" ? item.targetArtboard.trim() : "",
+        };
+      }
+      return {
+        op,
+        layerName: typeof item.layerName === "string" ? item.layerName.trim() : "",
+        newText: op === "delete_text" ? "" : typeof item.newText === "string" ? item.newText : "",
+      };
+    })
+    .filter((item) => {
+      if (item.op === "place_image") return item.imagePath.length > 0;
+      return item.layerName.length > 0;
+    });
 
   const workflow = task.workflow || {};
   const output = task.output || {};
@@ -61,10 +112,11 @@ export function normalizeTask(task) {
       path: output.path,
     },
     bundle: output.bundle || {},
-    exports: Array.isArray(output.exports)
+      exports: Array.isArray(output.exports)
       ? output.exports.map((item) => ({
           ...item,
           mode: item?.mode === "layer_sets" ? "layer_sets" : "single",
+          artboardName: typeof item?.artboardName === "string" ? item.artboardName : "",
         }))
       : [],
   };

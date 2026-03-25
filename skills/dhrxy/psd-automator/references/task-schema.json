@@ -26,11 +26,32 @@
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["layerName", "newText"],
             "properties": {
-              "layerName": { "type": "string", "minLength": 1 },
-              "newText": { "type": "string" }
+              "op": { "type": "string", "enum": ["replace_text", "delete_text", "place_image"] },
+              "layerName": { "type": "string" },
+              "newText": { "type": "string" },
+              "imagePath": { "type": "string" },
+              "position": { "type": "string", "enum": ["top", "bottom", ""] },
+              "visible": { "type": "boolean" },
+              "targetArtboard": { "type": "string" }
             },
+            "allOf": [
+              {
+                "if": {
+                  "properties": { "op": { "const": "delete_text" } },
+                  "required": ["op"]
+                },
+                "then": { "required": ["layerName"] },
+                "else": {
+                  "if": {
+                    "properties": { "op": { "const": "place_image" } },
+                    "required": ["op"]
+                  },
+                  "then": { "required": ["imagePath"] },
+                  "else": { "required": ["layerName", "newText"] }
+                }
+              }
+            ],
             "additionalProperties": false
           }
         }
@@ -74,7 +95,8 @@
               "dir": { "type": "string" },
               "fileName": { "type": "string" },
               "mode": { "type": "string", "enum": ["single", "layer_sets"] },
-              "folderName": { "type": "string" }
+              "folderName": { "type": "string" },
+              "artboardName": { "type": "string" }
             },
             "additionalProperties": false
           }
@@ -98,6 +120,7 @@
         "retryOnLockedFile": { "type": "boolean" },
         "maxRetries": { "type": "integer", "minimum": 0, "maximum": 5 },
         "pathBridgeMode": { "type": "string", "enum": ["auto", "always", "off"] },
+        "styleLockSoftRetry": { "type": "boolean" },
         "bundleZip": { "type": "boolean" },
         "matchImagePath": { "type": "string" }
       },

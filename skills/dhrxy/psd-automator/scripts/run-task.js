@@ -78,6 +78,7 @@ function mapErrorCode(message) {
     return ErrorCodes.E_PHOTOSHOP_UNAVAILABLE;
   if (String(message).includes("E_EXPORT_FAILED")) return ErrorCodes.E_EXPORT_FAILED;
   if (String(message).includes("E_FILE_AMBIGUOUS")) return ErrorCodes.E_FILE_AMBIGUOUS;
+  if (String(message).includes("E_IMAGE_NOT_FOUND")) return ErrorCodes.E_FILE_NOT_FOUND;
   return ErrorCodes.E_EXEC_FAILED;
 }
 
@@ -159,6 +160,18 @@ function runMacModify(inputPath, layerName, newText, outputPath, timeoutMs, styl
   );
 }
 
+function runMacPlaceImage(inputPath, imagePath, layerLabel, position, visible, outputPath, timeoutMs, targetArtboard = "") {
+  const script = path.resolve(__dirname, "psd-place-image-mac.applescript");
+  return spawnSync(
+    "osascript",
+    [script, inputPath, imagePath, layerLabel || "", position || "top", visible ? "true" : "false", outputPath, targetArtboard || ""],
+    {
+      encoding: "utf8",
+      timeout: timeoutMs,
+    },
+  );
+}
+
 function runWinModify(inputPath, layerName, newText, outputPath, timeoutMs, styleLock = true) {
   const script = path.resolve(__dirname, "psd-modify-win.ps1");
   return spawnSync(
@@ -178,9 +191,9 @@ function runWinModify(inputPath, layerName, newText, outputPath, timeoutMs, styl
   );
 }
 
-function runMacExportPng(inputPath, pngPath, timeoutMs, exportMode = "single", pngDir = "") {
+function runMacExportPng(inputPath, pngPath, timeoutMs, exportMode = "single", pngDir = "", artboardName = "") {
   const script = path.resolve(__dirname, "psd-export-png-mac.applescript");
-  return spawnSync("osascript", [script, inputPath, pngPath, exportMode, pngDir], {
+  return spawnSync("osascript", [script, inputPath, pngPath, exportMode, pngDir, artboardName], {
     encoding: "utf8",
     timeout: timeoutMs,
   });
@@ -440,60 +453,86 @@ async function main() {
 
   if (platform === "darwin" || platform === "win32") {
     for (const edit of edits) {
-      result = executeWithRetry({
-        maxRetries,
-        retryEnabled,
-        execute: () => {
-          if (platform === "darwin") {
-            return runMacModify(
-              pathBridge.executionPath,
+      if (edit.op === "place_image") {
+        // Image placement op: call the dedicated place-image script.
+        const execPath = platform === "darwin" ? pathBridge.executionPath : workingInfo.workingPath;
+        result = executeWithRetry({
+          maxRetries,
+          retryEnabled,
+          execute: () => {
+            if (platform === "darwin") {
+              return runMacPlaceImage(
+                execPath,
+                edit.imagePath,
+                edit.layerName || "",
+                edit.position || "top",
+                edit.visible !== false,
+                execPath,
+                timeoutMs,
+                edit.targetArtboard || "",
+              );
+            }
+            // Windows: not yet implemented; fall through to error.
+            return { status: 1, stderr: "E_PLATFORM_UNSUPPORTED: place_image not supported on Windows yet.", stdout: "" };
+          },
+        });
+      } else {
+        // Text edit op (replace_text / delete_text).
+        result = executeWithRetry({
+          maxRetries,
+          retryEnabled,
+          execute: () => {
+            if (platform === "darwin") {
+              return runMacModify(
+                pathBridge.executionPath,
+                edit.layerName,
+                edit.newText,
+                pathBridge.executionPath,
+                timeoutMs,
+                styleLockEnabled,
+              );
+            }
+            return runWinModify(
+              workingInfo.workingPath,
               edit.layerName,
               edit.newText,
-              pathBridge.executionPath,
+              workingInfo.workingPath,
               timeoutMs,
               styleLockEnabled,
             );
-          }
-          return runWinModify(
-            workingInfo.workingPath,
-            edit.layerName,
-            edit.newText,
-            workingInfo.workingPath,
-            timeoutMs,
-            styleLockEnabled,
-          );
-        },
-      });
-      if (!result || result.status !== 0) {
-        const message = `${result?.stderr || ""}\n${result?.stdout || ""}`;
-        if (styleLockSoftRetryEnabled && message.includes("E_STYLE_MISMATCH")) {
-          const relaxedResult = executeWithRetry({
-            maxRetries,
-            retryEnabled,
-            execute: () => {
-              if (platform === "darwin") {
-                return runMacModify(
-                  pathBridge.executionPath,
+          },
+        });
+        if (!result || result.status !== 0) {
+          const message = `${result?.stderr || ""}\n${result?.stdout || ""}`;
+          if (styleLockSoftRetryEnabled && message.includes("E_STYLE_MISMATCH")) {
+            const relaxedResult = executeWithRetry({
+              maxRetries,
+              retryEnabled,
+              execute: () => {
+                if (platform === "darwin") {
+                  return runMacModify(
+                    pathBridge.executionPath,
+                    edit.layerName,
+                    edit.newText,
+                    pathBridge.executionPath,
+                    timeoutMs,
+                    false,
+                  );
+                }
+                return runWinModify(
+                  workingInfo.workingPath,
                   edit.layerName,
                   edit.newText,
-                  pathBridge.executionPath,
+                  workingInfo.workingPath,
                   timeoutMs,
                   false,
                 );
-              }
-              return runWinModify(
-                workingInfo.workingPath,
-                edit.layerName,
-                edit.newText,
-                workingInfo.workingPath,
-                timeoutMs,
-                false,
-              );
-            },
-          });
-          if (relaxedResult && relaxedResult.status === 0) {
-            styleLockFallbackUsed = true;
-            result = relaxedResult;
+              },
+            });
+            if (relaxedResult && relaxedResult.status === 0) {
+              styleLockFallbackUsed = true;
+              result = relaxedResult;
+            }
           }
         }
       }
@@ -579,10 +618,11 @@ async function main() {
     if (item.format !== "png") {
       continue;
     }
-    const exportMode = item.mode === "layer_sets" ? "layer_sets" : "single";
+    const artboardTarget = item.artboardName || "";
+    const exportMode = artboardTarget ? "artboard" : (item.mode === "layer_sets" ? "layer_sets" : "single");
     const pngPath = resolvePngOutputPath(item, finalPsdPath);
-    const pngDir = exportMode === "layer_sets" ? resolvePngOutputDir(item, finalPsdPath) : "";
-    if (exportMode === "layer_sets") {
+    const pngDir = (exportMode === "layer_sets" || exportMode === "artboard") ? resolvePngOutputDir(item, finalPsdPath) : "";
+    if (exportMode === "layer_sets" || exportMode === "artboard") {
       fs.mkdirSync(pngDir, { recursive: true });
       if (!preExportHashesByDir.has(pngDir)) {
         preExportHashesByDir.set(pngDir, await snapshotDirectoryHashes(pngDir));
@@ -590,9 +630,10 @@ async function main() {
     } else {
       ensureParentDir(pngPath);
     }
+    const artboardName = artboardTarget;
     const exportResult =
       platform === "darwin"
-        ? runMacExportPng(finalPsdPath, pngPath, timeoutMs, exportMode, pngDir)
+        ? runMacExportPng(finalPsdPath, pngPath, timeoutMs, exportMode, pngDir, artboardName)
         : runWinExportPng(finalPsdPath, pngPath, timeoutMs);
     if (exportResult.status !== 0) {
       const payload = {
@@ -605,7 +646,7 @@ async function main() {
       payload.auditLogPath = appendAudit(payload);
       printResultAndExit(payload, 1);
     }
-    if (exportMode === "layer_sets") {
+    if (exportMode === "layer_sets" || exportMode === "artboard") {
       const exported = listExportedImagesInDir(pngDir);
       if (exported.length === 0) {
         const payload = {
@@ -714,7 +755,9 @@ async function main() {
     candidates,
     selectionMethod: selectionMethod || "none",
     matchImagePath: matchImagePath || "",
-    editsApplied: edits.map((item) => item.layerName),
+    editsApplied: edits.map((item) =>
+      item.op === "place_image" ? `[place_image] ${item.imagePath}` : item.layerName
+    ),
     styleLockFallbackUsed,
     backupPath,
     via: resolved.via,
