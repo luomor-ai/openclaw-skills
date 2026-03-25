@@ -2,6 +2,11 @@
 """
 Job Hunter - LinkedIn Job Search Skill for OpenClaw
 
+A personal job search assistant that reads publicly available LinkedIn job
+listings (the same pages any web browser can access) and optionally scores
+them with Google Gemini AI. No authentication, login, or private data access
+is involved — only public search result pages are fetched.
+
 Usage:
     job_hunter.py search '<json_params>'
     job_hunter.py setkey <gemini_api_key>
@@ -10,20 +15,53 @@ Usage:
     job_hunter.py unsave <url>
     job_hunter.py history
     job_hunter.py rerun <index>
+
+License: MIT
 """
+
+from __future__ import annotations
 
 import asyncio
 import json
 import logging
-import random
 import re
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote_plus, urlencode
 
 import httpx
-from selectolax.parser import HTMLParser
+from selectolax.parser import HTMLParser, Node
+
+__all__ = [
+    "cmd_history",
+    "cmd_rerun",
+    "cmd_save",
+    "cmd_saved",
+    "cmd_search",
+    "cmd_setkey",
+    "cmd_unsave",
+    "load_config",
+    "load_json",
+    "main",
+    "parse_job_listings",
+    "save_json",
+    "score_jobs",
+    "scrape_jobs",
+]
+
+# ---------------------------------------------------------------------------
+# Constants
+# ---------------------------------------------------------------------------
+MAX_DESCRIPTION_LENGTH = 2000
+MAX_DESCRIPTION_FOR_PROMPT = 500
+MAX_RESULTS_OUTPUT = 30
+MAX_HISTORY_ENTRIES = 20
+DEFAULT_MIN_SCORE = 0.6
+DEFAULT_MAX_PAGES = 3
+MAX_PAGES_CAP = 5
+DEFAULT_MAX_CONCURRENT = 5
 
 # ---------------------------------------------------------------------------
 # Storage
@@ -34,29 +72,33 @@ HISTORY_FILE = DATA_DIR / "history.json"
 SAVED_FILE = DATA_DIR / "saved.json"
 
 
-def ensure_dir():
+def ensure_dir() -> None:
+    """Create the data directory if it does not exist."""
     DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
-def load_json(path, default=None):
+def load_json(path: Path, default: Any = None) -> Any:
+    """Load and return JSON data from *path*, or *default* if missing."""
     if path.exists():
         with open(path) as f:
             return json.load(f)
     return default if default is not None else {}
 
 
-def save_json(path, data):
+def save_json(path: Path, data: Any) -> None:
+    """Persist *data* as JSON to *path*, creating directories as needed."""
     ensure_dir()
     with open(path, "w") as f:
         json.dump(data, f, indent=2, ensure_ascii=False)
 
 
-def load_config():
+def load_config() -> dict[str, Any]:
+    """Return the stored config or sensible defaults."""
     return load_json(CONFIG_FILE, {
         "gemini_api_key": "",
         "gemini_model": "gemini-2.5-flash",
-        "min_ai_score": 0.6,
-        "max_pages": 3,
+        "min_ai_score": DEFAULT_MIN_SCORE,
+        "max_pages": DEFAULT_MAX_PAGES,
     })
 
 
@@ -66,13 +108,13 @@ def load_config():
 LINKEDIN_JOBS_URL = "https://www.linkedin.com/jobs/search/"
 JOBS_PER_PAGE = 25
 
-EXPERIENCE_MAP = {
+EXPERIENCE_MAP: dict[str, str] = {
     "internship": "1", "entry": "2", "associate": "3",
     "mid": "4", "mid-senior": "4", "senior": "4",
     "director": "5", "executive": "6",
 }
 
-LOCATION_TO_COUNTRY = {
+LOCATION_TO_COUNTRY: dict[str, str] = {
     ", ca": "united states", ", ny": "united states", ", tx": "united states",
     ", wa": "united states", ", il": "united states", ", ma": "united states",
     ", co": "united states", ", ga": "united states", ", va": "united states",
@@ -137,23 +179,22 @@ LOCATION_TO_COUNTRY = {
     "santiago": "chile", "lima": "peru",
 }
 
-# httpx default User-Agent is used; no browser impersonation needed
-# LinkedIn public job pages are accessible without custom headers
-
 logger = logging.getLogger("job_hunter")
 
 
-def _extract_linkedin_id(url):
+def _extract_linkedin_id(url: str) -> str | None:
+    """Extract the numeric LinkedIn job ID from a job URL."""
     match = re.search(r"/jobs/view/(?:.*?[-/])?(\d+)", url)
     return match.group(1) if match else None
 
 
-def _parse_relative_date(text):
+def _parse_relative_date(text: str | None) -> str | None:
+    """Convert a relative date string (e.g. '3 days ago') to ISO date."""
     if not text:
         return None
     text = text.lower().strip()
     now = datetime.now(timezone.utc)
-    patterns = [
+    patterns: list[tuple[str, Any]] = [
         (r"(\d+)\s*second", lambda m: timedelta(seconds=int(m.group(1)))),
         (r"(\d+)\s*minute", lambda m: timedelta(minutes=int(m.group(1)))),
         (r"(\d+)\s*hour", lambda m: timedelta(hours=int(m.group(1)))),
@@ -168,7 +209,8 @@ def _parse_relative_date(text):
     return None
 
 
-def _parse_single_card(card):
+def _parse_single_card(card: Node) -> dict[str, Any] | None:
+    """Parse a single LinkedIn job card HTML node into a job dict."""
     title_el = card.css_first("h3, h4, .base-search-card__title")
     title = title_el.text(strip=True) if title_el else None
 
@@ -201,9 +243,10 @@ def _parse_single_card(card):
     }
 
 
-def parse_job_listings(html):
+def parse_job_listings(html: str) -> list[dict[str, Any]]:
+    """Parse LinkedIn search results HTML and return a list of job dicts."""
     parser = HTMLParser(html)
-    jobs = []
+    jobs: list[dict[str, Any]] = []
     cards = parser.css("ul.jobs-search__results-list > li")
     if not cards:
         cards = parser.css("[data-entity-urn]")
@@ -215,16 +258,22 @@ def parse_job_listings(html):
             job = _parse_single_card(card)
             if job:
                 jobs.append(job)
-        except Exception:
+        except (AttributeError, KeyError, TypeError) as exc:
+            logger.warning("Failed to parse job card: %s", exc)
             continue
     return jobs
 
 
-async def _fetch_description(client, job):
+async def _fetch_description(client: httpx.AsyncClient, job: dict[str, Any]) -> str | None:
+    """Fetch the full description for a single job listing."""
     try:
         resp = await client.get(job["url"])
         resp.raise_for_status()
-    except Exception:
+    except httpx.HTTPStatusError as exc:
+        logger.warning("HTTP %s fetching description for %s", exc.response.status_code, job["url"])
+        return None
+    except httpx.RequestError as exc:
+        logger.warning("Request error fetching description for %s: %s", job["url"], exc)
         return None
     parser = HTMLParser(resp.text)
     desc_el = (
@@ -232,27 +281,34 @@ async def _fetch_description(client, job):
         or parser.css_first("div.show-more-less-html__markup")
         or parser.css_first("section.description")
     )
-    return desc_el.text(strip=True)[:2000] if desc_el else None
+    return desc_el.text(strip=True)[:MAX_DESCRIPTION_LENGTH] if desc_el else None
 
 
-async def _enrich_descriptions(client, jobs, max_concurrent=5):
+async def _enrich_descriptions(
+    client: httpx.AsyncClient,
+    jobs: list[dict[str, Any]],
+    max_concurrent: int = DEFAULT_MAX_CONCURRENT,
+) -> None:
+    """Fetch and attach descriptions for a list of jobs in batches."""
     for i in range(0, len(jobs), max_concurrent):
         batch = jobs[i:i + max_concurrent]
         descriptions = await asyncio.gather(*[_fetch_description(client, j) for j in batch])
         for job, desc in zip(batch, descriptions):
             job["description"] = desc
         if i + max_concurrent < len(jobs):
-            await asyncio.sleep(random.uniform(1.0, 2.0))
+            await asyncio.sleep(2.0)  # polite delay between batches
 
 
-def _job_matches_technologies(job, techs_lower):
+def _job_matches_technologies(job: dict[str, Any], techs_lower: list[str]) -> bool:
+    """Return True if any technology keyword appears in the job title or description."""
     searchable = job["title"].lower()
     if job.get("description"):
         searchable += " " + job["description"].lower()
     return any(tech in searchable for tech in techs_lower)
 
 
-def _location_matches_countries(location, countries_lower):
+def _location_matches_countries(location: str | None, countries_lower: set[str]) -> bool:
+    """Return True if *location* maps to one of the given countries."""
     if not location:
         return False
     loc = location.lower()
@@ -264,10 +320,20 @@ def _location_matches_countries(location, countries_lower):
     return False
 
 
-async def _scrape_one_location(client, params, location, max_pages):
-    all_jobs = []
+async def _scrape_one_location(
+    client: httpx.AsyncClient,
+    params: dict[str, Any],
+    location: str | None,
+    max_pages: int,
+) -> list[dict[str, Any]]:
+    """Scrape job listings for a single location across multiple pages."""
+    all_jobs: list[dict[str, Any]] = []
     for page in range(max_pages):
-        url_params = {"keywords": params["keywords"], "start": str(page * JOBS_PER_PAGE), "sortBy": "DD"}
+        url_params: dict[str, str] = {
+            "keywords": params["keywords"],
+            "start": str(page * JOBS_PER_PAGE),
+            "sortBy": "DD",
+        }
         if location:
             url_params["location"] = location
         if params.get("remote"):
@@ -281,7 +347,11 @@ async def _scrape_one_location(client, params, location, max_pages):
         try:
             response = await client.get(url)
             response.raise_for_status()
-        except Exception:
+        except httpx.HTTPStatusError as exc:
+            logger.warning("HTTP %s fetching page %d for '%s'", exc.response.status_code, page, location)
+            break
+        except httpx.RequestError as exc:
+            logger.warning("Request error on page %d for '%s': %s", page, location, exc)
             break
 
         jobs = parse_job_listings(response.text)
@@ -290,18 +360,18 @@ async def _scrape_one_location(client, params, location, max_pages):
         all_jobs.extend(jobs)
 
         if page < max_pages - 1:
-            await asyncio.sleep(random.uniform(1.0, 3.0))
+            await asyncio.sleep(2.0)  # polite delay between pages
     return all_jobs
 
 
-async def scrape_jobs(params):
+async def scrape_jobs(params: dict[str, Any]) -> list[dict[str, Any]]:
+    """Scrape LinkedIn job listings based on search parameters."""
     headers = {
-        "Accept": "text/html,application/xhtml+xml",
-        "Accept-Language": "en-US,en;q=0.9,es;q=0.8",
+        "Accept": "text/html",
     }
-    max_pages = min(params.get("max_pages", 3), 5)
-    all_jobs = []
-    seen_ids = set()
+    max_pages = min(params.get("max_pages", DEFAULT_MAX_PAGES), MAX_PAGES_CAP)
+    all_jobs: list[dict[str, Any]] = []
+    seen_ids: set[str] = set()
 
     async with httpx.AsyncClient(headers=headers, follow_redirects=True, timeout=30.0) as client:
         countries = params.get("countries", [])
@@ -312,7 +382,7 @@ async def scrape_jobs(params):
                     if j["linkedin_id"] not in seen_ids:
                         seen_ids.add(j["linkedin_id"])
                         all_jobs.append(j)
-                await asyncio.sleep(random.uniform(1.0, 2.0))
+                await asyncio.sleep(2.0)  # polite delay between batches
         else:
             all_jobs = await _scrape_one_location(client, params, params.get("location"), max_pages)
 
@@ -370,8 +440,9 @@ Example response:
 BATCH_SIZE = 10
 
 
-def _format_jobs_for_prompt(jobs):
-    lines = []
+def _format_jobs_for_prompt(jobs: list[dict[str, Any]]) -> str:
+    """Format a list of jobs into a text block for the AI scoring prompt."""
+    lines: list[str] = []
     for i, job in enumerate(jobs):
         parts = [f"Job {i}:", f"  Title: {job['title']}", f"  Company: {job['company']}"]
         if job.get("location"):
@@ -379,13 +450,14 @@ def _format_jobs_for_prompt(jobs):
         if job.get("salary"):
             parts.append(f"  Salary: {job['salary']}")
         if job.get("description"):
-            parts.append(f"  Description: {job['description'][:500]}")
+            parts.append(f"  Description: {job['description'][:MAX_DESCRIPTION_FOR_PROMPT]}")
         parts.append(f"  URL: {job['url']}")
         lines.append("\n".join(parts))
     return "\n\n".join(lines)
 
 
-def _build_scoring_prompt(jobs, params):
+def _build_scoring_prompt(jobs: list[dict[str, Any]], params: dict[str, Any]) -> str:
+    """Build the full Gemini scoring prompt for a batch of jobs."""
     return SCORING_PROMPT.format(
         keywords=params.get("keywords", ""),
         technologies=", ".join(params.get("technologies", [])) or "Not specified",
@@ -399,7 +471,8 @@ def _build_scoring_prompt(jobs, params):
     )
 
 
-def _parse_scores(response_text, count):
+def _parse_scores(response_text: str, count: int) -> list[dict[str, Any]]:
+    """Parse AI response text into a list of score dicts, with fallback."""
     try:
         text = response_text.strip()
         if "```" in text:
@@ -411,11 +484,18 @@ def _parse_scores(response_text, count):
         if not isinstance(scores, list):
             raise ValueError("Expected JSON array")
         return scores
-    except (json.JSONDecodeError, ValueError):
+    except (json.JSONDecodeError, ValueError) as exc:
+        logger.warning("Failed to parse AI scores: %s", exc)
         return [{"index": i, "score": 0.5, "reason": "Score unavailable"} for i in range(count)]
 
 
-def score_jobs(jobs, params, api_key, model="gemini-2.5-flash"):
+def score_jobs(
+    jobs: list[dict[str, Any]],
+    params: dict[str, Any],
+    api_key: str,
+    model: str = "gemini-2.5-flash",
+) -> list[dict[str, Any]]:
+    """Score jobs using Google Gemini AI, or assign neutral scores if no key."""
     if not jobs:
         return []
     if not api_key:
@@ -443,6 +523,7 @@ def score_jobs(jobs, params, api_key, model="gemini-2.5-flash"):
                 job["ai_score"] = float(score_data.get("score", 0.5))
                 job["ai_summary"] = score_data.get("reason")
         except Exception as e:
+            logger.error("AI scoring failed for batch starting at %d: %s", batch_start, e)
             for job in batch:
                 job["ai_score"] = 0.5
                 job["ai_summary"] = f"AI error: {e}"
@@ -453,8 +534,17 @@ def score_jobs(jobs, params, api_key, model="gemini-2.5-flash"):
 # ---------------------------------------------------------------------------
 # Commands
 # ---------------------------------------------------------------------------
-def cmd_search(params_json):
+def cmd_search(params_json: str) -> None:
+    """Search LinkedIn for jobs matching the given JSON parameters."""
     params = json.loads(params_json)
+
+    if "keywords" not in params:
+        print(json.dumps({
+            "status": "error",
+            "message": "Missing required 'keywords' key in search parameters",
+        }, indent=2))
+        return
+
     config = load_config()
 
     # Run scraping
@@ -468,7 +558,7 @@ def cmd_search(params_json):
         "above_threshold": 0,
         "timestamp": datetime.now().isoformat(),
     })
-    history = history[:20]
+    history = history[:MAX_HISTORY_ENTRIES]
     save_json(HISTORY_FILE, history)
 
     if not jobs:
@@ -481,7 +571,7 @@ def cmd_search(params_json):
     jobs = score_jobs(jobs, params, api_key, model)
 
     # Filter by min score
-    min_score = params.get("min_score", config.get("min_ai_score", 0.6))
+    min_score = params.get("min_score", config.get("min_ai_score", DEFAULT_MIN_SCORE))
     scored_jobs = sorted(jobs, key=lambda j: j.get("ai_score", 0), reverse=True)
     filtered = [j for j in scored_jobs if j.get("ai_score", 0) >= min_score]
 
@@ -501,19 +591,21 @@ def cmd_search(params_json):
         "total_scraped": len(jobs),
         "above_threshold": len(filtered),
         "min_score": min_score,
-        "jobs": filtered[:30],  # Top 30
+        "jobs": filtered[:MAX_RESULTS_OUTPUT],
         "all_jobs": len(scored_jobs),
     }, indent=2, ensure_ascii=False))
 
 
-def cmd_setkey(api_key):
+def cmd_setkey(api_key: str) -> None:
+    """Store the Gemini API key in the config file."""
     config = load_config()
     config["gemini_api_key"] = api_key
     save_json(CONFIG_FILE, config)
     print(json.dumps({"status": "ok", "message": "Gemini API key saved"}, indent=2))
 
 
-def cmd_save(job_json):
+def cmd_save(job_json: str) -> None:
+    """Save a job to the bookmarks list (no duplicates by URL)."""
     job = json.loads(job_json)
     job["saved_at"] = datetime.now().isoformat()
     saved = load_json(SAVED_FILE, [])
@@ -524,26 +616,30 @@ def cmd_save(job_json):
     print(json.dumps({"status": "saved", "total_saved": len(saved)}, indent=2))
 
 
-def cmd_saved():
+def cmd_saved() -> None:
+    """List all saved/bookmarked jobs."""
     saved = load_json(SAVED_FILE, [])
     print(json.dumps({"saved_jobs": saved, "total": len(saved)}, indent=2, ensure_ascii=False))
 
 
-def cmd_unsave(url):
+def cmd_unsave(url: str) -> None:
+    """Remove a saved job by its URL."""
     saved = load_json(SAVED_FILE, [])
     saved = [s for s in saved if s.get("url") != url]
     save_json(SAVED_FILE, saved)
     print(json.dumps({"status": "removed", "total_saved": len(saved)}, indent=2))
 
 
-def cmd_history():
+def cmd_history() -> None:
+    """Show the search history with indexed entries."""
     history = load_json(HISTORY_FILE, [])
     for i, h in enumerate(history):
         h["index"] = i
     print(json.dumps({"searches": history}, indent=2, ensure_ascii=False))
 
 
-def cmd_rerun(index_str):
+def cmd_rerun(index_str: str) -> None:
+    """Re-run a previous search by its history index."""
     history = load_json(HISTORY_FILE, [])
     index = int(index_str)
     if index < 0 or index >= len(history):
@@ -553,13 +649,14 @@ def cmd_rerun(index_str):
     cmd_search(json.dumps(params))
 
 
-def main():
+def main() -> None:
+    """CLI entry point for the job_hunter skill."""
     if len(sys.argv) < 2:
         print("Usage: job_hunter.py <command> [args]", file=sys.stderr)
         sys.exit(1)
 
     command = sys.argv[1]
-    commands = {
+    commands: dict[str, Any] = {
         "search": lambda: cmd_search(sys.argv[2]),
         "setkey": lambda: cmd_setkey(sys.argv[2]),
         "save": lambda: cmd_save(sys.argv[2]),
