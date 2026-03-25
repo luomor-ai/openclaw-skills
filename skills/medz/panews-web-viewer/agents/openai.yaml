@@ -1,0 +1,7 @@
+interface:
+  display_name: "PANews Web Viewer"
+  short_description: "Read PANews website pages as Markdown"
+  default_prompt: "Use $panews-web-viewer to fetch a PANews homepage, article page, or column page as Markdown."
+
+policy:
+  allow_implicit_invocation: true
