@@ -19,8 +19,8 @@ Options:
     --format FORMAT         Response format: json, text, verbose_json (default: verbose_json)
 
 Requires:
-    - .env file with SENSEAUDIO_API_KEY in skill directory (or env var)
-    - requests, python-dotenv: pip install requests python-dotenv
+    - SENSEAUDIO_API_KEY environment variable
+    - requests: pip install requests
     - ffmpeg (only for files >10MB)
 """
 
@@ -28,6 +28,7 @@ import argparse
 import json
 import math
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,37 +40,66 @@ except ImportError:
     print("Error: 'requests' package required. Install with: pip install requests")
     sys.exit(1)
 
-try:
-    from dotenv import load_dotenv
-except ImportError:
-    print("Error: 'python-dotenv' package required. Install with: pip install python-dotenv")
-    sys.exit(1)
-
 API_URL = "https://api.senseaudio.cn/v1/audio/transcriptions"
 MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
 
+_bin_cache: dict[str, str | None] = {}
+
+# IDE/GUI 启动的进程常缺少 Homebrew 等路径，需主动搜索
+_EXTRA_SEARCH_PATHS = [
+    "/opt/homebrew/bin",        # macOS Homebrew (Apple Silicon)
+    "/usr/local/bin",           # macOS Homebrew (Intel) / Linux common
+    "/usr/bin",                 # Linux system
+    "/snap/bin",                # Linux snap
+]
+
+
+def find_bin(name: str) -> str:
+    """Find executable by name, searching PATH + common install locations."""
+    if name in _bin_cache:
+        return _bin_cache[name]
+
+    found = shutil.which(name)
+    if not found:
+        for d in _EXTRA_SEARCH_PATHS:
+            candidate = os.path.join(d, name)
+            if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+                found = candidate
+                break
+    if not found:
+        # Windows: also try common locations
+        if sys.platform == "win32":
+            for win_dir in [
+                os.path.join(os.environ.get("LOCALAPPDATA", ""), "Programs", "ffmpeg", "bin"),
+                os.path.join(os.environ.get("ProgramFiles", ""), "ffmpeg", "bin"),
+                r"C:\ffmpeg\bin",
+            ]:
+                candidate = os.path.join(win_dir, f"{name}.exe")
+                if os.path.isfile(candidate):
+                    found = candidate
+                    break
+
+    _bin_cache[name] = found
+    return found
+
 
 def get_api_key():
-    """Load API key from .env file (skill directory) or environment variable."""
-    script_dir = Path(__file__).resolve().parent
-    skill_dir = script_dir.parent  # scripts/ -> audio-transcribe-summarize/
-    env_path = skill_dir / ".env"
-    if env_path.exists():
-        load_dotenv(env_path)
-
+    """Load API key from environment variable."""
     key = os.environ.get("SENSEAUDIO_API_KEY")
     if not key:
-        print(f"Error: SENSEAUDIO_API_KEY not found.")
-        print(f"Set it in {env_path} or as an environment variable.")
+        print("Error: SENSEAUDIO_API_KEY not found in environment variables.")
         sys.exit(1)
     return key
 
 
 def get_audio_duration(filepath):
     """Get audio duration in seconds using ffprobe."""
+    ffprobe = find_bin("ffprobe")
+    if not ffprobe:
+        return None
     try:
         result = subprocess.run(
-            ["ffprobe", "-v", "quiet", "-print_format", "json", "-show_format", filepath],
+            [ffprobe, "-v", "quiet", "-print_format", "json", "-show_format", filepath],
             capture_output=True, text=True
         )
         info = json.loads(result.stdout)
@@ -81,8 +111,13 @@ def get_audio_duration(filepath):
 def split_audio(filepath, chunk_duration=300):
     """Split audio into chunks using ffmpeg. Returns list of chunk file paths."""
     duration = get_audio_duration(filepath)
-    if duration is None:
-        print("Error: ffmpeg/ffprobe required for splitting large files.")
+    ffmpeg = find_bin("ffmpeg")
+    if duration is None or not ffmpeg:
+        hint = ""
+        if not find_bin("ffprobe"):
+            hint = ("\nHint: ffmpeg may be installed but not in PATH. "
+                    "Try running from a terminal, or set the full path in your PATH env var.")
+        print(f"Error: ffmpeg/ffprobe not found.{hint}")
         sys.exit(1)
 
     num_chunks = math.ceil(duration / chunk_duration)
@@ -96,7 +131,7 @@ def split_audio(filepath, chunk_duration=300):
         start = i * chunk_duration
         chunk_path = os.path.join(tmp_dir, f"chunk_{i:04d}{ext}")
         subprocess.run(
-            ["ffmpeg", "-y", "-i", filepath, "-ss", str(start), "-t", str(chunk_duration),
+            [ffmpeg, "-y", "-i", filepath, "-ss", str(start), "-t", str(chunk_duration),
              "-acodec", "copy", "-vn", chunk_path],
             capture_output=True
         )

@@ -11,11 +11,9 @@ Transcribe audio/video files using the SenseASR API (`api.senseaudio.cn`), then 
 
 ## Prerequisites
 
-- `{baseDir}/.env` with `SENSEAUDIO_API_KEY=your_key` (copy from `{baseDir}/.env.example`)
-- Python 3.8+ with `requests` and `python-dotenv` installed
-- For large files (>10MB): `ffmpeg` installed for splitting
-
-Get your key at https://senseaudio.cn/platform/api-key
+- Environment variable `SENSEAUDIO_API_KEY` configured (get your key at https://senseaudio.cn/platform/api-key)
+- Python 3.8+ with `requests` installed
+- For large files (>10MB): `ffmpeg` installed for splitting（macOS: `brew install ffmpeg`，Windows: [ffmpeg.org](https://ffmpeg.org/download.html) 下载并加入 PATH，Linux: `apt install ffmpeg`）
 
 ## Quick Start
 
