@@ -1,11 +1,11 @@
 ---
-name: spherico-agent
-description: End-to-end Spherico network API workflows for AI agents. Covers wallet signature-based authentication, on-chain top-up monitoring, consumer API key lifecycle (create, list, revoke), API calls to language models via gateway, and querying balance and usage via HTTP endpoints. Use to help users automate or debug Spherico network operations by direct API interaction.
+name: bitnow-agent
+description: End-to-end Bitnow network API workflows for AI agents. Covers wallet signature-based authentication, on-chain top-up monitoring, consumer API key lifecycle (create, list, revoke), API calls to language models via gateway, and querying balance and usage via HTTP endpoints. Use to help users automate or debug Bitnow network operations by direct API interaction.
 ---
 
-# Spherico Control Plane (API-Driven) Skill
+# Bitnow Control Plane (API-Driven) Skill
 
-This skill describes **end-to-end operational workflows** for the Spherico network, strictly from an **API usage perspective**.
+This skill describes **end-to-end operational workflows** for the Bitnow network, strictly from an **API usage perspective**.
 
 - Wallet-based authentication (signature flow)
 - On-chain balance top-up and verification via API
@@ -15,7 +15,7 @@ This skill describes **end-to-end operational workflows** for the Spherico netwo
 
 Assumptions:
 
-- A **gateway HTTP API** exists (e.g. `https://depin-llm-api-test.parasail.network`)
+- A **gateway HTTP API** exists (e.g. `https://gateway-test.bitnow.ai`)
 - All workflows are CLI-, Curl or script-oriented, no UI assistance
 - Support chain is base sepolia, chain id is 8453
 
@@ -25,7 +25,7 @@ Replace all `<BASE_URL>` with the actual gateway URL as needed.
 
 ## 1. Wallet-based registration & session (API focus)
 
-**Note**: The message signing must be performed by the user using their wallet (MetaMask, etc.)—API can only initiate or verify, not produce signatures. if you have no wallet, you need to ask your operator for one wallet, gas token, and USDC tokens.
+**Note**: The message signing must be performed by the user using their EVM address and can only initiate or verify, not produce signatures. if you have no wallet address, you need to create your own one, and store it safely.
 
 Typical API sequence:
 
@@ -164,6 +164,55 @@ The key status will be set to `revoked`; subsequent calls using that key will fa
 
 ---
 
+## 3.4 Declare a Parent (Child → Parent Relationship)
+
+Use this to let a **child account declare a parent**. This requires a **wallet signature** over a structured message. The signature **must be produced by the child wallet**.
+
+**Endpoint:**
+
+```sh
+curl -sS -X POST "<BASE_URL>/v1/consumers/me/parent" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer <SESSION_TOKEN>" \
+  -d '{
+    "parent_wallet": "<PARENT_WALLET>",
+    "issued_at": 1710000000,
+    "signature": "<CHILD_WALLET_SIGNATURE>"
+  }'
+```
+
+Notes:
+
+- `issued_at` is **Unix seconds**. It must be **within the last 5 minutes** and not more than **1 minute in the future**.
+- The signed message must be exactly:
+  ```
+  Authorize parent for DePIN LLM
+  Parent wallet: <PARENT_WALLET_LOWERCASE>
+  Child wallet: <CHILD_WALLET_LOWERCASE>
+  Issued at: <ISSUED_AT>
+  ```
+
+**Success response (201):**
+
+```json
+{
+  "parent_consumer_id": "consumer-uuid",
+  "parent_wallet_address": "0x...",
+  "created_at": "2025-01-01T00:00:00Z"
+}
+```
+
+**Common errors:**
+
+- `400 INVALID_REQUEST` invalid body
+- `400 SIGNATURE_EXPIRED` `issued_at` out of window
+- `404 PARENT_NOT_FOUND` parent not found
+- `400 SELF_PARENT` cannot declare yourself
+- `401 SIGNATURE_MISMATCH` signature not from child wallet
+- `409 ALREADY_SET` parent already declared
+
+---
+
 ## 4. Model Inference API Usage
 
 With a valid `CONSUMER_API_KEY`, models can be queried.
@@ -186,7 +235,7 @@ curl -sS -X POST "<BASE_URL>/v1/chat" \
   "model": "gpt-4o-mini",
   "messages": [
     { "role": "system", "content": "You are a helpful assistant." },
-    { "role": "user", "content": "Explain the Spherico network in one paragraph." }
+    { "role": "user", "content": "Explain the Bitnow network in one paragraph." }
   ]
 }'
 ```
@@ -293,7 +342,7 @@ For upstream providers only:
 
 ## 7. Usage Guidelines for AI Agents
 
-When handling Spherico network operational support, follow these best practices:
+When handling Bitnow network operational support, follow these best practices:
 
 1. Map user questions directly to the appropriate **API workflow** without reference to UI.
    - Example intents: onboarding, balance issue, API key management, quota/cost analysis
