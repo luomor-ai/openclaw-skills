@@ -134,7 +134,7 @@ class SleepRabbitSkill:
     
     def __init__(self):
         self.name = "眠小兔睡眠健康"
-        self.version = "1.0.0"
+        self.version = "1.0.3"
         self.description = "专业的睡眠分析、压力评估和冥想指导系统"
         
         # 初始化插件

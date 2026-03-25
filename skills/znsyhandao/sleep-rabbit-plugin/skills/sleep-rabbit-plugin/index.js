@@ -1,8 +1,5 @@
-const { exec } = require('child_process');
 const fs = require('fs');
 const path = require('path');
-const util = require('util');
-const execPromise = util.promisify(exec);
 
 /**
  * 眠小兔睡眠健康插件
@@ -12,7 +9,7 @@ class SleepRabbitPlugin {
   constructor(api) {
     this.api = api;
     this.name = 'sleep-rabbit-plugin';
-    this.version = '1.0.0';
+    this.version = '1.0.3';
     
     // Python脚本路径
     this.pythonScript = path.join(__dirname, 'bin', 'openclaw_skill.py');
@@ -235,12 +232,36 @@ class SleepRabbitPlugin {
   async onStart() {
     console.log(`[${this.name}] 插件启动`);
     
-    // 检查Python依赖
+    // 安全地检查Python依赖（不使用exec）
     try {
-      await execPromise('python -c "import mne, numpy, scipy"');
-      console.log('[✓] Python依赖检查通过');
+      const { spawn } = require('child_process');
+      await new Promise((resolve, reject) => {
+        const pythonProcess = spawn('python', ['-c', 'import mne, numpy, scipy'], {
+          stdio: ['ignore', 'ignore', 'pipe']
+        });
+        
+        let stderr = '';
+        pythonProcess.stderr.on('data', (data) => {
+          stderr += data.toString();
+        });
+        
+        pythonProcess.on('close', (code) => {
+          if (code !== 0) {
+            console.warn('[!] Python依赖缺失，请运行: pip install mne numpy scipy');
+            console.warn(`详细信息: ${stderr}`);
+          } else {
+            console.log('[✓] Python依赖检查通过');
+          }
+          resolve();
+        });
+        
+        pythonProcess.on('error', (err) => {
+          console.warn('[!] 无法启动Python进程，请确保Python已安装');
+          resolve(); // 不阻止插件启动
+        });
+      });
     } catch (error) {
-      console.warn('[!] Python依赖缺失，请运行: pip install mne numpy scipy');
+      console.warn('[!] 依赖检查失败，但插件将继续运行:', error.message);
     }
   }
 

@@ -2,16 +2,7 @@
 睡眠分析插件 - 分析EDF睡眠数据
 基于MNE-Python的睡眠阶段分析
 """
-# ====== 添加这部分 ======
-import warnings
-import mne
 
-# 过滤MNE的运行时警告
-warnings.filterwarnings('ignore', category=RuntimeWarning, module='mne')
-warnings.filterwarnings('ignore', message='Channels contain different*')
-warnings.filterwarnings('ignore', message='Highpass cutoff frequency*')
-warnings.filterwarnings('ignore', message='Loading an EDF with mixed sampling frequencies*')
-# ====== 添加结束 ======
 import numpy as np
 from plugin_manager import BasePlugin, PluginInfo, PluginType
 

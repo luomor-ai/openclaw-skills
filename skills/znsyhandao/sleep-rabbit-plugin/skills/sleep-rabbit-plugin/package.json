@@ -1,6 +1,6 @@
 {
   "name": "sleep-rabbit-plugin",
-  "version": "1.0.0",
+  "version": "1.0.3",
   "description": "眠小兔睡眠健康分析插件",
   "author": "眠小兔睡眠实验室",
   "license": "MIT",
@@ -9,8 +9,7 @@
     "permissions": [
       "filesystem:read",
       "filesystem:write",
-      "process:spawn",
-      "network"
+      "process:spawn"
     ],
     "tools": [
       {
