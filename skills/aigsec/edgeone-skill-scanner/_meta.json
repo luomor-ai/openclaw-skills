@@ -1,0 +1,11 @@
+{
+  "owner": "aigsec",
+  "slug": "edgeone-skill-scanner",
+  "displayName": "EdgeOne Skill Scanner",
+  "latest": {
+    "version": "1.0.4",
+    "publishedAt": 1774322016608,
+    "commit": null
+  },
+  "history": []
+}
