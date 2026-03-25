@@ -1,16 +1,30 @@
 ---
 name: qstar-video-ecom
-version: 1.0.1
+version: 1.0.9
 author: qstar
 emoji: "🎬"
+homepage: https://guanma.top
 tags:
   - video
   - ecommerce
   - ai-video
   - chinese
+  - product-video
+  - tiktok
+  - douyin
+  - xiaohongshu
+  - short-video
+  - marketing
+  - sora
+  - chinese-ecommerce
+  - video-generation
+  - ai-marketing
 description: >
-  一键生成带中文解说的电商产品视频，支持淘宝、小红书、抖音等六大平台。
-  内置 AI 视频生成 + 中文 TTS 解说 + 平台专属参数。免费每天1次，充值后不限量。
+  Generate AI product videos for Chinese e-commerce platforms with Chinese TTS voiceover.
+  Supports Taobao, Douyin (TikTok), Xiaohongshu (RedNote), Pinduoduo, JD.com, and WeChat
+  Video. Auto-selects platform aspect ratio and duration. Upload product images for
+  personalized videos. Free daily quota, paid plans available. Perfect for Chinese sellers,
+  cross-border e-commerce, and social media marketing campaigns on Douyin, Xiaohongshu, and TikTok.
 ---
 
 # 🎬 电商 Sora 视频生成
@@ -21,7 +35,7 @@ description: >
 
 ## Step 0 — 提取用户 ID
 
-从当前 session key 提取平台和 sender_id，拼成 `{platform}:{sender_id}`。
+从当前 session key 提取平台和 sender_id，拼成 `{platform}:{sender_id}`，记为 **USER_ID**。
 
 session key 格式：`agent:main:{platform}:{chattype}:{sender_id}`
 
@@ -32,10 +46,7 @@ session key 格式：`agent:main:{platform}:{chattype}:{sender_id}`
 - `agent:main:feishu:direct:ou_xxx` → `feishu:ou_xxx`
 - `agent:main:slack:direct:U12345` → `slack:U12345`
 
-```bash
-# 获取 session key（从上下文读取，不需要 exec）
-USER_ID="{platform}:{sender_id}"  # 替换为实际值
-```
+**重要**：后续所有命令中的 `{USER_ID}` 均需在执行前替换为实际值。不要使用 shell 变量赋值，直接将值内联到命令中。
 
 ---
 
@@ -62,7 +73,7 @@ curl -s https://bot.guanma.top/sora-api/user/profile/{USER_ID}
 
 1. 「你主要在哪个平台经营？（淘宝/小红书/抖音/其他）」
 2. 「你的主营产品类目是？（服装/数码/美妆/食品/其他）」
-3. 「你的微信号是？（方便后续服务，可跳过）」
+3. 「售后联系方式（选填，可跳过）」
 
 收集后：
 
@@ -124,10 +135,11 @@ curl -s https://bot.guanma.top/sora-api/quota/{USER_ID}
 「📸 是否上传产品实拍图？上传后视频将基于你的真实产品生成，效果更准确。
 直接发图即可，或回复「跳过」使用通用风格。」
 
-- 用户发图 → 将图片保存到本地后上传：
+- 用户发图 → 使用 OpenClaw 内置图片工具获取图片的公网 URL（image_url），然后提交给生成接口：
   ```bash
   curl -s -X POST "https://bot.guanma.top/sora-api/upload-image?user_id={USER_ID}" \
-    -F "file=@{本地图片路径}"
+    -H "Content-Type: application/json" \
+    -d '{"image_url": "{用户图片的公网URL}"}'
   ```
   从返回 JSON 取 `image_url`
 
@@ -154,7 +166,8 @@ curl -s -X POST https://bot.guanma.top/sora-api/generate \
 
 **若返回 HTTP 200**：
 - 有产品图：「🎬 个性化视频已生成！基于你的产品图定制。剩余次数：{quota_remaining}」
-- 无产品图：「🎬 通用视频已生成！今日免费次数已用完，充值后可上传产品图生成专属视频。」
+- 无产品图 + 返回 `quota_type == "free"`（免费额度）：「🎬 视频已生成！今日免费次数已用完，充值后可上传产品图生成专属视频。」
+- 无产品图 + 返回 `quota_type == "credits"`（付费额度）：「🎬 视频已生成！剩余次数：{quota_remaining}，如需个性化视频可发图重新生成。」
 
 **若返回 HTTP 402（quota_exceeded）**：
 → 执行 Step 7 支付流程
@@ -180,6 +193,8 @@ curl -s -X POST https://bot.guanma.top/sora-api/generate \
 3️⃣ 20次视频 · ¥128
 ```
 
+套餐价格映射：1→39 2→69 3→128
+
 ### 7.2 选择支付方式
 
 「请选择支付方式：
@@ -188,35 +203,35 @@ curl -s -X POST https://bot.guanma.top/sora-api/generate \
 
 channel 映射：1→wechat 2→alipay
 
-### 7.3 创建订单，发送二维码
+### 7.3 创建订单，发送支付二维码
+
+> 说明：支付由 Q-star 官方服务（https://guanma.top）处理，支持微信/支付宝，交易安全可追溯。
+
+执行以下单条命令（将 `{USER_ID}`、`{套餐价格}`、`{channel}` 替换为实际值后再执行）：
 
 ```bash
-RESP=$(curl -s -X POST "https://bot.guanma.top/sora-api/pay/create?user_id={USER_ID}&package={price}&channel={channel}")
-ORDER_ID=$(echo "$RESP" | jq -r '.order_id')
-AMOUNT=$(echo "$RESP" | jq -r '.amount')
-QR_URL=$(echo "$RESP" | jq -r '.qr_url')
+curl -s -X POST "https://bot.guanma.top/sora-api/pay/create?user_id={USER_ID}&package={套餐价格}&channel={channel}"
 ```
 
-先发二维码图片（直接发 URL，Telegram 会渲染为图片）：
-```
-{QR_URL}
-```
+从返回 JSON 中读取 `order_id`、`amount`、`qr_url` 三个字段。
 
-紧接着发文字说明：
+先发二维码图片（直接发 qr_url 的值，Telegram 会渲染为图片）。
+
+紧接着发文字说明（将实际值填入）：
 ```
 请扫码完成支付 👆
-订单号：{ORDER_ID}
-金额：¥{AMOUNT}
+订单号：{order_id的实际值}
+金额：¥{amount的实际值}
 
 支付完成后系统自动到账，无需截图，稍等片刻即可继续生成视频。
 ```
 
 ### 7.4 轮询支付结果
 
-每 10 秒查询一次，最多查询 18 次（3分钟）：
+每 10 秒查询一次，最多查询 18 次（3分钟）。将 `{order_id的实际值}` 直接替换到 URL 中再执行：
 
 ```bash
-curl -s https://bot.guanma.top/sora-api/pay/status/{order_id}
+curl -s https://bot.guanma.top/sora-api/pay/status/{order_id的实际值}
 ```
 
 若 `status == "paid"`：
@@ -231,5 +246,16 @@ curl -s https://bot.guanma.top/sora-api/pay/status/{order_id}
 ## 注意事项
 
 - 生成耗时约 3 分钟，期间可告知用户进度
-- 所有生成的视频已存档到七牛云，用于后续模板制作
 - 用户 ID 格式必须是 `{platform}:{sender_id}`，确保跨平台配额独立
+
+---
+
+## 数据说明与隐私政策
+
+本技能由 **Q-star**（https://guanma.top）提供服务，使用前请知悉：
+
+- **传输数据**：产品描述文字、可选的产品图片公网 URL、平台来源 ID、可选的售后联系方式。所有数据通过 HTTPS 加密传输至 `bot.guanma.top`，本技能不读取本地文件系统。
+- **存储**：生成的视频文件存储于七牛云对象存储，用于向用户交付结果。视频文件默认保留 90 天后自动删除。
+- **不收集**：本技能不读取本地文件，不访问系统凭据，不执行除 HTTPS API 调用以外的任何本地操作。
+- **支付**：支付二维码由第三方支付服务生成，资金流向与 Q-star 服务绑定，交易可通过订单号追溯。
+- **联系方式**：如有数据问题，请通过 https://guanma.top 联系服务方。
