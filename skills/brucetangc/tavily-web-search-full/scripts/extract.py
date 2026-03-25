@@ -21,6 +21,11 @@ import urllib.error
 from datetime import datetime
 from typing import Optional, List, Dict, Any, Union
 
+# Import rate limit handler
+SCRIPT_DIR = pathlib.Path(__file__).parent
+sys.path.insert(0, str(SCRIPT_DIR))
+from rate_limit import rate_limit_handler
+
 # Constants
 TAVILY_URL = "https://api.tavily.com/extract"
 CACHE_DIR = pathlib.Path.home() / ".openclaw" / "cache" / "tavily" / "extract"

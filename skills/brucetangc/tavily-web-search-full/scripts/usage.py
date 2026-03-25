@@ -1,27 +1,25 @@
 #!/usr/bin/env python3
 """
-Tavily Usage API - Check API usage and credits
+Tavily Usage API - Check credit usage
 Based on: https://docs.tavily.com/documentation/api-reference/endpoint/usage
 
 Usage:
     python3 usage.py
     python3 usage.py --json
 """
+import argparse
 import json
 import os
 import pathlib
 import re
 import sys
 import urllib.request
-import urllib.error
 from datetime import datetime
 from typing import Optional, Dict, Any
 
 # Constants
-TAVILY_URL = "https://api.tavily.com/usage"
+TAVILY_USAGE_URL = "https://api.tavily.com/usage"
 LOG_FILE = pathlib.Path.home() / ".openclaw" / "logs" / "tavily_usage.log"
-MAX_RETRIES = 3
-RETRY_DELAY = 1.0
 
 
 # ============================================================================
@@ -29,7 +27,7 @@ RETRY_DELAY = 1.0
 # ============================================================================
 
 def log(message: str, level: str = "INFO"):
-    """Simple logging to file and stderr"""
+    """Simple logging"""
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     log_line = f"[{timestamp}] [{level}] {message}\n"
     print(log_line.strip(), file=sys.stderr)
@@ -70,173 +68,104 @@ def load_key() -> str:
 # Tavily Usage API
 # ============================================================================
 
-def get_usage(project_id: Optional[str] = None) -> Dict:
-    """Get API usage information"""
+def get_usage() -> Optional[Dict[str, Any]]:
+    """
+    Get Tavily API usage information
+    
+    Returns:
+        Usage dict or None
+    """
     key = load_key()
     if not key:
         log("Missing API key", "ERROR")
-        raise SystemExit(
-            "Missing TAVILY_API_KEY. Set env var TAVILY_API_KEY or add it to ~/.openclaw/.env"
+        return None
+    
+    try:
+        req = urllib.request.Request(
+            TAVILY_USAGE_URL,
+            headers={
+                "Authorization": f"Bearer {key}",
+                "Accept": "application/json",
+            },
+            method="GET",
         )
-
-    last_error = None
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            log(f"Request attempt {attempt}/{MAX_RETRIES}", "DEBUG")
-            
-            # Build URL with optional project_id
-            url = TAVILY_URL
-            if project_id:
-                url += f"?project_id={project_id}"
-            
-            req = urllib.request.Request(
-                url,
-                headers={
-                    "Authorization": f"Bearer {key}",
-                    "Accept": "application/json",
-                },
-                method="GET",
-            )
-
-            with urllib.request.urlopen(req, timeout=30) as resp:
-                body = resp.read().decode("utf-8", errors="replace")
-
-            try:
-                obj = json.loads(body)
-            except json.JSONDecodeError as e:
-                log(f"JSON decode error: {e}", "ERROR")
-                raise SystemExit(f"Tavily returned non-JSON: {body[:300]}")
-
-            if "error" in obj:
-                error_msg = obj.get("error", {}).get("message", "Unknown error")
-                log(f"API error: {error_msg}", "ERROR")
-                raise SystemExit(f"Tavily API error: {error_msg}")
-
-            log(f"Success", "INFO")
-            return obj
-
-        except urllib.error.HTTPError as e:
-            last_error = f"HTTP {e.code}: {e.reason}"
-            log(f"HTTP error (attempt {attempt}): {last_error}", "ERROR")
-            if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY * attempt)
-                continue
-            break
-            
-        except urllib.error.URLError as e:
-            last_error = f"URL error: {e.reason}"
-            log(f"Network error (attempt {attempt}): {last_error}", "ERROR")
-            if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY * attempt)
-                continue
-            break
-            
-        except Exception as e:
-            last_error = str(e)
-            log(f"Unexpected error (attempt {attempt}): {last_error}", "ERROR")
-            if attempt < MAX_RETRIES:
-                time.sleep(RETRY_DELAY * attempt)
-                continue
-            break
-
-    log(f"All retries failed: {last_error}", "ERROR")
-    raise SystemExit(f"Tavily usage request failed after {MAX_RETRIES} attempts: {last_error}")
+        
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            body = resp.read().decode("utf-8", errors="replace")
+        
+        data = json.loads(body)
+        log("Usage retrieved successfully", "INFO")
+        return data
+        
+    except urllib.error.HTTPError as e:
+        log(f"HTTP error: {e.code} - {e.reason}", "ERROR")
+        return None
+    except Exception as e:
+        log(f"Error: {e}", "ERROR")
+        return None
 
 
-# ============================================================================
-# Output Formatters
-# ============================================================================
-
-def format_usage_human(usage: Dict) -> str:
-    """Format usage information for human reading"""
+def format_usage(usage: Dict[str, Any], json_output: bool = False) -> str:
+    """Format usage information"""
+    if json_output:
+        return json.dumps(usage, indent=2, ensure_ascii=False)
+    
     lines = []
+    lines.append("📊 Tavily API Usage")
+    lines.append("=" * 50)
     
     # Account info
-    lines.append("## Tavily API Usage")
-    lines.append("")
-    
-    # Credits
-    if "credits" in usage:
-        credits = usage["credits"]
-        lines.append("### Credits")
-        lines.append("")
+    if "account" in usage:
+        account = usage["account"]
+        lines.append(f"\nPlan: {account.get('current_plan', 'Unknown')}")
         
-        used = credits.get("used", 0)
-        remaining = credits.get("remaining", 0)
-        total = used + remaining
+        if "plan_limit" in account:
+            lines.append(f"Monthly Limit: {account['plan_limit']:,} credits")
         
-        # Calculate percentage
-        pct_used = (used / total * 100) if total > 0 else 0
+        if "plan_usage" in account:
+            lines.append(f"Used This Month: {account['plan_usage']:,} credits")
         
-        lines.append(f"- **Used**: {used:,}")
-        lines.append(f"- **Remaining**: {remaining:,}")
-        lines.append(f"- **Total**: {total:,}")
-        lines.append(f"- **Usage**: {pct_used:.1f}%")
-        lines.append("")
-        
-        # Visual bar
-        bar_width = 30
-        filled = int(bar_width * pct_used / 100)
-        bar = "█" * filled + "░" * (bar_width - filled)
-        lines.append(f"`[{bar}]` {pct_used:.1f}%")
-        lines.append("")
+        if "plan_limit" in account and "plan_usage" in account:
+            remaining = account["plan_limit"] - account["plan_usage"]
+            lines.append(f"Remaining: {remaining:,} credits")
+            
+            # Percentage
+            pct_used = (account["plan_usage"] / account["plan_limit"] * 100) if account["plan_limit"] > 0 else 0
+            lines.append(f"Usage: {pct_used:.1f}%")
+            
+            # Warning
+            if remaining < 100:
+                lines.append(f"\n⚠️  WARNING: Low credits! ({remaining} remaining)")
+            elif remaining < 300:
+                lines.append(f"\n⚠️  Caution: Moderate credits ({remaining} remaining)")
+            else:
+                lines.append(f"\n✅ Good credit balance ({remaining} remaining)")
     
-    # Requests breakdown
-    if "requests" in usage:
-        requests = usage["requests"]
-        lines.append("### Requests by Endpoint")
-        lines.append("")
-        
-        for endpoint, count in requests.items():
-            lines.append(f"- **{endpoint}**: {count:,}")
-        lines.append("")
+    # Breakdown by API
+    lines.append("\nUsage by API:")
+    if "account" in usage:
+        account = usage["account"]
+        if "search_usage" in account:
+            lines.append(f"  - Search: {account['search_usage']:,} credits")
+        if "extract_usage" in account:
+            lines.append(f"  - Extract: {account['extract_usage']:,} credits")
+        if "crawl_usage" in account:
+            lines.append(f"  - Crawl: {account['crawl_usage']:,} credits")
+        if "map_usage" in account:
+            lines.append(f"  - Map: {account['map_usage']:,} credits")
+        if "research_usage" in account:
+            lines.append(f"  - Research: {account['research_usage']:,} credits")
     
-    # Time range
-    if "start_date" in usage or "end_date" in usage:
-        lines.append("### Time Range")
-        lines.append("")
-        if "start_date" in usage:
-            lines.append(f"- **Start**: {usage['start_date']}")
-        if "end_date" in usage:
-            lines.append(f"- **End**: {usage['end_date']}")
-        lines.append("")
+    # Key-level usage (if available)
+    if "key" in usage:
+        key_usage = usage["key"]
+        lines.append("\nKey-level Usage:")
+        if "usage" in key_usage:
+            lines.append(f"  Total: {key_usage['usage']:,} credits")
     
-    # Project
-    if "project_id" in usage:
-        lines.append(f"### Project")
-        lines.append("")
-        lines.append(f"- **Project ID**: {usage['project_id']}")
-        lines.append("")
+    lines.append("=" * 50)
     
-    return "\n".join(lines).strip() + "\n"
-
-
-def format_usage_compact(usage: Dict) -> str:
-    """Format usage as compact summary"""
-    lines = []
-    
-    if "credits" in usage:
-        credits = usage["credits"]
-        used = credits.get("used", 0)
-        remaining = credits.get("remaining", 0)
-        total = used + remaining
-        pct_used = (used / total * 100) if total > 0 else 0
-        
-        lines.append(f"📊 Tavily API Usage")
-        lines.append(f"   Used: {used:,} | Remaining: {remaining:,} | Total: {total:,}")
-        lines.append(f"   Usage: {pct_used:.1f}%")
-        
-        # Warning if low on credits
-        if remaining < 100:
-            lines.append(f"   ⚠️  Low credits! ({remaining} remaining)")
-        elif remaining < 500:
-            lines.append(f"   ⚡ Moderate credits ({remaining} remaining)")
-        else:
-            lines.append(f"   ✅ Good credit balance")
-    else:
-        lines.append("No usage data available")
-    
-    return "\n".join(lines).strip() + "\n"
+    return "\n".join(lines)
 
 
 # ============================================================================
@@ -244,63 +173,20 @@ def format_usage_compact(usage: Dict) -> str:
 # ============================================================================
 
 def main():
-    import argparse
-    
-    ap = argparse.ArgumentParser(
-        description="Tavily Usage - Check API usage and credits",
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog="""
-Examples:
-  # Check usage (human-readable)
-  %(prog)s
-
-  # Check usage (compact)
-  %(prog)s --compact
-
-  # Check usage (JSON)
-  %(prog)s --json
-
-  # Check usage for specific project
-  %(prog)s --project-id "my-project-123"
-        """
-    )
-    
-    # Output format
-    ap.add_argument(
-        "--json",
-        action="store_true",
-        help="Output as raw JSON"
-    )
-    ap.add_argument(
-        "--compact",
-        action="store_true",
-        help="Output as compact summary (default)"
-    )
-    ap.add_argument(
-        "--md",
-        action="store_true",
-        help="Output as detailed Markdown"
-    )
-    
-    # Project filter
-    ap.add_argument(
-        "--project-id",
-        help="Filter usage by project ID"
-    )
+    ap = argparse.ArgumentParser(description="Tavily Usage - Check API credit usage")
+    ap.add_argument("--json", action="store_true", help="JSON output")
     
     args = ap.parse_args()
     
     # Get usage
-    usage = get_usage(project_id=args.project_id)
+    usage = get_usage()
+    
+    if not usage:
+        print("❌ Failed to retrieve usage information", file=sys.stderr)
+        sys.exit(1)
     
     # Output
-    if args.json:
-        json.dump(usage, sys.stdout, ensure_ascii=False, indent=2)
-        sys.stdout.write("\n")
-    elif args.md:
-        sys.stdout.write(format_usage_human(usage))
-    else:
-        sys.stdout.write(format_usage_compact(usage))
+    print(format_usage(usage, json_output=args.json))
 
 
 if __name__ == "__main__":
