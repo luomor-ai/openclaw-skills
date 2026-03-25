@@ -72,6 +72,8 @@ See [Versioning Notes](references/versioning.md).
 - For onboarding instrumentation, use dedicated SDK onboarding APIs instead of generic `track(...)`/`trackEvent(...)`:
   `createOnboardingTracker(...)`, `trackOnboardingEvent(...)`, `trackOnboardingSurveyResponse(...)`,
   plus step helpers (`step(...).view()`, `step(...).complete()`, `step(...).surveyResponse(...)`).
+- Use `onboarding:step_view` as the default step progression signal. Treat `onboarding:step_complete` as optional and only emit it when a step has a meaningful completion boundary (for example explicit submit/continue confirmation or async success).
+- For survey steps, default to `onboarding:step_view` + `onboarding:survey_response`; avoid unconditional `onboarding:step_complete` unless completion semantics are explicit.
 - For onboarding survey events, prefer `trackOnboardingSurveyResponse(...)` (or tracker survey helpers) so SDK sanitization/normalization is preserved.
 - To avoid repetitive payloads, create one onboarding tracker with shared flow defaults and use `step(...).surveyResponse(...)` with only survey-specific fields at call sites.
 - For React Native / Expo non-onboarding screens, track screen views on focus with `useFocusEffect(...)` and `analytics.screen(...)`.
@@ -134,6 +136,7 @@ Before finishing, verify the generated integration code meets all checks:
 16. touched onboarding step milestones use dedicated onboarding APIs (tracker step helpers or `trackOnboardingEvent(...)`) instead of generic `track(...)`
 17. touched onboarding survey milestones use `trackOnboardingSurveyResponse(...)` (or tracker survey helpers), not ad-hoc generic `track(...)` payloads
 18. touched React Native / Expo non-onboarding screens use `useFocusEffect(...)` + `analytics.screen(...)` with one owner per route transition
+19. touched onboarding flows do not force `onboarding:step_complete` on every step; default to `onboarding:step_view` and add `step_complete` only where completion semantics are explicit
 
 ## Dashboard Credentials Checklist
 
@@ -268,7 +271,9 @@ This split lets funnels answer both questions:
 
 - Use `createOnboardingTracker(...)` for onboarding flows.
 - For onboarding steps in touched flows, prefer `createOnboardingTracker(...).step(...).view()/complete()` over generic `track(...)`.
+- For low-noise step funnels, use `view()` as baseline and call `complete()` only on steps with explicit completion semantics.
 - For onboarding surveys in touched flows, prefer `trackOnboardingSurveyResponse(...)` or tracker survey helpers over generic `track(...)`.
+- For survey steps, default to `view()` + `surveyResponse(...)`; emit `complete()` only when the host flow has a real completion boundary.
 - Prefer tracker defaults for repeated fields in onboarding/survey flows; avoid re-sending unchanged flow metadata at every call site.
 - For React Native / Expo non-onboarding screens, use `useFocusEffect(...)` to call `analytics.screen(...)` on focus.
 - Use `createPaywallTracker(...)` when paywall context is stable in a flow (`source`, `paywallId`, experiment variant).
@@ -284,7 +289,7 @@ This split lets funnels answer both questions:
   - close/back/dismiss callback -> `paywallTracker.skip(...)`
 - Use canonical event names from `ONBOARDING_EVENTS`, `PAYWALL_EVENTS`, and `PURCHASE_EVENTS`.
 - Keep `onboardingFlowId`, `onboardingFlowVersion`, `paywallId`, `source`, and `appVersion` stable.
-- The SDK built-in dedupe covers `onboarding:step_view` (`dedupeOnboardingStepViewsPerSession: true`, default) and immediate duplicate `screen(...)` calls (`dedupeScreenViewsPerSession: true`, default; window `screenViewDedupeWindowMs`, default `1200` ms).
+- The SDK built-in dedupe covers `onboarding:step_view` (`dedupeOnboardingStepViewsPerSession: true`, default), immediate duplicate `screen(...)` calls (`dedupeScreenViewsPerSession: true`, default; window `screenViewDedupeWindowMs`, default `1200` ms), and immediate overlap between onboarding `screen:*` and `onboarding:step_view` for the same step (`dedupeOnboardingScreenStepViewOverlapsPerSession: true`, default).
 - Prevent duplicate tracking for the same user action across nested layouts/components.
 - Use a single tracking owner per route or lifecycle boundary; if multiple hooks can fire, gate with a session-local idempotency key.
 - For each paywall attempt, emit each milestone once (`paywall:shown`, `purchase:started`, and one terminal event: `purchase:cancel` or `purchase:failed` or `purchase:success`).

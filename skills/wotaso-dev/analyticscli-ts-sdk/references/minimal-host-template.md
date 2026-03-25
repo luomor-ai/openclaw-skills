@@ -79,7 +79,8 @@ Rules:
 
 - Use one screen-tracking owner per route transition (parent layout or child screen, not both).
 - Keep SDK screen dedupe defaults enabled (`dedupeScreenViewsPerSession: true`) as a safety net for accidental double-fired hooks.
-- Adjust `screenViewDedupeWindowMs` only when navigation behavior requires it (default `1200` ms).
+- Keep onboarding overlap dedupe enabled (`dedupeOnboardingScreenStepViewOverlapsPerSession: true`) so onboarding `screen:*` and `onboarding:step_view` are not double-counted for the same step.
+- Adjust `screenViewDedupeWindowMs` only when navigation behavior requires it (default `1200` ms, also used for onboarding screen/step overlap dedupe).
 - Keep onboarding milestones on dedicated onboarding APIs; do not replace them with screen-only events.
 
 ## Full-Tracking Consent
@@ -101,7 +102,6 @@ const paywall = analytics.createPaywallTracker({
   source: 'onboarding',
   paywallId: 'default_paywall',
   offering: 'rc_main',
-  appVersion: '1.0.0',
 });
 
 analytics.screen('onboarding_region');
