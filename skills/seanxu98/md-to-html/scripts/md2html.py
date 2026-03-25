@@ -11,6 +11,62 @@ import argparse
 import html as html_module
 import markdown
 
+# 获取 lib 目录路径
+LIB_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'lib')
+
+
+def read_lib_file(filename):
+    """读取 lib 目录下的文件内容"""
+    filepath = os.path.join(LIB_DIR, filename)
+    if os.path.exists(filepath):
+        with open(filepath, 'r', encoding='utf-8') as f:
+            return f.read()
+    return None
+
+
+def get_embedded_resources():
+    """获取内嵌的 CSS 和 JS 资源"""
+    resources = {'css': '', 'js': '', 'katex_init': ''}
+    
+    # Prism CSS
+    prism_css = read_lib_file('prism-tomorrow.min.css')
+    if prism_css:
+        resources['css'] += prism_css
+    
+    # KaTeX CSS（包含内嵌字体）
+    katex_css = read_lib_file('katex.embedded.css')
+    if not katex_css:
+        katex_css = read_lib_file('katex.min.css')
+    if katex_css:
+        resources['css'] += '\n' + katex_css
+    
+    # KaTeX JS
+    katex_js = read_lib_file('katex.min.js')
+    if katex_js:
+        resources['js'] += f'<script>{katex_js}</script>\n'
+    
+    # KaTeX auto-render
+    auto_render_js = read_lib_file('auto-render.min.js')
+    if auto_render_js:
+        resources['js'] += f'<script>{auto_render_js}</script>\n'
+    
+    # Prism JS
+    prism_core = read_lib_file('prism.min.js')
+    if prism_core:
+        resources['js'] += f'<script>{prism_core}</script>\n'
+    
+    for lang in ['python', 'bash', 'javascript', 'json']:
+        prism_lang = read_lib_file(f'prism-{lang}.min.js')
+        if prism_lang:
+            resources['js'] += f'<script>{prism_lang}</script>\n'
+    
+    # Mermaid
+    mermaid = read_lib_file('mermaid.min.js')
+    if mermaid:
+        resources['js'] += f'<script>{mermaid}</script>\n'
+    
+    return resources
+
 
 def escape_html(text):
     """转义 HTML 特殊字符"""
@@ -19,40 +75,17 @@ def escape_html(text):
 
 def generate_html(title, toc_html, content_html):
     """生成完整的 HTML 页面"""
+    # 获取内嵌资源
+    resources = get_embedded_resources()
+    
     return f'''<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{escape_html(title)}</title>
-    
-    <!-- MathJax -->
-    <script>
-    window.MathJax = {{
-        tex: {{
-            inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
-            displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
-            processEscapes: true,
-            processEnvironments: true
-        }},
-        options: {{
-            skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
-        }}
-    }};
-    </script>
-    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
-    
-    <!-- Prism.js -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
-    
-    <!-- Mermaid.js -->
-    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
-    
+    <style>{resources['css']}</style>
+    {resources['js']}
     <style>
         * {{ margin: 0; padding: 0; box-sizing: border-box; }}
         
@@ -340,9 +373,9 @@ def generate_html(title, toc_html, content_html):
             overflow-x: auto;
         }}
         
-        mjx-container {{ margin: 8px 0 !important; overflow-x: auto; }}
-        mjx-container[display="true"] {{ display: block !important; text-align: center; margin: 16px 0 !important; }}
-        p mjx-container, li mjx-container {{ display: inline !important; margin: 0 2px !important; }}
+        /* KaTeX 公式样式 */
+        .katex-display {{ margin: 1em 0; overflow-x: auto; }}
+        .katex {{ font-size: 1.1em; }}
         
         /* 返回顶部 */
         #back-top {{
@@ -543,18 +576,34 @@ def generate_html(title, toc_html, content_html):
         window.addEventListener('scroll', function() {{ backTop.style.display = window.scrollY > 300 ? 'block' : 'none'; }});
         backTop.addEventListener('click', function() {{ window.scrollTo({{ top: 0, behavior: 'smooth' }}); }});
         
-        // MathJax
-        if (window.MathJax) MathJax.startup.promise.then(function() {{ MathJax.typesetPromise(); }});
+        // KaTeX - 自动渲染所有公式
+        if (window.renderMathInElement) {{
+            try {{
+                renderMathInElement(document.body, {{
+                    delimiters: [
+                        {{left: '$$', right: '$$', display: true}},
+                        {{left: '$', right: '$', display: false}},
+                        {{left: '\\\\[', right: '\\\\]', display: true}},
+                        {{left: '\\\\(', right: '\\\\)', display: false}}
+                    ],
+                    throwOnError: false,
+                    strict: false
+                }});
+            }} catch(e) {{
+                console.warn('KaTeX rendering warning:', e);
+            }}
+        }}
         
         // 代码高亮
         if (window.Prism) Prism.highlightAll();
         
-        // Mermaid 图表渲染
+        // Mermaid 图表渲染 - 添加错误处理
         if (window.mermaid) {{
             mermaid.initialize({{ 
                 startOnLoad: false,
                 theme: 'default',
-                securityLevel: 'loose'
+                securityLevel: 'loose',
+                suppressErrorRendering: true
             }});
             // 查找所有 mermaid 代码块并渲染
             var mermaidBlocks = document.querySelectorAll('pre code.language-mermaid');
@@ -564,10 +613,21 @@ def generate_html(title, toc_html, content_html):
                 var div = document.createElement('div');
                 div.className = 'mermaid';
                 div.textContent = code;
+                // 添加错误处理
+                div.setAttribute('data-mermaid', 'true');
                 pre.parentNode.replaceChild(div, pre);
             }});
             if (mermaidBlocks.length > 0) {{
-                mermaid.run();
+                try {{
+                    mermaid.run({{
+                        querySelector: '.mermaid',
+                        suppressErrors: true
+                    }}).catch(function(err) {{
+                        console.warn('Mermaid rendering warning:', err);
+                    }});
+                }} catch(e) {{
+                    console.warn('Mermaid initialization error:', e);
+                }}
             }}
         }}
     }})();
