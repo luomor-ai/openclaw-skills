@@ -9,8 +9,6 @@ description: Universal MQTT Client for OpenClaw with Node.js/mqtt.js. Enables Co
 
 Universal MQTT Client for OpenClaw with Node.js/mqtt.js. Connect to any MQTT broker to subscribe to topics, publish messages, and react to state changes. The client automatically handles reconnection, supports wildcards for flexible topic patterns, and can trigger alerts when values cross thresholds (e.g., battery below 10% or temperature above 30°C). Use this skill to integrate OpenClaw with smart home systems such as ioBroker, Home Assistant, Zigbee2MQTT, Shelly devices, other OpenClaw instances (to communicate between them), or any other MQTT-based system.
 
-[![Version](https://img.shields.io/badge/Version-1.1.1-blue)](./)  [![mqtt.js](https://img.shields.io/badge/mqtt.js-5.x-orange)](https://github.com/mqttjs/MQTT.js)
-
 ---
 
 ## 🚀 Quick Start

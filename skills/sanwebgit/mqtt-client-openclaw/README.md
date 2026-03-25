@@ -2,10 +2,6 @@
 
 > Production-ready, universal MQTT client with auto-reconnect, triggers, and health monitoring.
 
-[![Version](https://img.shields.io/badge/Version-1.1.0-blue)](https://github.com)
-[![License: MIT-0](https://img.shields.io/badge/License-MIT--0-green)](LICENSE)
-[![mqtt.js](https://img.shields.io/badge/mqtt.js-5.x-orange)](https://github.com/mqttjs/MQTT.js)
-
 ## Features
 
 - 🔌 **Connection Management** - Auto-reconnect, Keep-Alive, LWT, Graceful disconnect
