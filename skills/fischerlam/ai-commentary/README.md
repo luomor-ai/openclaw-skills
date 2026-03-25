@@ -1,38 +1,28 @@
 # ai-commentary
 
 [![ClawHub Skill](https://img.shields.io/badge/ClawHub-Skill-blueviolet)](https://clawhub.io)
-[![Version](https://img.shields.io/badge/version-1.0.7-blue)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.0.12-blue)](SKILL.md)
 
-> **AI Commentary.**
-> Scenario-specific AI video editing powered by Sparki.
->
-> Powered by [Sparki](https://sparki.io).
+> **Turn footage into a stronger commentary-style edit with clearer narration, sharper structure, and more intentional spoken framing.**
 
-## What It Does
+## Best for
+Explainers, reactions, commentary videos, narrated recaps, and spoken-story edits that need more structure.
 
-This skill is a scenario-focused wrapper around Sparki's AI video editing workflow.
-
-- Uploads a video file
-- Creates an AI processing job with scene-specific defaults
-- Polls until processing completes
-- Returns a result download URL
-
-## Best For
-- "make this feel like a commentary video"
-- "add commentary energy"
-- "turn this into an explainer-style edit"
-- "make it feel more narrated and structured"
-
-## Quick Start
+## Quick start
 
 ```bash
-export SPARKI_API_KEY="sk_live_your_key_here"
-export SPARKI_API_BASE="https://business-agent-api.sparki.io/api/v1"
-RESULT_URL=$(bash scripts/edit_video.sh my_video.mp4 "25" "make it feel like a strong commentary video with clear beats" "9:16")
-echo "$RESULT_URL"
+sparki run --file ./video.mp4 --mode prompt-driven --prompt "make this feel like a commentary video with clearer structure" --aspect-ratio 9:16
 ```
 
-## Notes
-- Requires `SPARKI_API_KEY`
-- Optionally set `SPARKI_API_BASE` to the API endpoint provided for your Sparki account
-- Supports `9:16`, `1:1`, `16:9`
+## Prompt templates
+- Make this feel like a commentary video with clearer structure.
+- Turn this into an explainer-style edit with stronger narration.
+- Give this video a more reaction-style commentary feel.
+
+## Related skills
+- `ai-caption`
+- `talking-head-editor`
+- `tiktok-viral-editor`
+
+## Shared core
+This skill follows the latest official Sparki setup, API-key, upload, and command guidance from the main `sparki-video-editor` skill.
