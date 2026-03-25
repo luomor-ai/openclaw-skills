@@ -1,15 +1,14 @@
 ---
 name: igot-karmayogi
 description: >
-  Automates iGOT Karmayogi portal (portal.igotkarmayogi.gov.in) using OpenClaw headless
-  managed browser. Use this skill whenever the user mentions iGOT, Karmayogi, government
-  courses, civil servant training, Mission Karmayogi, or wants to: play course videos,
-  enroll in courses, complete assessments, download certificates, or track learning
-  progress. Trigger for phrases like "do my iGOT courses", "complete karmayogi",
-  "play the videos", "get my certificate from igot", "finish my assigned courses",
-  "continue my paused course". The skill operates only after explicit user login and
-  confirmation, then automates course playback and assessment completion continuously
-  until done.
+  Automates iGOT Karmayogi portal (portal.igotkarmayogi.gov.in) using OpenClaw's
+  built-in Playwright managed browser. Use this skill whenever the user mentions iGOT,
+  Karmayogi, government courses, civil servant training, Mission Karmayogi, or wants to:
+  play course videos, enroll in courses, complete assessments, download certificates, or
+  track learning progress. Trigger for phrases like "do my iGOT courses", "complete
+  karmayogi", "play the videos", "get my certificate from igot", "finish my assigned
+  courses", "continue my paused course". The skill launches its own browser, runs fully
+  autonomously, and only contacts the user for login and genuine errors after 3 retries.
 metadata:
   clawdbot:
     emoji: "🎓"
@@ -21,299 +20,428 @@ metadata:
 
 # iGOT Karmayogi Automation Skill
 
-Automates iGOT Karmayogi course completion after the user logs in manually. Plays all
-videos fully, completes practice tests and final assessments, and downloads certificates.
-
-**Scope:** This skill only operates on portal.igotkarmayogi.gov.in. It does not access
-any external services, send data anywhere, or read credentials. The user always initiates
-the session by logging in themselves.
+Automates iGOT Karmayogi from browser launch to certificate download.
+No Chrome extension. No DevTools. No external connections. Self-contained.
 
 ---
 
-## What This Skill Does
+## CRITICAL: HOW TO READ THIS SKILL
 
-After the user logs in and confirms, the skill:
-
-1. Reads the assigned course list from the dashboard
-2. Opens each course and builds a checklist of every video and test
-3. Plays every video fully by watching the player timer count to zero
-4. Takes practice tests after each module's videos are confirmed complete
-5. Takes the Final Assessment after all modules are done
-6. Downloads the completion certificate to `~/Downloads/iGOT-Certificates/`
-7. Moves to the next course and repeats until all due courses are finished
+This skill is written for models with limited context windows (Gemini Flash Lite etc).
+Every rule is written as a SHORT, DIRECT command. Follow each line exactly.
+When in doubt: take a screenshot, read the screen, then act.
 
 ---
 
-## EXECUTION RULES
+## RULE 1 — NEVER STOP
 
-### Never do these
-1. Stop between steps waiting for the user — run continuously once confirmed
-2. Jump to a quiz before ALL videos in that module show a completion tick
-3. Redo already-completed steps — always check tick/completion state first
-4. Report every individual action — only report at module-complete checkpoints
-5. Navigate away from the video player while a video is playing
-6. Access any page outside portal.igotkarmayogi.gov.in
+The single most important rule:
 
-### Always do these
-1. Track current position: course → module → item at all times
-2. Use the "Next" button at the bottom of the player page to advance
-3. Poll video completion by watching the countdown timer (e.g. -4:14 → 0:00)
-4. After any page reload, re-navigate back to the exact saved position
-5. Silently retry up to 3 times on any failure before reporting to user
-6. Verify completion state before acting on any item
+```
+DO NOT stop between steps.
+DO NOT wait for the user to message you.
+DO NOT pause after completing an action.
+DO NOT ask "should I continue?" — just continue.
+The only times to stop and wait for user:
+  - Initial login confirmation (say "go")
+  - Error after 3 retries
+  - User types "pause" or "stop"
+```
+
+If you feel like stopping — don't. Take a screenshot instead,
+read what's on screen, and do the next action immediately.
 
 ---
 
-## DOM READINESS — ROOT CAUSE OF TIMEOUTS
+## RULE 2 — SAVE STATE AFTER EVERY ACTION
 
-iGOT runs on Angular (SunBird platform). The HTML loads instantly but components
-mount 1–3 seconds later. Clicking before components are ready causes silent failures
-that spiral into timeouts.
-
-### The Golden Rule: Confirm Element Ready Before Every Click
+Because this model may lose context mid-task, write the current state
+to a file after every completed action:
 
 ```
-WRONG:
-  navigate(url)
-  click(button)        ← Angular hasn't mounted the button yet
-
-CORRECT:
-  navigate(url)
-  wait: network idle (no requests for 2 seconds)
-  wait: page spinner gone (.loader, .shimmer, [class*="loading"])
-  wait: minimum 3 second buffer after spinner clears
-  wait_for_element: target element present in DOM (5–15s timeout)
-  wait: 500ms after element appears (Angular finish-mount buffer)
-  click(element)
-```
-
-### Wait Requirements Per Action
-
-```
-NAVIGATE to any iGOT page:
-  1. Wait: network idle (no XHR for 2s)
-  2. Wait: spinner/shimmer elements gone
-  3. Wait: 3 second minimum buffer
-  4. Only then read or interact with page content
-
-EXPAND a module row:
-  1. wait_for_element: module row (5s)
-  2. Scroll into viewport
-  3. Wait 500ms after scroll (scroll triggers Angular re-render)
-  4. Wait: row is not in disabled or loading state
-  5. Click
-  6. wait_for_element: expanded item list inside row (5s)
-  7. If list not visible after 5s: retry click once, then RECOVERY
-
-CLICK a video item:
-  1. Confirm module row is already expanded
-  2. wait_for_element: video item link (5s)
-  3. Click
-  4. wait_for_url: URL changes to /viewer/video/... (10s)
-  5. If URL unchanged: element re-rendered, re-find and click again
-
-VIDEO PLAYER:
-  1. wait_for_url: contains /viewer/video/
-  2. wait_for_element: video element or .video-player (10s)
-  3. wait_for_element: countdown timer visible bottom-right (10s)
-  4. Only after timer is confirmed visible: click play if paused
-  5. Never interact with player controls before timer element confirmed in DOM
-
-CLICK "Next" after video:
-  1. Video must be confirmed ended (timer = 0:00 OR tick visible)
-  2. wait_for_element: Next button (5s)
-  3. Scroll to bottom of page
-  4. Wait 500ms after scroll
-  5. Click Next
-  6. wait_for_url_change OR wait_for_element: new content (8s)
-
-ENTER quiz:
-  1. Confirm on TOC page (URL contains /app/toc/)
-  2. wait_for_element: quiz item row (5s)
-  3. Click
-  4. wait_for_element: first question text (10s)
-  5. If not visible after 10s: reload TOC, navigate back to quiz
-
-SUBMIT quiz answers:
-  1. Verify ALL questions have a selected answer before submitting
-  2. wait_for_element: submit button enabled/not-greyed (5s)
-  3. Click submit
-  4. wait_for_element: result screen (10s)
-
-CERTIFICATE download:
-  1. Wait for full page load after TOC navigation
-  2. wait_for_element: certificate button or tab (10s)
-  3. If not visible: scroll down, check below fold
-  4. Click → handle new tab or download dialog (10s)
-```
-
-### Video Completion Polling (Every 30 Seconds)
-
-Poll these signals — never assume completion by time alone:
-
-```
-Signal 1: Countdown timer text = "0:00" → VIDEO ENDED
-Signal 2: Tick mark on item row appeared:
-          .content-list-item.completed, [class*="completed"] → DONE
-Signal 3: Items counter shows N/N (e.g. "2/2") → MODULE COMPLETE
-Signal 4: "Next" button became visible and enabled → VIDEO ENDED
-
-If all signals absent after full duration + 30s buffer:
-  → Navigate to TOC page, check tick there directly
-  → If tick present: treat as complete, proceed
-  → If tick absent: reload page, re-navigate to video, play again
-```
-
-### Angular SPA Gotchas
-
-```
-1. URL changed but components not mounted → wait_for_element on key component
-2. Element visible but not interactive → wait 500ms after it appears
-3. SPA navigation ≠ full page reload → use networkidle not DOMContentLoaded
-4. Module rows collapse on every TOC visit → always re-expand target row
-5. Video player may be inside an iframe → switch frame context before controls
-6. Two "Next" buttons exist: player-page (bottom center) and TOC sidebar
-   → On /viewer/video/ URL: always use player-page Next button only
-```
-
----
-
-## AUTHENTICATION
-
-iGOT uses Keycloak with reCAPTCHA. The browser automation cannot complete login.
-
-```
-Rule 1: NEVER attempt automated login — user always logs in manually
-Rule 2: Before starting: ask user to log in and confirm "go" or "done"
-Rule 3: Verify session by navigating to dashboard and confirming
-        the user's name or avatar is visible in the page header
-Rule 4: If session expires mid-task: navigate to dashboard →
-        if redirected to login → ask user to re-login →
-        resume from the saved course/module/item position
-```
-
----
-
-## CONTINUOUS EXECUTION LOOP
-
-```
-STATE = {
-  phase: "awaiting_confirmation",
-  course_queue: [],
-  current_course: null,
-  module_index: 0,
-  item_index: 0,
-  retry_count: 0
+File: ~/.openclaw/workspace/igot-state.json
+Format:
+{
+  "phase": "playing_video",
+  "course_id": "do_114480908489883648",
+  "course_name": "Human Rights in Governance",
+  "module_index": 2,
+  "module_name": "What are Human Rights",
+  "item_index": 0,
+  "item_type": "video",
+  "retry_count": 0,
+  "last_action": "clicked play button",
+  "timestamp": "2026-03-22T14:30:00Z"
 }
+```
 
-PHASE: awaiting_confirmation
-  → Ask user to log in and say "go"
-  → Verify session via dashboard page header
-  → Load course list from my-dashboard (In Progress + Assigned, by due date)
-  → Report: "Found [N] courses. Starting: [Name] (due [date])"
-  → NEXT: enrolling
+On startup: ALWAYS check if this file exists first.
+If it exists: read it and resume from saved position — do not restart.
+If it does not exist: start fresh from Phase 1.
 
-PHASE: enrolling
-  → Navigate to course TOC
-  → Read action button:
-      "Enroll"           → click, confirm, wait → NEXT: building_checklist
-      "Start Learning"   → NEXT: building_checklist
-      "Continue Learning"→ NEXT: building_checklist
+---
 
-PHASE: building_checklist
-  → Scan all module rows on TOC page
-  → For each: record items (video/test) and tick state
-  → Skip already-ticked items
-  → Find first incomplete item → set module_index + item_index
-  → NEXT: playing_video OR taking_test
+## RULE 3 — SCREENSHOT BEFORE AND AFTER EVERY ACTION
 
-PHASE: playing_video
-  → Follow DOM READINESS rules above — every step
-  → Wait for video to fully end (timer = 0:00 + tick confirmed)
-  → Click Next
-  → Report: "[Course] > [Module] > Video complete ✅"
-  → If module now complete with test pending → NEXT: taking_test
-  → If more videos in module → stay in playing_video
-  → If module fully done and no test → advance module_index
+```
+Before clicking anything: take screenshot → read screen → confirm target visible
+After clicking anything: take screenshot → read screen → confirm action worked
+If before-screenshot shows unexpected page: run RECOVERY (see below)
+If after-screenshot shows nothing changed: action failed → increment retry_count
+```
 
-PHASE: taking_test
-  → Confirm all videos in module are ticked first
-  → Answer questions using module content
-  → Submit, read result
-  → advance module_index
-  → Report: "[Course] > [Module] > Practice test complete ✅"
-  → If all modules done → NEXT: final_assessment
-  → Else → NEXT: playing_video (next module)
+Screenshots are cheap. They prevent all silent failures.
+A weak model MUST use screenshots to know where it is at all times.
 
-PHASE: final_assessment
-  → Only attempt after every single module item is ticked
-  → Answer all questions
-  → Submit
-  → If passed → NEXT: downloading_cert
-  → If failed, retry allowed → wait 5s, retry once
-  → If failed, no retry → report to user
+---
 
-PHASE: downloading_cert
-  → Navigate to course TOC
-  → Find certificate button/tab
-  → Download PDF to ~/Downloads/iGOT-Certificates/<CourseName>_Certificate.pdf
-  → Report: "✅ COMPLETE: [Course Name] — Certificate saved"
-  → If more courses in queue → NEXT: enrolling (next course)
-  → If queue empty → Report: "🎓 All courses complete!"
+## PHASE 0 — LAUNCH BROWSER (First Action, Every Time)
+
+```
+1. Check if igot-state.json exists:
+   exec: cat ~/.openclaw/workspace/igot-state.json
+
+   If file exists and phase is NOT "launch_browser":
+     → Read saved state
+     → Launch browser (step 2)
+     → Navigate directly to saved position
+     → Resume from saved phase
+     → SKIP the rest of Phase 0
+
+   If file does not exist OR phase = "launch_browser":
+     → Continue with step 2
+
+2. Launch browser using OpenClaw browser tool:
+   tool: browser
+   action: launch
+   options:
+     headless: false
+     viewport: "1280x800"
+     userDataDir: "~/.openclaw/browser/openclaw/user-data/igot-profile"
+
+   If browser tool fails:
+     → Try: playwright-mcp launch
+     → If that fails: exec: npx playwright open https://portal.igotkarmayogi.gov.in/page/home
+     → If all fail: message user "Run: openclaw gateway restart then say 'retry'"
+
+3. Navigate to: https://portal.igotkarmayogi.gov.in/page/home
+
+4. Take screenshot. Read screen.
+   If login page visible: proceed to step 5
+   If dashboard visible: user already logged in → skip to Phase 1
+
+5. Message user exactly:
+   "Browser is open on iGOT. Please log in and say 'go' when on the dashboard."
+
+6. Wait for user to say "go" / "done" / "logged in" / "ready"
+
+7. Take screenshot. Confirm dashboard visible (user name in header).
+   If dashboard visible: save state {phase: "load_courses"} → go to Phase 1
+   If login still showing: message "Still on login page. Please complete login."
 ```
 
 ---
 
-## SILENT RETRY — Never Stop on First Failure
+## PHASE 1 — LOAD COURSE QUEUE
 
 ```
-On any action failure:
-  retry_count += 1
-  if retry_count <= 3:
-    reload current page (navigate to same URL)
-    wait 5 seconds
-    re-navigate: course TOC → expand module → find item
-    retry the action
-    on success: reset retry_count = 0, continue
-
-  if retry_count > 3:
-    report to user: "⚠️ Stuck at [Course > Module > Item].
-                    Error: [description]. Please check the browser."
-    pause loop until user says "continue"
+1. Navigate to: https://portal.igotkarmayogi.gov.in/app/my-dashboard
+2. Wait: networkidle + spinner gone + 3s buffer
+3. Take screenshot. Read screen.
+4. Collect all courses from:
+   - "In Progress" section
+   - "Assigned" / "Upcoming" section
+5. Sort by due date (earliest first)
+6. Save state: {phase: "enrolling", course_queue: [...]}
+7. Message user: "Found [N] courses. Starting: [Course Name] (due [date])"
+8. Go to Phase 2 immediately — do not wait for response
 ```
-
-Common failures and silent fixes:
-
-| Symptom | Fix |
-|---------|-----|
-| Video player blank | Reload, re-click video item from TOC |
-| Module row click unresponsive | Scroll into view, wait 500ms, retry |
-| "Next" button not visible | Scroll to page bottom, wait 500ms |
-| Video timer not counting | Video paused — click play button |
-| Items counter stuck at 0/2 | Portal sync lag — wait 15s, reload TOC |
-| Session expired | Navigate to dashboard, ask user to re-login |
-| Infinite spinner | Hard reload, re-navigate from TOC |
-| Quiz submit greyed out | Not all questions answered — scroll and check |
 
 ---
 
-## PROGRESS NOTIFICATIONS — Batched Only
-
-Only send messages at these points:
+## PHASE 2 — ENROLL
 
 ```
-"Found [N] courses. Starting: [Name] (due [date])"
-"[Course] > Module [N] ([Name]): all videos complete ✅"
-"[Course] > Module [N] ([Name]): practice test complete ✅"
-"[Course]: all modules done. Starting Final Assessment..."
-"[Course]: Final Assessment passed ([score]). Downloading certificate..."
-"✅ COMPLETE: [Course Name] — Certificate saved."
-"⚠️ Stuck at [location] after 3 retries. Error: [description]."
-"🎓 All [N] courses complete! Certificates in ~/Downloads/iGOT-Certificates/"
+1. Navigate to: https://portal.igotkarmayogi.gov.in/app/toc/[COURSE_ID]/overview
+2. Wait: networkidle + spinner gone + 3s buffer
+3. Take screenshot. Read the main action button text.
+
+   Button says "Enroll":
+     → Click Enroll
+     → Wait for confirmation dialog → click Confirm
+     → Wait for page update (button changes)
+     → Take screenshot to confirm enrolled
+     → Save state → Go to Phase 3
+
+   Button says "Start Learning" or "Continue Learning":
+     → Already enrolled
+     → Save state → Go to Phase 3
+
+   Button not found after 10s:
+     → Run RECOVERY → retry
 ```
 
-Never message for: individual clicks, page loads, retries 1–3, answer selections,
-or any internal navigation step.
+---
+
+## PHASE 3 — BUILD MODULE CHECKLIST
+
+```
+1. Take screenshot of course TOC page. Read all module rows.
+2. For each module row, record:
+   - Module name
+   - Items inside (video title, quiz title)
+   - Completion state (tick/checkmark present = done)
+3. Save checklist to state file
+4. Find first item that does NOT have a tick mark
+5. Save state: {phase: "playing_video", module_index: N, item_index: N}
+6. Go to Phase 4 immediately
+```
+
+---
+
+## PHASE 4 — PLAY VIDEO
+
+This is the most complex phase. Follow every sub-step exactly.
+
+```
+SUB-STEP 4.1 — NAVIGATE TO VIDEO:
+  a. On TOC page: find the target module row
+  b. Take screenshot — confirm module row visible
+  c. If module row is collapsed: click it to expand
+     → Wait 2s → take screenshot → confirm items visible inside
+  d. Find the target video item inside the expanded row
+  e. Click the video item
+  f. Wait for URL to change to: /viewer/video/
+     → Timeout: 10s
+     → If URL unchanged after 10s: take screenshot, run RECOVERY
+
+SUB-STEP 4.2 — START VIDEO:
+  a. Take screenshot. Confirm video player visible.
+  b. Find countdown timer (bottom-right of player)
+     → Wait up to 10s for timer to appear
+     → If timer not visible after 10s: run RECOVERY
+  c. Check if video is paused (play button visible)
+     → If paused: click play button
+  d. Take screenshot. Confirm timer is counting down.
+  e. Save state: {phase: "playing_video", last_action: "video playing"}
+
+SUB-STEP 4.3 — WAIT FOR VIDEO TO END:
+  This is a POLLING LOOP. Run it continuously. Do NOT exit unless video is done.
+
+  LOOP (repeat every 30 seconds until video done):
+    a. Take screenshot
+    b. Read the countdown timer value
+    c. Check these 4 signals:
+
+       SIGNAL 1: Timer shows "0:00" → VIDEO DONE → EXIT LOOP
+       SIGNAL 2: Tick/checkmark appeared on this item → VIDEO DONE → EXIT LOOP
+       SIGNAL 3: "Next" button appeared and is clickable → VIDEO DONE → EXIT LOOP
+       SIGNAL 4: Items counter shows N/N (e.g. 2/2) → VIDEO DONE → EXIT LOOP
+
+    d. If none of the 4 signals:
+       → Check if video is paused → if yes: click play
+       → Check if page looks broken → if yes: run RECOVERY
+       → Check if session expired → if yes: ask user to re-login
+       → Otherwise: wait 30 more seconds, loop again
+
+    e. DO NOT exit this loop for any reason other than the 4 signals above
+    f. DO NOT message the user during this loop
+    g. DO NOT stop looping because the user is silent
+
+  AFTER LOOP EXIT (video done):
+    a. Take screenshot. Confirm tick visible on completed item.
+    b. Save state: {last_action: "video complete", item_index: N+1}
+
+SUB-STEP 4.4 — CLICK NEXT:
+  a. Find "Next" button at BOTTOM of player page (not sidebar)
+  b. Scroll down if needed
+  c. Wait 500ms after scroll
+  d. Click Next
+  e. Wait for URL change or new content (8s)
+  f. Take screenshot
+  g. Save state
+
+SUB-STEP 4.5 — DECIDE WHAT COMES NEXT:
+  Read the screen. Check the module checklist in state file.
+
+  If next item is another VIDEO:
+    → Update item_index → repeat Phase 4 from SUB-STEP 4.1
+
+  If next item is a QUIZ/TEST:
+    → All videos in this module are ticked? YES → Go to Phase 5
+    → Not all ticked? → Go back to next unticked video first
+
+  If all items in module are ticked:
+    → Are there more modules? YES → update module_index, item_index=0 → Phase 4
+    → No more modules? → Go to Phase 6 (Final Assessment)
+```
+
+---
+
+## PHASE 5 — PRACTICE TEST
+
+```
+1. Take screenshot. Confirm on quiz/test page OR navigate to it.
+2. Wait for questions to load (10s timeout)
+3. Read each question and all options
+4. Select the best answer for each question
+   → Use knowledge from the module just completed
+   → For factual government/rights questions: choose the most official/complete answer
+5. Before submitting: take screenshot, verify ALL questions have a selection
+6. Click Submit
+7. Wait for result screen (10s)
+8. Take screenshot. Read result.
+9. Save state: {last_action: "practice test complete"}
+10. Message user: "[Course] > [Module]: Practice test ✅"
+11. Update module_index, reset item_index = 0
+12. Go to Phase 4 (next module) OR Phase 6 (if all modules done)
+```
+
+---
+
+## PHASE 6 — FINAL ASSESSMENT
+
+```
+1. Verify: take screenshot of TOC, confirm ALL module items have tick marks
+   If any item unticked: go back to Phase 4 for that item first
+
+2. Navigate to Final Assessment item on TOC page
+3. Wait for questions to load (10s)
+4. Answer ALL questions carefully
+   → This is the certificate-qualifying test — be thorough
+   → Read every option before selecting
+5. Verify all questions answered → Submit
+6. Wait for result (10s)
+7. Take screenshot. Read score.
+
+   If PASSED:
+     → Message: "[Course]: Final Assessment passed ✅ Downloading certificate..."
+     → Save state → Go to Phase 7
+
+   If FAILED (retry available):
+     → Wait 5 seconds
+     → Re-enter assessment → retry once
+     → If passed on retry → Go to Phase 7
+     → If failed again → message user with score → pause loop
+
+   If FAILED (no retry):
+     → Message user: "Final Assessment failed. Score: [X/10]. Manual review needed."
+     → Pause loop
+```
+
+---
+
+## PHASE 7 — DOWNLOAD CERTIFICATE
+
+```
+1. Navigate back to course TOC page
+2. Wait: networkidle + spinner gone + 3s buffer
+3. Take screenshot. Look for:
+   - "View Certificate" button
+   - "Certificate" tab
+   - Trophy/medal icon with download
+4. Click the certificate button/link
+5. Handle the result:
+   Download dialog appears:
+     → Save to: ~/Downloads/iGOT-Certificates/[CourseName]_Certificate.pdf
+   PDF opens in new tab:
+     → Switch to new tab → Ctrl+S → save as PDF to above path
+   Neither happens after 10s:
+     → Scroll down, look again → retry once → RECOVERY if still fails
+6. Take screenshot. Confirm file saved.
+7. Message user: "✅ COMPLETE: [Course Name] — Certificate saved."
+8. Save state: remove completed course from queue
+
+9. If more courses in queue:
+   → Update current_course to next item
+   → Save state: {phase: "enrolling"}
+   → Go to Phase 2 immediately — do not wait
+
+10. If queue empty:
+    → Message: "🎓 All [N] courses complete! Certs in ~/Downloads/iGOT-Certificates/"
+    → Delete state file: ~/.openclaw/workspace/igot-state.json
+    → Close browser
+```
+
+---
+
+## RECOVERY — Run When Any Action Fails
+
+```
+STEP R1: Take screenshot. Read the screen carefully.
+  What do you see?
+
+  Case "login page":
+    → Session expired → message user "Session expired. Please log in and say 'go'."
+    → Wait for "go" → verify dashboard → resume from saved state
+
+  Case "blank/white page":
+    → Hard reload (navigate to same URL again)
+    → Wait: networkidle + 5s buffer
+    → Take screenshot → if page loaded: resume
+    → If still blank after 3 tries: message user
+
+  Case "spinner running for more than 15s":
+    → Hard reload → wait 5s → resume
+
+  Case "correct page but target element missing":
+    → Scroll up and down to find it
+    → Wait 3s (Angular may still be mounting)
+    → If still missing: hard reload → navigate back to this page
+
+  Case "wrong page entirely":
+    → Navigate directly to the correct URL for current phase
+    → Resume from saved state
+
+STEP R2: After recovery action:
+  → Take screenshot to confirm page is correct
+  → Increment retry_count
+  → If retry_count > 3: message user with current URL + what went wrong
+  → If retry_count <= 3: resume action silently
+
+STEP R3: On any success:
+  → Reset retry_count = 0
+  → Save state
+  → Continue
+```
+
+---
+
+## VIDEO WAIT — SPECIAL RULES FOR WEAK MODELS
+
+Gemini Flash Lite may forget it is in the video polling loop.
+These rules prevent that:
+
+```
+RULE V1: While waiting for a video, the ONLY valid actions are:
+  - Take screenshot
+  - Read timer value
+  - Click play if paused
+  - Run RECOVERY if page is broken
+  - Wait 30 seconds
+  NOTHING ELSE. Do not navigate away. Do not check other things.
+
+RULE V2: After every screenshot during video wait:
+  Write to state file: {last_action: "polling video at [timer_value]"}
+  This proves the model is still in the loop.
+
+RULE V3: If the model loses track of whether a video is done:
+  → Navigate to course TOC
+  → Check tick mark on the item
+  → If ticked: video is done, proceed to NEXT
+  → If not ticked: go back to video, play again from beginning
+
+RULE V4: Video duration reference for Human Rights in Governance:
+  Introduction: 4m 16s = wait ~260 seconds
+  Module 2 video: 5m 25s = wait ~325 seconds
+  Module 3 video: 5m 07s = wait ~307 seconds
+  Module 4 video: 5m 38s = wait ~338 seconds
+  Module 5 video: 5m 47s = wait ~347 seconds
+  Module 6 video: 5m 21s = wait ~321 seconds
+  Module 7 video: 5m 43s = wait ~343 seconds
+  Conclusion: 3m 05s = wait ~185 seconds
+  Use these as minimum wait times before checking for completion signals.
+```
 
 ---
 
@@ -326,23 +454,38 @@ or any internal navigation step.
 | Course TOC | `https://portal.igotkarmayogi.gov.in/app/toc/<COURSE_ID>/overview` |
 | Video Player | `https://portal.igotkarmayogi.gov.in/viewer/video/<VIDEO_ID>?primaryCategory=Learning%20Resource&collectionId=<COURSE_ID>&collectionType=Course` |
 
-Course ID format: `do_<numeric>`
+Human Rights in Governance course ID: `do_114480908489883648`
 
 ---
 
-## USER COMMANDS DURING RUN
+## NOTIFICATIONS — Only These, Nothing Else
+
+```
+On start:    "Browser open. Please log in to iGOT and say 'go'."
+On courses:  "Found [N] courses. Starting: [Name] (due [date])"
+On video:    "[Course] > [Module]: Video ✅"
+On test:     "[Course] > [Module]: Practice test ✅"
+On final:    "[Course]: Final Assessment passed. Downloading certificate..."
+On cert:     "✅ COMPLETE: [Course] — Certificate saved."
+On error:    "⚠️ Stuck at [location] after 3 retries. [URL] [Error]."
+On finish:   "🎓 All [N] courses complete!"
+```
+
+---
+
+## USER COMMANDS
 
 | Command | Action |
 |---------|--------|
-| `status` | Report current course, module, item |
-| `pause` | Finish current item then pause |
-| `continue` | Resume from saved position |
-| `skip` | Skip current item, move to next |
-| `stop` | Finish current item then stop cleanly |
+| `status` | Read state file, report current phase/course/module/item |
+| `pause` | Finish current item, save state, stop |
+| `continue` | Read state file, resume from saved position |
+| `skip` | Skip current item, save state, move to next |
+| `stop` | Finish current item, save state, close browser |
+| `retry` | Reset retry_count, re-attempt last failed action |
 
 ---
 
 ## REFERENCES
-
-- `references/selectors.md` — CSS selectors for all key UI elements
+- `references/selectors.md` — CSS selectors for key UI elements
 - `references/course-ids.md` — Known course IDs for direct navigation
