@@ -1,6 +1,6 @@
 ---
 name: chrome-use
-description: "Use chrome-use when you need to: interact with websites (click buttons, fill forms, scroll), bypass anti-bot protections (Cloudflare, CAPTCHAs, fingerprinting), access JavaScript-rendered content, log into websites, or get unfiltered real-time search results. Choose this over standard web search when the website has bot detection, requires authentication, renders content dynamically, or you need to perform actions (not just read data)."
+description: "Use chrome-use when standard web access (fetch/web search) fails due to Cloudflare challenges, CAPTCHAs, JavaScript-rendered content, or bot detection — or when you need to interact with a site (click, fill, scroll, login). Controls a real Chrome browser via the Chrome debugger API to bypass anti-bot."
 version: 0.2.0
 license: MIT
 compatibility: Requires Node.js >=18, Chrome browser installed, and Chrome extension installed
@@ -17,7 +17,48 @@ metadata:
 
 # Chrome Use OpenClaw Skill
 
-Control your local Chrome browser via `chrome.debugger` API using a Chrome extension. This provides Playwright-like functionality with full browser control using your existing Chrome profile, with improved stealth against bot detection.
+Control your local Chrome browser via `chrome.debugger` API using a Chrome extension. Provides Playwright-like functionality with full browser control using your existing Chrome profile, with improved stealth against bot detection.
+
+## How to Use (Read First)
+
+### ⚠️ Non-Headless Mode Required
+**Do NOT use headless Chrome.** Cloudflare and anti-bot systems detect and block headless browsers. Always launch Chrome with the built-in `launchChrome()` method. If running in a headless environment (no display), Chrome must still be launched in non-headless mode — the extension and debugger API require it.
+
+### ⚠️ Initialization Sequence
+**The extension requires 15 seconds to initialize after Chrome starts.** Calling `connect()` too early will fail.
+
+```javascript
+// Import from ./index.js (relative path, NOT 'chrome-use')
+import { connect, navigate, evaluate, click, fill, screenshot, disconnect } from './index.js';
+import { launchChrome } from './index.js';
+
+// Step 1: Launch Chrome with extension
+await launchChrome();
+
+// Step 2: Wait 15 seconds for extension service worker to initialize
+await new Promise(r => setTimeout(r, 15000));
+
+// Step 3: Connect to Chrome
+await connect();
+
+// Step 4: Use
+await navigate('https://example.com');
+
+// ... do things ...
+
+// Disconnect when done
+disconnect();
+```
+
+**When implementing**: always use the built-in `launchChrome()` function — never spawn Chrome yourself or use other launch methods.
+
+### Rules
+- Always import from `./index.js` (relative path), NOT from `'chrome-use'`
+- Do NOT run `google-chrome` or `chromium` commands directly
+- Do NOT use CDP protocol or `chrome.debugger` directly
+- Always wait 15 seconds after `launchChrome()` before calling `connect()`
+- Chrome can be running already — `launchChrome()` will open a new window if Chrome is already running
+- If port 9224 is in use: run `fuser -k 9224/tcp` first
 
 ## Features
 
@@ -31,57 +72,18 @@ Control your local Chrome browser via `chrome.debugger` API using a Chrome exten
 
 ## Installation (One-time)
 
-1. Install npm dependencies:
+**Chrome extension must be installed manually (one-time):**
+1. Open Chrome → `chrome://extensions/`
+2. Enable "Developer mode" (toggle in top right)
+3. Click "Load unpacked"
+4. Select the `extension/` folder in the skill directory
+
+After this, the extension loads automatically every time Chrome starts — no need to reload it each session.
+
+**Install npm dependencies:**
 ```bash
 cd ~/workspace/skills/chrome-use && npm install
 ```
-
-2. Install the Chrome extension:
-   - Open Chrome → `chrome://extensions/`
-   - Enable "Developer mode" (toggle in top right)
-   - Click "Load unpacked"
-   - Select the `extension/` folder in the skill directory
-
-Once installed, the extension will automatically connect when you call `connect()`.
-
-## How to Use chrome-use (Read This First)
-
-### ⚠️ Important: Initialization Sequence
-
-**The extension requires 15 seconds to initialize after Chrome starts. Calling `connect()` too early will fail.**
-
-The ONLY correct usage pattern:
-
-```javascript
-// Import from ./index.js (relative path, NOT 'chrome-use')
-import { connect, navigate, evaluate, click, fill, screenshot, disconnect } from './index.js';
-
-// Step 1: Launch Chrome (this starts the extension service worker)
-import { launchChrome } from './index.js';
-await launchChrome();
-
-// Step 2: Wait 15 seconds for extension to initialize
-await new Promise(r => setTimeout(r, 15000));
-
-// Step 3: Now connect (WebSocket will be ready)
-await connect();
-
-// Navigate to URL
-await navigate('https://example.com');
-
-// ... do things ...
-
-// Disconnect when done
-disconnect();
-```
-
-**Why 15 seconds?** The Chrome extension runs a service worker that needs time to start up and establish the WebSocket connection. Skipping this wait causes `connect()` to fail with connection errors.
-
-**Rules:**
-- Always import from `./index.js` (relative path), NOT from `'chrome-use'` (that is not a package name)
-- Do NOT run `google-chrome` or `chromium` commands directly
-- Do NOT run `npm install` to install chrome-use (it is not a npm package)
-- Do NOT use CDP protocol or `chrome.debugger` directly
 
 ## Functions
 
@@ -90,50 +92,22 @@ disconnect();
 #### connect()
 Connect to Chrome via extension WebSocket server. Starts the WebSocket server and waits for the extension to connect. Does NOT launch Chrome - you must call `launchChrome()` first.
 
-**IMPORTANT:** After calling `launchChrome()`, you **must wait 15 seconds** before calling `connect()` to allow the extension's service worker to initialize.
-
-**Example:**
 ```javascript
 await launchChrome();
-await new Promise(r => setTimeout(r, 15000)); // Wait 15 seconds!
+await new Promise(r => setTimeout(r, 15000));
 await connect();
-```
-
-**Returns:**
-```javascript
-{ status: "connected", mode: "debugger", port: 9224, extension_installed: true, tab_id: 12345 }
+// Returns: { status: "connected", mode: "debugger", port: 9224, extension_installed: true, tab_id: 12345 }
 ```
 
 #### disconnect()
 Disconnect from Chrome browser. Does NOT close Chrome - leaves it running.
 
-**Example:**
-```javascript
-disconnect();
-```
-
-**Returns:**
-```javascript
-{"status": "disconnected"}
-```
-
 #### isConnected()
 Check if currently connected to Chrome extension. Returns: boolean
 
 #### launchChrome()
-Launch Chrome with the extension loaded. Use this when you want to control Chrome startup timing.
+Launch Chrome with the extension loaded. After calling this, **you MUST wait 15 seconds** before calling `connect()`.
 
-**⚠️ After calling this, you MUST wait 15 seconds before calling `connect()`**
-
-**Example:**
-```javascript
-await launchChrome();
-// Wait 15 seconds for extension service worker to initialize
-await new Promise(r => setTimeout(r, 15000));
-await connect();
-```
-
-**Returns:**
 ```javascript
 { status: "launched", pid: 12345 }
 ```
@@ -143,20 +117,11 @@ await connect();
 #### navigate(url)
 Navigate to a URL.
 
-**Example:**
-```javascript
-await navigate('https://example.com');
-```
-
 #### evaluate(script)
 Execute JavaScript synchronously.
 
-**Examples:**
 ```javascript
 const title = await evaluate("document.title");
-
-// Search YouTube
-await evaluate("window.location.href = 'https://youtube.com/results?search_query=my+search+term'");
 ```
 
 #### getHtml()
@@ -165,43 +130,23 @@ Get the page HTML. Returns: string
 #### screenshot(fullPage?)
 Take a screenshot. `fullPage` (boolean, optional): Capture full page or just viewport (default: false). Returns: string (Base64 PNG)
 
-**Examples:**
-```javascript
-const img = await screenshot();
-const fullImg = await screenshot(true);
-```
-
 ### Element Interaction
 
 #### click(selector)
 Click an element using CSS selector.
 
-**Examples:**
-```javascript
-await click('#login-btn');
-await click('.submit-button');
-await click('a.nav-link');
-```
-
 #### fill(selector, value)
 Input text into an element.
-
-**Examples:**
-```javascript
-await fill('#username', 'testuser');
-await fill('input[name="email"]', 'test@example.com');
-```
 
 ### Tab Management
 
 #### listTabs()
 List all open tabs.
 
-**Returns:**
 ```javascript
 [
-    { id: 708554825, title: "Google", url: "https://google.com", active: true },
-    { id: 708554826, title: "Example", url: "https://example.com", active: false }
+  { id: 708554825, title: "Google", url: "https://google.com", active: true },
+  { id: 708554826, title: "Example", url: "https://example.com", active: false }
 ]
 ```
 
@@ -209,47 +154,35 @@ List all open tabs.
 Switch to a different tab.
 
 #### closeTab(tabId)
-Close a tab. `tabId` (number, optional): Tab ID to close (current tab if not specified)
+Close a tab.
 
 #### newTab(url?)
-Create a new tab. `url` (string, optional): URL to open in new tab (default: "about:blank")
+Create a new tab.
 
-## Common Mistakes to Avoid
+## Common Mistakes
 
 | Don't Do This | Why |
 |---------------|-----|
-| `import ... from 'chrome-use'` | Not a npm package name. Use `from './index.js'` |
-| `google-chrome --load-extension=...` | Don't manually launch Chrome. Use `launchChrome()` to start Chrome first |
+| `import ... from 'chrome-use'` | Not a npm package. Use `from './index.js'` |
+| `google-chrome --load-extension=...` | Use `launchChrome()` instead |
 | `npm install chrome-use` | Not published to npm |
-| Writing code that bypasses these APIs | Use `evaluate()` for custom JS instead |
-| Calling `connect()` immediately after `launchChrome()` | **Always wait 15 seconds first** for extension service worker to initialize |
-| Port 9224 already in use | Run `fuser -k 9224/tcp` to kill the process using the port |
-| Chrome process already running causing conflicts | Run `killall google-chrome` before starting |
-
-## Notes
-
-- Node.js starts a WebSocket server (port 9224) via `connect()`; the Chrome extension connects to Node.js as a WebSocket client, then uses `chrome.debugger` API to control Chrome
-- `launchChrome()` starts Chrome with the extension already loaded — use this when you need to manually start Chrome before `connect()`
-- The Chrome extension must be installed (one-time); do NOT repeatedly load it with `--load-extension`
-- `disconnect()` does NOT close Chrome by default
-- All selectors use CSS selector syntax
+| Calling `connect()` immediately after `launchChrome()` | Always wait 15 seconds first |
+| Port 9224 in use | Run `fuser -k 9224/tcp` first |
 
 ## Troubleshooting
+
+### connect() fails
+1. Did you wait 15 seconds after `launchChrome()`?
+2. Is port 9224 free? (`fuser -k 9224/tcp`)
+3. Is the extension installed in Chrome?
 
 ### Port 9224 already in use
 ```bash
 fuser -k 9224/tcp
 ```
 
-### Existing Chrome process conflicts
-```bash
-killall google-chrome
-```
+## Notes
 
-### connect() fails immediately after launchChrome()
-You didn't wait long enough. The extension service worker needs ~15 seconds to start. Always use:
-```javascript
-await launchChrome();
-await new Promise(r => setTimeout(r, 15000));
-await connect();
-```
+- Node.js starts a WebSocket server (port 9224) via `connect()`; the Chrome extension connects to Node.js as a WebSocket client, then uses `chrome.debugger` API to control Chrome
+- `disconnect()` does NOT close Chrome by default
+- All selectors use CSS selector syntax

@@ -482,26 +482,31 @@ async function handleNewTab(msg) {
   }
 }
 
-// Update extension toolbar icon based on connection state
+// Update extension toolbar badge based on connection state
 function statusUpdate(text, color) {
-  // Deferred icon update to avoid service worker suspension issues
-  if (text === 'Connected') {
-    setTimeout(() => {
-      try {
-        chrome.action.setIcon({ path: { "48": "icon-48.png", "96": "icon-96.png" } });
-      } catch (e) {
-        console.error('[Chrome Use] setIcon failed:', e.message || e);
-      }
-    }, 100);
-  } else {
-    setTimeout(() => {
-      try {
-        chrome.action.setIcon({ path: { "48": "icon-offline-48.png", "96": "icon-offline-96.png" } });
-      } catch (e) {
-        console.error('[Chrome Use] setIcon failed:', e.message || e);
-      }
-    }, 100);
-  }
+  // Map color names to badge background colors
+  const colorMap = {
+    'green': '#4CAF50',
+    'red': '#F44336',
+    'orange': '#FF9800',
+    'yellow': '#FFEB3B',
+    'blue': '#2196F3',
+    'gray': '#9E9E9E'
+  };
+
+  const bgColor = colorMap[color] || colorMap['gray'];
+
+  // Set badge text (first char of status or a symbol)
+  const badgeText = text === 'Connected' ? '●' : text === 'Disconnected' ? '○' : '...';
+
+  setTimeout(() => {
+    try {
+      chrome.action.setBadgeText({ text: badgeText });
+      chrome.action.setBadgeBackgroundColor({ color: bgColor });
+    } catch (e) {
+      console.error('[Chrome Use] setBadge failed:', e.message || e);
+    }
+  }, 100);
 
   // Notify popup if open
   chrome.runtime.sendMessage({ type: 'status', text, color }).catch(() => {});
