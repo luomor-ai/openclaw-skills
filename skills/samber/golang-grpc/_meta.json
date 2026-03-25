@@ -1,0 +1,11 @@
+{
+  "owner": "samber",
+  "slug": "golang-grpc",
+  "displayName": "Golang Grpc",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774234868648,
+    "commit": null
+  },
+  "history": []
+}
