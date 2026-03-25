@@ -113,6 +113,30 @@ flowchart TD
 
 这些能力都还在，但它们现在只是 **memory layer**，而不是整个系统。
 
+## 🔄 从 self-improving-agent 迁移
+
+最常见的冲突其实不是数据丢失，而是两套提醒同时生效。
+
+如果用户已经装过 `self-improving-agent`，推荐的无痛迁移路径是：
+
+1. 先安装 `self-evolving-agent`，不要急着删除旧 skill。
+2. 初始化 `.evolution/` 时，把旧的 `.learnings/` 一并导入。
+3. 把导入后的内容保存在 `.evolution/legacy-self-improving/`，作为只读历史层。
+4. 确认导入成功后，再关闭旧的 `self-improvement` hook。
+5. 只有当某条旧经验再次被检索到、进入 agenda、参与 evaluation 或 promotion 时，才逐步规范化到新 schema。
+
+这样可以保留旧经验，又不会为了“一次性转格式”引入有损迁移。
+
+示例：
+
+```bash
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh \
+  ~/.openclaw/workspace/.evolution \
+  --migrate-from ~/.openclaw/workspace/.learnings
+openclaw hooks disable self-improvement
+openclaw hooks enable self-evolving-agent
+```
+
 ## 🎯 最适用的场景
 
 如果你希望 agent：
@@ -124,6 +148,14 @@ flowchart TD
 - 先证明迁移，再沉淀长期策略
 
 那么这个 skill 就是为这种目标设计的。
+
+## ⚖️ 轻流程 vs 重流程
+
+完整能力进化闭环不应该为了每一个小失误都全量启动。
+
+当任务是熟悉的、低后果、短链路，而且没有暴露更深层能力短板时，优先走轻流程：只检索最相关的少量记忆，提前说清一个风险点和一个验证动作，完成任务后只记录那些明显可复用的经验。
+
+只有在任务陌生、后果较高、命中当前 agenda 重点、出现重复模式、用户不得不 rescue、迁移失败，或者这条经验已经值得进入 training / evaluation / promotion 时，才升级为完整重流程。
 
 ## 📁 仓库结构
 
@@ -186,13 +218,60 @@ self-evolving-agent/
 5. 跑 benchmark 看这个 skill 在真实模型执行下的表现
 
 ```bash
-cp -r self-evolving-agent ~/.openclaw/skills/
-~/.openclaw/skills/self-evolving-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
-python3 ~/.openclaw/skills/self-evolving-agent/scripts/run-evals.py ~/.openclaw/skills/self-evolving-agent
-python3 ~/.openclaw/skills/self-evolving-agent/scripts/run-benchmark.py --skill-dir ~/.openclaw/skills/self-evolving-agent
+cp -r self-evolving-agent ~/.openclaw/skills/self-evo-agent
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
+python3 ~/.openclaw/skills/self-evo-agent/scripts/run-evals.py ~/.openclaw/skills/self-evo-agent
+python3 ~/.openclaw/skills/self-evo-agent/scripts/run-benchmark.py --skill-dir ~/.openclaw/skills/self-evo-agent
 ```
 
 更完整的安装说明见 [install.md](./install.md)。
+
+## 📦 安装方式
+
+### 方式 A：通过 ClawHub 安装
+
+适合希望直接通过 registry 安装到当前 OpenClaw workspace 的场景。
+
+```bash
+npm i -g clawhub
+# 或
+pnpm add -g clawhub
+
+clawhub install RangeKing/self-evo-agent
+```
+
+安装后请重启一个新的 OpenClaw session，让它从 workspace 的 `skills/` 目录重新加载。
+Registry slug 和本地目录使用 `self-evo-agent`，但 skill 名和 hook 名仍然是 `self-evolving-agent`。
+如果你之前已经在用 `self-improving-agent`，建议先导入 `.learnings/`，再关闭旧 hook。
+
+### 方式 B：让 OpenClaw 自己从 GitHub 下载并安装
+
+如果你希望让 agent 自己从 GitHub 仓库拉取 skill，可以直接对 OpenClaw 说：
+
+```text
+Install the OpenClaw skill from https://github.com/RangeKing/self-evolving-agent into ~/.openclaw/skills/self-evo-agent, inspect the scripts before enabling hooks, and then bootstrap ~/.openclaw/workspace/.evolution.
+```
+
+这种方式适合把它作为共享 managed skill 安装到 `~/.openclaw/skills`。
+
+### 方式 C：手动 Git clone
+
+```bash
+git clone https://github.com/RangeKing/self-evolving-agent.git ~/.openclaw/skills/self-evo-agent
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
+```
+
+如果你已有 `~/.openclaw/workspace/.learnings`，推荐改用：
+
+```bash
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh \
+  ~/.openclaw/workspace/.evolution \
+  --migrate-from ~/.openclaw/workspace/.learnings
+```
+
+### 安全提示
+
+ClawHub 是公开 registry，skills 本质上属于受信任的本地代码。启用 hooks 或运行 benchmark 脚本前，建议先审阅仓库或安装后的文件内容。
 
 ## 🤝 项目健康
 
@@ -201,7 +280,7 @@ python3 ~/.openclaw/skills/self-evolving-agent/scripts/run-benchmark.py --skill-
 - 安全策略：[SECURITY.md](./SECURITY.md)
 - 开源许可证：[MIT](./LICENSE)
 
-## 🧪 Benchmarking
+## 🧪 Benchmark
 
 仓库里提供两类评测：
 
@@ -238,4 +317,3 @@ python3 scripts/run-benchmark.py \
 - [ ] 增加更多 coding、research、long-horizon 场景 benchmark
 - [ ] 支持多次 benchmark run 的趋势汇总
 - [ ] 提供不同 agent 域的 workspace 示例包
-

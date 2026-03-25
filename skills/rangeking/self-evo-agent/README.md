@@ -113,6 +113,30 @@ Outside the task loop, it also runs a **learning agenda review** when priorities
 
 Those strengths remain, but only as the **memory layer**, not the whole system.
 
+## 🔄 Migration From self-improving-agent
+
+The most common conflict is not data loss. It is double activation.
+
+If a user already has `self-improving-agent`, the safe migration path is:
+
+1. Install `self-evolving-agent` without deleting the old skill.
+2. Bootstrap `.evolution/` and import the old `.learnings/` directory.
+3. Keep the imported logs in `.evolution/legacy-self-improving/` as read-only history.
+4. Disable the old `self-improvement` hook after verifying the import.
+5. Gradually normalize only the legacy items that become active evidence for diagnosis, agenda review, evaluation, or promotion.
+
+This keeps prior experience intact without forcing a lossy one-shot conversion into the new schema.
+
+Example:
+
+```bash
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh \
+  ~/.openclaw/workspace/.evolution \
+  --migrate-from ~/.openclaw/workspace/.learnings
+openclaw hooks disable self-improvement
+openclaw hooks enable self-evolving-agent
+```
+
 ## 🎯 Best Fit
 
 Use this skill when you want an agent that should:
@@ -122,6 +146,14 @@ Use this skill when you want an agent that should:
 - convert repeated failures into deliberate practice
 - distinguish recording from mastery
 - prove transfer before promotion
+
+## ⚖️ Light Loop vs Full Loop
+
+The full capability-evolution pipeline is intentionally not the default for every tiny mistake.
+
+Use the light loop when the task is familiar, low-consequence, short-horizon, and no deeper weakness appeared. In that mode, retrieve only the top few relevant memories, state one risk and one verification check, do the work, and log only unusually reusable lessons.
+
+Escalate into the full loop when the task is mixed or unfamiliar, consequence matters, an active agenda item is involved, a failure pattern repeats, the user had to rescue the task, transfer failed, or the lesson may deserve training, evaluation, or promotion.
 
 ## 📁 Repository Layout
 
@@ -184,13 +216,60 @@ self-evolving-agent/
 5. Run the benchmark suite to see how the skill performs in model-in-the-loop conditions.
 
 ```bash
-cp -r self-evolving-agent ~/.openclaw/skills/
-~/.openclaw/skills/self-evolving-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
-python3 ~/.openclaw/skills/self-evolving-agent/scripts/run-evals.py ~/.openclaw/skills/self-evolving-agent
-python3 ~/.openclaw/skills/self-evolving-agent/scripts/run-benchmark.py --skill-dir ~/.openclaw/skills/self-evolving-agent
+cp -r self-evolving-agent ~/.openclaw/skills/self-evo-agent
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
+python3 ~/.openclaw/skills/self-evo-agent/scripts/run-evals.py ~/.openclaw/skills/self-evo-agent
+python3 ~/.openclaw/skills/self-evo-agent/scripts/run-benchmark.py --skill-dir ~/.openclaw/skills/self-evo-agent
 ```
 
 More setup details are in [install.md](./install.md).
+
+## 📦 Installation Options
+
+### Option A: Install from ClawHub
+
+Use this when you want the simplest registry-based install into your current OpenClaw workspace.
+
+```bash
+npm i -g clawhub
+# or
+pnpm add -g clawhub
+
+clawhub install RangeKing/self-evo-agent
+```
+
+Then start a new OpenClaw session so the skill is loaded from your workspace `skills/` folder.
+The registry slug and local directory are `self-evo-agent`; the skill and hook name stay `self-evolving-agent`.
+If you are migrating from `self-improving-agent`, import `.learnings/` before you disable the old hook.
+
+### Option B: Let OpenClaw install it from GitHub
+
+If you prefer to have your agent fetch the GitHub repository directly, you can tell OpenClaw something like:
+
+```text
+Install the OpenClaw skill from https://github.com/RangeKing/self-evolving-agent into ~/.openclaw/skills/self-evo-agent, inspect the scripts before enabling hooks, and then bootstrap ~/.openclaw/workspace/.evolution.
+```
+
+This works well when you want the skill installed as a shared managed skill under `~/.openclaw/skills`.
+
+### Option C: Manual Git clone
+
+```bash
+git clone https://github.com/RangeKing/self-evolving-agent.git ~/.openclaw/skills/self-evo-agent
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh ~/.openclaw/workspace/.evolution
+```
+
+If you already have `~/.openclaw/workspace/.learnings`, use:
+
+```bash
+~/.openclaw/skills/self-evo-agent/scripts/bootstrap-workspace.sh \
+  ~/.openclaw/workspace/.evolution \
+  --migrate-from ~/.openclaw/workspace/.learnings
+```
+
+### Safety Note
+
+ClawHub is a public registry and skills are effectively trusted local code. Review the repository or installed files before enabling hooks or running benchmark scripts.
 
 ## 🤝 Project Health
 
@@ -236,4 +315,3 @@ python3 scripts/run-benchmark.py \
 - [ ] More benchmark scenarios for coding, research, and long-horizon execution
 - [ ] Optional benchmark trend summaries across repeated runs
 - [ ] Example workspace packs for different agent domains
-
