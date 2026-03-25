@@ -3,9 +3,15 @@
   "slug": "yescan-scan-universal",
   "displayName": "yescan-scan-universal",
   "latest": {
-    "version": "1.0.4",
-    "publishedAt": 1773838578358,
-    "commit": "https://github.com/openclaw/skills/commit/bced84051ef289e3115d91426e0231a402c855f3"
+    "version": "1.0.8",
+    "publishedAt": 1774336374624,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.4",
+      "publishedAt": 1773838578358,
+      "commit": "https://github.com/openclaw/skills/commit/bced84051ef289e3115d91426e0231a402c855f3"
+    }
+  ]
 }
