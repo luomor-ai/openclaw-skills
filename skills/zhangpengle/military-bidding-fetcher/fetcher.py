@@ -15,8 +15,8 @@
     date: 日期，格式 YYYY-MM-DD，默认今天
 
 推荐等级规则:
-    高: 包含模型/仿真/数据/决策/分析/智能化/AI/软件/意向等高价值关键词
-    中: 包含系统/信息化等一般关键词
+    高: 包含模型/仿真/数据/决策/分析/智能/AI/软件/意向等高价值关键词
+    中: 包含系统/信息等一般关键词
     空: 其他匹配项
 
 特殊规则:
@@ -96,8 +96,8 @@ def _generate_remarks(title: str, matched_kw: List[str]) -> str:
         remarks.append("仿真项目可做")
     if '数据' in title:
         remarks.append("数据分析需求")
-    if 'AI' in title or '智能化' in title:
-        remarks.append("AI智能化项目")
+    if 'AI' in title or '智能' in title:
+        remarks.append("AI智能项目")
     if '软件' in title:
         remarks.append("软件定制开发")
     if '系统' in title:
@@ -149,11 +149,11 @@ DEFAULT_REGIONS = {
 }
 
 # 默认高价值关键词
-DEFAULT_HIGH_VALUE_KW = ['模型', '仿真', '数据', '决策', '分析', '智能化', 'AI', '软件', '意向']
+DEFAULT_HIGH_VALUE_KW = ['模型', '仿真', '数据', '决策', '分析', '智能', 'AI', '软件', '意向']
 
 # 默认核心关键词
 DEFAULT_CORE_KW = ['体系', '模型', '仿真', '数据', '决策', '规划', '分析', 
-                   '智能化', 'AI', '软件', '系统', '信息化', '算法', '效能']
+                   '智能', 'AI', '软件', '系统', '信息', '算法', '效能']
 
 # 默认排除词
 DEFAULT_EXCLUDE_KW = ['体能', '训练鞋', '鞋类', '服装', '被装', '医疗', '药品', 
@@ -468,7 +468,7 @@ def _get_nudt_purchase_type(title: str) -> Optional[str]:
 
 def _get_nudt_recommend_level(matched_kw: List[str]) -> str:
     """根据匹配关键词返回推荐等级"""
-    high_kw = ['体系', '模型', '仿真', '数据', '决策', '分析', '智能化', 'AI', '软件']
+    high_kw = ['体系', '模型', '仿真', '数据', '决策', '分析', '智能', 'AI', '软件']
     if any(k in matched_kw for k in high_kw):
         return "高"
     elif '系统' in matched_kw:
@@ -489,8 +489,8 @@ def _get_nudt_remarks(title: str) -> str:
         remarks.append("数据处理")
     if '软件' in title or '系统' in title:
         remarks.append("软件/系统类")
-    if '智能化' in title or 'AI' in title:
-        remarks.append("智能化AI")
+    if '智能' in title or 'AI' in title:
+        remarks.append("智能AI")
     if not remarks:
         remarks.append("可关注")
     return "; ".join(remarks[:2])
