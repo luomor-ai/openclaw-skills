@@ -1,7 +1,10 @@
 #!/bin/bash
 #
-# One-Click Restore for OpenClaw Workspace v2.2 (Merge Mode)
+# One-Click Restore for OpenClaw Workspace v2.2.1 (Merge Mode)
 # Usage: ./one-click-restore.sh <backup_file> [--dry-run] [--force] [--with-sessions]
+#
+# Improvements in v2.2.1:
+# - FIXED: Cron export files correctly included in archive
 #
 # Improvements in v2.2:
 # - Session records restore (optional)

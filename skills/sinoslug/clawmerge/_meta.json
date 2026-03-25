@@ -1,11 +1,17 @@
 {
   "owner": "sinoslug",
   "slug": "clawmerge",
-  "displayName": "ClawMerge",
+  "displayName": "Clawmerge",
   "latest": {
-    "version": "2.2.1",
-    "publishedAt": 1774108323851,
-    "commit": "https://github.com/openclaw/skills/commit/fdd8c009be72492e6714e7385b25bcd031ff6c68"
+    "version": "3.0.3",
+    "publishedAt": 1774423629571,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "2.2.1",
+      "publishedAt": 1774108323851,
+      "commit": "https://github.com/openclaw/skills/commit/fdd8c009be72492e6714e7385b25bcd031ff6c68"
+    }
+  ]
 }
