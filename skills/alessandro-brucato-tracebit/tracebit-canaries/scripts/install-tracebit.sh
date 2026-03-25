@@ -7,9 +7,17 @@
 # What it does:
 #   1. Detects OS (macOS / Linux) and architecture (amd64 / arm64)
 #   2. Downloads the latest release from GitHub
-#   3. Linux: runs the installer script
-#   4. macOS: downloads the .pkg and opens it (human must click through)
-#   5. Prints next steps
+#   3. Verifies download integrity via SHA256 checksum (from the release's SHA256SUMS file)
+#   4. Linux: runs the installer script
+#   5. macOS: installs the .pkg via `installer` (non-interactive) or GUI fallback
+#   6. Prints next steps
+#
+# Security:
+#   - Downloads only from github.com/tracebit-com/tracebit-community-cli/releases
+#   - Verifies SHA256 checksum against the release's SHA256SUMS file
+#   - If no checksums file is available, prints the SHA256 of the download and aborts
+#     unless SKIP_CHECKSUM=1 is set (not recommended)
+#   - FORCE=1 (default) skips interactive prompts but does NOT skip checksum verification
 
 set -euo pipefail
 
@@ -24,7 +32,10 @@ warn()    { echo -e "${YELLOW}[tracebit-install]${NC} $*"; }
 die()     { echo -e "${RED}[tracebit-install] ERROR:${NC} $*" >&2; exit 1; }
 
 # ── Non-interactive mode (default for agent use) ─────────────────────────────
-FORCE="${FORCE:-1}"  # Default: non-interactive, always proceed
+# FORCE=1 skips interactive confirmation prompts (reinstall, GUI installer wait).
+# It does NOT skip checksum verification — that always runs.
+FORCE="${FORCE:-1}"
+SKIP_CHECKSUM="${SKIP_CHECKSUM:-0}"  # Set to 1 to bypass checksum (not recommended)
 
 # ── Check if already installed ────────────────────────────────────────────────
 if command -v tracebit >/dev/null 2>&1; then
@@ -155,6 +166,75 @@ fi
 
 success "Downloaded: $DEST"
 
+# ── Checksum verification ────────────────────────────────────────────────
+info "Verifying download integrity..."
+
+# Compute SHA256 of the downloaded file
+if command -v shasum >/dev/null 2>&1; then
+  ACTUAL_SHA256=$(shasum -a 256 "$DEST" | awk '{print $1}')
+elif command -v sha256sum >/dev/null 2>&1; then
+  ACTUAL_SHA256=$(sha256sum "$DEST" | awk '{print $1}')
+else
+  warn "Neither shasum nor sha256sum found — cannot verify checksum."
+  if [[ "$SKIP_CHECKSUM" != "1" ]]; then
+    die "Install aborted: no checksum tool available. Set SKIP_CHECKSUM=1 to bypass (not recommended)."
+  fi
+  ACTUAL_SHA256=""
+fi
+
+if [[ -n "$ACTUAL_SHA256" ]]; then
+  info "Downloaded file SHA256: $ACTUAL_SHA256"
+
+  # Try to download SHA256SUMS from the same release
+  CHECKSUMS_URL=""
+  if command -v python3 >/dev/null 2>&1; then
+    CHECKSUMS_URL=$(echo "$RELEASE_JSON" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for asset in data.get('assets', []):
+    name = asset['name'].lower()
+    if 'sha256' in name or 'checksums' in name:
+        print(asset['browser_download_url'])
+        break
+" 2>/dev/null || true)
+  fi
+
+  if [[ -n "$CHECKSUMS_URL" ]]; then
+    info "Downloading checksums from: $CHECKSUMS_URL"
+    CHECKSUMS_FILE="$TMPDIR_INSTALL/SHA256SUMS"
+    if curl -fsSL "$CHECKSUMS_URL" -o "$CHECKSUMS_FILE" 2>/dev/null || wget -qO "$CHECKSUMS_FILE" "$CHECKSUMS_URL" 2>/dev/null; then
+      # Look for our filename in the checksums file
+      EXPECTED_SHA256=$(grep "$FILENAME" "$CHECKSUMS_FILE" | awk '{print $1}' | head -1)
+      if [[ -n "$EXPECTED_SHA256" ]]; then
+        if [[ "$ACTUAL_SHA256" == "$EXPECTED_SHA256" ]]; then
+          success "SHA256 checksum verified: $ACTUAL_SHA256"
+        else
+          die "SHA256 MISMATCH! Expected: $EXPECTED_SHA256, Got: $ACTUAL_SHA256 — download may be corrupted or tampered with."
+        fi
+      else
+        warn "Checksums file found but no entry for '$FILENAME'."
+        warn "Downloaded file SHA256: $ACTUAL_SHA256"
+        if [[ "$SKIP_CHECKSUM" != "1" ]]; then
+          die "Install aborted: cannot verify integrity. Set SKIP_CHECKSUM=1 to bypass (not recommended)."
+        fi
+      fi
+    else
+      warn "Could not download checksums file."
+      warn "Downloaded file SHA256: $ACTUAL_SHA256"
+      if [[ "$SKIP_CHECKSUM" != "1" ]]; then
+        die "Install aborted: cannot verify integrity. Set SKIP_CHECKSUM=1 to bypass (not recommended)."
+      fi
+    fi
+  else
+    warn "No SHA256SUMS file found in the release."
+    warn "Downloaded file SHA256: $ACTUAL_SHA256"
+    warn "You can verify this manually at: $RELEASES_URL"
+    if [[ "$SKIP_CHECKSUM" != "1" ]]; then
+      die "Install aborted: no checksums file in release. Set SKIP_CHECKSUM=1 to bypass (not recommended)."
+    fi
+  fi
+fi
+
 # ── Install ───────────────────────────────────────────────────────────────────
 if [[ "$OS" == "linux" ]]; then
   info "Running Linux installer..."
@@ -204,6 +284,4 @@ echo ""
 echo "  2. Deploy all canaries: tracebit deploy all"
 echo ""
 echo "  3. Verify deployment:   tracebit show"
-echo ""
-echo "  4. Set up Gmail hook:   see references/gmail-hook-setup.md"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

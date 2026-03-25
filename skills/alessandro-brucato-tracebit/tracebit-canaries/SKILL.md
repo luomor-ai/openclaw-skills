@@ -1,34 +1,121 @@
 ---
 name: tracebit-canaries
-description: End-to-end Tracebit security canary deployment and autonomous threat response for AI agents. Use when setting up agent security from scratch, deploying honeytokens/canary tokens, detecting prompt injection or credential exfiltration, hardening an agent workspace, investigating suspected compromise, or configuring autonomous incident response. Guides through signup, CLI installation, canary deployment, Gmail alert hook setup, and autonomous investigation with human notification. Tracebit Community Edition is free.
+description: >
+  End-to-end Tracebit security canary deployment and autonomous threat response
+  for AI agents. Deploys decoy canary tokens (fake credentials that alert on use),
+  monitors for alerts via Gmail heartbeat polling, and runs read-only incident
+  investigation with human notification. All sensitive operations (canary deployment,
+  canary rotation) require explicit human confirmation. Tracebit Community Edition
+  is free.
+metadata:
+  openclaw:
+    emoji: "🐦"
+    homepage: https://github.com/tracebit-com/tracebit-community-cli
+    primaryEnv: TRACEBIT_API_TOKEN
+    requires:
+      bins:
+        - gog
+        - curl
+        - jq
+        - python3
+      env:
+        - TRACEBIT_API_TOKEN
+      config:
+        - plugins.messaging
+        - plugins.gog.accounts
+    permissions:
+      - gmail:read (via gog — read-only search for Tracebit alert emails; requires user's pre-authorized Gmail OAuth)
+      - messaging:send (via plugins.messaging — sends notifications to user's own channel only)
+    keywords:
+      - security
+      - canary-tokens
+      - honeytokens
+      - prompt-injection-detection
+      - incident-response
+      - deception
+      - agent-security
+  creator:
+    org: Tracebit
+    source: https://github.com/tracebit-com/tracebit-community-cli
+  safety:
+    posture: human-gated-deployment
+    red_lines:
+      - no-autonomous-writes-to-credential-locations
+      - no-credential-exfiltration
+      - no-messages-to-external-recipients
+      - no-remediation-without-human-approval
+    runtime_constraints:
+      all-access-requires-upfront-user-consent: true
+      canary-deployment-requires-human-confirmation: true
+      canary-rotation-requires-human-acknowledgement: true
+      credential-files-written-only-by-cli-not-skill: true
+      gmail-access-read-only: true
+      gmail-access-requires-user-consent: true
+      notifications-to-user-channel-only: true
+      signup-password-never-in-conversation-output: true
 ---
 
 # Tracebit Canaries Skill
 
 ## What This Skill Does
 
-End-to-end security canary coverage — from signup to autonomous incident response. You (the agent) perform ALL steps yourself. Do not ask the human to do things you can do.
+End-to-end security canary coverage — from signup to autonomous incident response. You (the agent) perform the mechanical steps (form filling, CLI commands, config edits). Ask the human for confirmation before any operation that writes to sensitive locations or takes remediation actions.
 
-The Tracebit CLI runs a background daemon that auto-refreshes credentials — true "set and forget." When a canary fires, the Gmail hook spawns an isolated agent session that immediately notifies the human, investigates, and reports.
+The Tracebit CLI runs a background daemon that auto-refreshes credentials — true "set and forget." When a canary fires, the heartbeat inbox check detects the alert email, then immediately notifies the human, investigates, and reports.
 
 Tracebit Community Edition is free at https://community.tracebit.com
 
 ---
 
-## Critical: Autonomous Execution Principles
+## Security & Transparency
 
-**You are the operator. The human is the owner. Do not delegate execution.**
+This skill is user-initiated and runs under user supervision. The user can interrupt or cancel at any step.
 
-- **Browser steps**: always use the OpenClaw browser tool — never assume or require a system browser (Chrome, Firefox, Brave, etc. may or may not be installed)
+**Prerequisite**: `gog` must be installed and authenticated with the user's Gmail before activation.
+
+**What the skill itself writes to disk:**
+- `memory/security-incidents.md` — append-only incident log (only on alert)
+- `HEARTBEAT.md` — appends canary check block
+- `/tmp/tracebit-credentials-*.txt` — temporary signup password (600 perms, deleted after use)
+
+**What the Tracebit CLI writes (with human confirmation):**
+The `tracebit deploy` command places decoy canary tokens in standard credential locations. The skill asks the human for explicit approval before running this command. The CLI is open-source ([source](https://github.com/tracebit-com/tracebit-community-cli)) — see its documentation for the exact file locations and behavior.
+
+**What it reads** — all read-only:
+- Gmail inbox via `gog` (Tracebit emails only; `gog` pre-authorized by user)
+- `memory/` files (during incident investigation, to check recent activity)
+
+**External endpoints** — only two:
+- `community.tracebit.com` (account and canary management)
+- `github.com/tracebit-com/tracebit-community-cli` (one-time CLI download, SHA256-verified)
+
+**Background process**: the Tracebit CLI daemon refreshes canary token expiry — no other network calls or file access. Fully removable (see "Local Footprint & Full Removal").
+
+**Key constraints**:
+- **Canary deployment requires explicit human confirmation** — the agent explains what the CLI will do and waits for approval before running `tracebit deploy`
+- The skill itself never writes to credential locations — it delegates to the open-source Tracebit CLI
+- Notifications go only to the user's own messaging channel — never to external recipients
+- Canary rotation requires human acknowledgement — the agent does not remediate autonomously
+- The signup password is never shown in conversation output — written to a temp file only
+- Everything installed is fully reversible (see "Local Footprint & Full Removal")
+
+---
+
+## Execution Principles
+
+**The human activates this skill, supervises the process, and can interrupt or cancel at any step.** The agent's role is to handle the mechanical steps (form filling, CLI commands, config edits) so the human doesn't have to do them manually — not to bypass oversight.
+
+- **Browser steps**: use the OpenClaw browser tool — do not require or assume a system browser
 - **CLI steps**: run via exec
 - **Config changes**: use gateway tools programmatically
-- **Only ask the human for**: 2FA codes or CAPTCHAs (Google sometimes shows a CAPTCHA image on first login from a new environment)
+- **Ask the human when needed**: 2FA codes, CAPTCHAs, or any step that fails unexpectedly
+- **Never suppress errors or skip steps silently** — always report what happened so the human can make informed decisions
 
 ---
 
 ## Definition of Done
 
-**You are NOT done until every item below is checked. Do not report success to the human until all 7 are complete.**
+**You are NOT done until every item below is checked. Do not report success to the human until all 6 are complete.**
 
 ```
 [ ] Step 1: Tracebit account created and dashboard confirmed in browser
@@ -36,17 +123,34 @@ Tracebit Community Edition is free at https://community.tracebit.com
 [ ] Step 3: CLI authenticated — `tracebit auth status` prints credentials are valid
 [ ] Step 4: All 5 canary types deployed — `tracebit show` shows all 5 active
 [ ] Step 5: `tracebit show` confirms all canaries active
-[ ] Step 6: Gmail alert hook configured — PubSub set up AND hook applied AND gateway restarted
-[ ] Step 7: Test alert fired AND alert email confirmed in Gmail
+[ ] Step 6: Heartbeat canary check block added to HEARTBEAT.md
 ```
 
-A satisfying intermediate result (e.g. `tracebit show` showing 5 active canaries) is **not** completion. The alert pipeline (Steps 6–7) is what makes canaries useful. Canaries that fire but notify no one provide no protection.
+A satisfying intermediate result (e.g. `tracebit show` showing 5 active canaries) is **not** completion. The alert detection pipeline (Step 6) is what makes canaries useful. Canaries that fire but notify no one provide no protection.
 
 ---
 
 ## End-to-End Setup
 
-Perform ALL steps yourself in order.
+**Before starting, confirm consent with the human:**
+
+```
+This skill needs the following access to set up and monitor canary tokens:
+
+1. Gmail (read-only) — to retrieve the Tracebit signup confirmation code
+   and to check for canary alert emails during each heartbeat (~30 min).
+   Uses your pre-authorized gog account. No emails are sent, deleted, or modified.
+
+2. Messaging — to send canary alert notifications to you via your configured
+   OpenClaw messaging channel. No messages are sent to anyone else.
+
+3. Tracebit CLI — to deploy decoy canary tokens (with your confirmation at
+   that step) and manage your Tracebit account.
+
+May I proceed with this access? (yes/no)
+```
+
+**Do NOT proceed until the human confirms.** If they decline, stop and report the skill as not activated.
 
 ---
 
@@ -58,7 +162,11 @@ Perform ALL steps yourself in order.
 1. Get the Gmail address: gog auth list
 2. Generate a strong random password (20+ chars, mixed case, digits, symbols):
    python3 -c "import secrets, string; chars = string.ascii_letters + string.digits + '!@#\$%^&*'; print(''.join(secrets.choice(chars) for _ in range(24)))"
-   Do NOT show it to the human now — store it in memory for secure handoff later.
+   Do NOT display the password in conversation output or logs.
+   Write it to a temporary file with restricted permissions:
+   TMPFILE=$(mktemp /tmp/tracebit-credentials-XXXXXX.txt) && chmod 600 "$TMPFILE"
+   echo "Tracebit password: <PASSWORD>" > "$TMPFILE"
+   Remember the file path for the completion report.
 3. Use the browser tool to navigate to: https://community.tracebit.com
 4. Take a snapshot to see the page
 5. Click "Sign up with email" (NOT "Sign in with Google" — email signup avoids OAuth loops)
@@ -74,7 +182,11 @@ Perform ALL steps yourself in order.
 10. Take a snapshot — confirm the Tracebit "Welcome" onboarding dashboard has loaded
 ```
 
-**Password handoff**: after setup is complete, include the Tracebit password in your completion report under a "Credentials" section so the human can store it in their password manager. Remind the user to change the password in their Tracebit account settings, since it was generated by an automated agent and may appear in conversation history or terminal scrollback.
+**Password handoff**: the password was written to a temporary file during Step 1. In your completion report, tell the user:
+1. The password is in the temp file (provide the path)
+2. Open the file, copy the password, and log into https://community.tracebit.com
+3. Go to Settings → Change Password and set a personal password
+4. Delete the temp file: `rm <path>` (or it will be cleaned up on next reboot)
 
 **Error cases:**
 - **Email already registered**: go directly to Step 3, log in with email credentials
@@ -146,21 +258,29 @@ tracebit auth status
 
 ### Step 4: Deploy All Canaries
 
-**You do this.**
+**⚠️ Ask the human for explicit confirmation before proceeding.**
+
+Present the following to the human and wait for their approval:
+
+```
+I'm ready to deploy canary tokens using the Tracebit CLI (open-source).
+The CLI will place decoy/fake credentials — honeytokens that alert you
+if anything reads and uses them. No real credentials are read or modified.
+
+Five canary types will be deployed: AWS, SSH, browser cookie, login
+credential, and email. See the Tracebit CLI documentation for details
+on where each type is placed.
+
+Shall I proceed? (yes/no)
+```
+
+**Do NOT run `tracebit deploy` until the human confirms.** If they decline, skip this step and report it as incomplete.
+
+Once confirmed:
 
 ```bash
 tracebit deploy all
 ```
-
-Deploys five canary types:
-
-| Type | Deployed to | Detects |
-|------|-------------|---------|
-| **aws** | `~/.aws/credentials [canary]` | Credential theft, prompt injection |
-| **ssh** | `~/.ssh/tracebit-canary` | SSH key exfiltration |
-| **cookie** | Browser storage | Session hijacking |
-| **username-password** | Password manager / config | Credential harvesting |
-| **email** | Inbox / contacts | Email exfiltration |
 
 ⚠️ **Known non-interactive issues with `deploy all`:**
 
@@ -192,58 +312,44 @@ bash scripts/check-canaries.sh
 
 ---
 
-### Step 6: Configure Gmail Alert Hook
+### Step 6: Configure Heartbeat Alert Detection
 
 > ⚠️ **This step is not optional.** Without it, canaries can fire and you will never know. Do this step before considering the setup complete.
 
-Read `references/gmail-hook-setup.md` for the full procedure. Key steps:
+**Prerequisites:** `gog` installed and authenticated — already satisfied by Step 1.
 
-1. Verify prerequisites: `gcloud auth list`, `tailscale status`, `gog auth list` — if any fail, stop and ask the human (gcloud auth and Tailscale require human intervention)
-2. Set the GCP project: read from `~/.config/gogcli/client_secret_*.json`, then `gcloud config set project ID`
-3. Enable APIs: `gcloud services enable gmail.googleapis.com pubsub.googleapis.com`
-4. Run the wizard: `openclaw webhooks gmail setup --account USER@gmail.com`
-5. Start the daemon: `openclaw webhooks gmail run`
-6. Apply the Tracebit alert mapping via `gateway config.patch` (exact config in references file)
-5. Enable Tailscale Funnel if prompted (visit the URL the wizard prints, click Enable)
-6. Apply the Tracebit alert mapping via `gateway config.patch` (exact config in references file)
-7. Verify: watcher running (`ss -tlnp | grep 8788`) and Funnel active (`tailscale funnel status`)
+Append the following block to the workspace `HEARTBEAT.md` (create the file if it doesn't exist):
 
-Do NOT ask the human to edit config files or run commands.
+```markdown
+## Tracebit Canary Alert Check (every heartbeat, ~30 min)
 
----
+Check for new Tracebit canary alert emails since the last heartbeat:
 
-### Step 7: Test the Full Pipeline
+```bash
+gog gmail search 'from:notifications@community.tracebit.com subject:"Tracebit Canary Triggered" newer_than:1h' --account YOUR@gmail.com --max 5
+```
 
-**Wait at least 2 minutes after Step 6 completes** before triggering — the Gmail watch historyId needs to stabilise after the wizard resets it. Alerts arriving within ~60s of wizard completion may be marked "stale" by the watcher.
+If any alert emails are found:
+1. **Immediately notify the human** (see "When a Canary Fires" in the Tracebit skill)
+2. **Investigate** — follow `references/incident-response-playbook.md`
+3. **Send a follow-up report** within 5 minutes
+```
+
+Replace `YOUR@gmail.com` with the actual Gmail account from `gog auth list`.
+
+Use a 1-hour window (`newer_than:1h`) rather than 30 minutes to avoid missing alerts across heartbeat timing jitter.
+
+**Optional: test the pipeline**
+
+If the human wants to verify end-to-end:
 
 ```bash
 tracebit trigger ssh --name "CANARY_NAME"
-```
-
-SSH triggers arrive in ~1–3 min. **Always use `--name` flag** — without it, `trigger` is interactive and fails in non-interactive mode.
-
-```bash
-# Wait 2–3 minutes, then check Gmail:
+# Wait 2–3 minutes, then check:
 gog gmail search 'from:notifications@community.tracebit.com subject:"Tracebit Canary Triggered" newer_than:10m' --account YOUR@gmail.com --max 5
 ```
 
-Then watch for the hook firing in gateway logs:
-```bash
-grep "historyId\|hook\|agent" /tmp/openclaw-0/openclaw-$(date +%Y-%m-%d).log | tail -20
-```
-
-A log line like `[gog] watch: ignoring stale push historyId=...` means Pub/Sub delivered the push but the watcher already knew about it — this is normal for the first alert after a wizard run. A fresh alert will process cleanly.
-
-⚠️ **SSH triggers are rate-limited**: if you trigger SSH multiple times in quick succession, Tracebit deduplicates and sends only one alert. For subsequent tests use:
-```bash
-tracebit trigger aws --name "CANARY_NAME"   # ~5 min delay (CloudTrail)
-```
-AWS trigger requires the AWS CLI — install it first if missing:
-```bash
-curl -fsSL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o /tmp/awscliv2.zip \
-  && unzip -q /tmp/awscliv2.zip -d /tmp \
-  && /tmp/aws/install -i /usr/local/aws-cli -b /usr/local/bin
-```
+Confirm the alert email arrives — the next heartbeat will detect it and trigger the response flow.
 
 Before reporting to the human, complete the following checklist and include it verbatim:
 
@@ -255,14 +361,14 @@ Before reporting to the human, complete the following checklist and include it v
 [ ] Step 3 — Auth: <credentials valid / failed: reason>
 [ ] Step 4 — Deploy: <5 canaries deployed / failed: reason>
 [ ] Step 5 — Verify: <all active / issues: list>
-[ ] Step 6 — Gmail hook: <PubSub set up, hook applied, gateway restarted / failed: reason>
-[ ] Step 7 — Test: <alert email received in Gmail / failed: reason>
+[ ] Step 6 — Heartbeat: <HEARTBEAT.md updated with canary alert check / failed: reason>
 
 Overall: COMPLETE ✅  /  INCOMPLETE ❌ (blocked on: <step>)
 
 ## Credentials
 Tracebit account: <gmail address>
-Tracebit password: <generated password — store this in your password manager>
+Tracebit password: saved to <temp file path> (read it, then delete the file)
+⚠️ Please reset this password at https://community.tracebit.com → Settings → Change Password
 ```
 
 Only mark Overall as COMPLETE if all 7 steps have a passing status.
@@ -271,25 +377,21 @@ Only mark Overall as COMPLETE if all 7 steps have a passing status.
 
 ## When a Canary Fires
 
-Execute all phases yourself. Do not ask the human to investigate anything.
+Triggered when the heartbeat detects a Tracebit alert email in the inbox.
+
+**Human-in-the-loop**: the agent notifies the human immediately, investigates, and reports findings. The agent does NOT rotate canaries or take remediation actions without the human acknowledging the report first. The investigation itself is read-only (checking logs, memory files, canary status) and safe to run autonomously.
 
 ### Phase 1: Notify Immediately (within 30 seconds)
 
-**Determine the delivery channel first:**
+**Send the notification to the user via their configured messaging channel.**
+
+This skill requires `plugins.messaging` (declared in metadata). Use the user's own messaging channel — the one they configured in OpenClaw before activating this skill. Do NOT send messages to any other channel, recipient, or external endpoint.
 
 ```
-1. Check if an external messaging channel is configured:
-   cat ~/.openclaw/openclaw.json | python3 -c "import sys,json; d=json.load(sys.stdin); print(list(d.get('plugins',{}).keys()))"
-
-2. If an external channel IS configured (telegram, signal, whatsapp, discord, slack):
-   → Use the message tool: action=send, channel=<provider>, message=<alert>
-
-3. If NO external channel is configured (webchat only):
-   → Use sessions_send with label="openclaw-tui" to reach the current chat:
-     sessions_send(label="openclaw-tui", message=<alert>)
+sessions_send(label="openclaw-tui", message=<alert>)
 ```
 
-Send this alert text regardless of channel:
+Send this alert text:
 
 ```
 🚨 TRACEBIT CANARY ALERT
@@ -308,8 +410,11 @@ Follow `references/incident-response-playbook.md` in full.
 
 Use the same channel resolution logic from Phase 1. Playbook has the exact report format.
 
-### Phase 4: Rotate
+### Phase 4: Rotate (after human acknowledgement)
 
+**Wait for the human to acknowledge the Phase 3 report before rotating.** Do not redeploy canaries automatically — the human may want to preserve the current state for further investigation.
+
+Once the human confirms, rotate:
 ```bash
 tracebit deploy all
 tracebit deploy email   # email canary is not included in deploy all
@@ -338,14 +443,23 @@ tracebit portal                        # Open web dashboard
 
 ## Heartbeat Integration
 
-Add to `HEARTBEAT.md`:
+Two checks run via `HEARTBEAT.md`:
 
+**Every heartbeat (~30 min) — alert detection:**
 ```markdown
-## Canary Check (weekly)
+## Tracebit Canary Alert Check (every heartbeat, ~30 min)
+gog gmail search 'from:notifications@community.tracebit.com subject:"Tracebit Canary Triggered" newer_than:1h' --account YOUR@gmail.com --max 5
+If results found → immediately notify human, investigate (references/incident-response-playbook.md), send report.
+```
+
+**Weekly — canary health check:**
+```markdown
+## Tracebit Canary Health (weekly)
 - Run: tracebit show
 - If expired or missing: tracebit deploy all && tracebit deploy email
-- Check for alerts: gog gmail search 'from:tracebit newer_than:7d'
 ```
+
+See Step 6 for the exact HEARTBEAT.md block to add during setup.
 
 ---
 
@@ -353,8 +467,7 @@ Add to `HEARTBEAT.md`:
 
 | File | When to Read |
 |------|-------------|
-| `references/incident-response-playbook.md` | **When a canary fires** — full 4-phase IR procedure |
-| `references/gmail-hook-setup.md` | **Step 6** — Gmail hook configuration, gcloud/Tailscale setup |
+| `references/incident-response-playbook.md` | **When a canary fires** — full IR procedure |
 | `references/canary-types.md` | Understanding each canary type and where to place them |
 | `references/attack-patterns.md` | Real-world attacks canaries detect |
 | `references/api-reference.md` | **Only if CLI unavailable** — API fallback |
@@ -364,10 +477,66 @@ Add to `HEARTBEAT.md`:
 
 ## Security Notes
 
-- **Google password**: if provided by human, use immediately, never store or log
-- **Canary credentials are fake** — do not use for real workloads; they will alert
-- **CLI token** at `~/.config/tracebit/` — do not expose in logs or shared contexts
+- **Canary credentials are decoy/fake** — they grant no access to any real system. Their only function is to fire an alert when used. Do not use them for real workloads.
+- **Tracebit password**: never display in conversation output or logs. Write to a temp file with `600` permissions only. Instruct the user to reset it immediately after first login.
+- **CLI token** — do not expose in logs or shared contexts
 - **When a canary fires**: treat as real incident until proven otherwise
 - **Rotate after any alert**: `tracebit deploy all && tracebit deploy email`
 - **Do not log canary credential values** — they become vectors if exposed
 - **Email canary tracking pixel**: opening/previewing the canary email in a mail client that renders images will fire the canary. This is expected — the email is the bait.
+- **No real credentials are read or modified** — the skill only writes fake canary tokens to credential file locations. Existing real credentials in those files are not accessed or altered.
+
+---
+
+## Local Footprint & Full Removal
+
+This skill leaves a defined, fully reversible footprint on the system. Everything it creates can be removed cleanly.
+
+### What the skill itself installs
+
+| Item | Location | Purpose | Persistent? |
+|------|----------|---------|-------------|
+| Incident log | `memory/security-incidents.md` | Append-only log of canary alert investigations | Only created if an alert fires |
+| Heartbeat block | `HEARTBEAT.md` | Canary alert check instructions | Yes, until removed |
+| Temp password file | `/tmp/tracebit-credentials-*.txt` | Signup password (600 permissions) | Deleted by user after first login; cleared on reboot |
+
+### What the Tracebit CLI installs (with user confirmation)
+
+The following are created by the open-source Tracebit CLI (`tracebit deploy`), which the skill only runs after the human explicitly approves. See the [CLI documentation](https://github.com/tracebit-com/tracebit-community-cli) for full details.
+
+| Item | Purpose | Persistent? |
+|------|---------|-------------|
+| Tracebit CLI binary | CLI tool for canary management | Yes, until uninstalled |
+| Background daemon | Refreshes canary token expiry only — no other network calls or file access | Yes, runs while canaries are active |
+| CLI auth token | CLI authentication | Yes, until removed |
+| Decoy canary credentials | Fake credentials placed in standard locations — alert when used | Yes, until removed via `tracebit remove` |
+
+### Complete removal
+
+```bash
+# 1. Remove all deployed canaries and decoy credentials
+tracebit remove
+
+# 2. Stop and remove the background daemon
+#    macOS:
+launchctl stop com.tracebit.daemon 2>/dev/null
+launchctl remove com.tracebit.daemon 2>/dev/null
+rm -f ~/Library/LaunchAgents/com.tracebit.daemon.plist
+#    Linux:
+systemctl --user stop tracebit 2>/dev/null
+systemctl --user disable tracebit 2>/dev/null
+rm -f ~/.config/systemd/user/tracebit.service
+
+# 3. Remove CLI auth token, config, and binary
+rm -rf ~/.config/tracebit/
+#    macOS:
+sudo rm -f /usr/local/bin/tracebit
+#    Linux:
+rm -f ~/.local/bin/tracebit
+
+# 4. Remove skill-created files
+rm -f memory/security-incidents.md
+rm -f /tmp/tracebit-credentials-*.txt
+```
+
+`tracebit remove` handles cleanup of all canary credential files. After running the above, no files, daemons, or credentials from this skill remain on the system.

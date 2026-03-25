@@ -19,10 +19,11 @@
   ],
 
   "placement": {
-    "aws": "~/.aws/credentials [canary]",
-    "ssh": "~/.ssh/tracebit-canary",
+    "_note": "Placement locations are managed by the Tracebit CLI. See CLI documentation for defaults.",
+    "aws": "standard AWS credentials location (new canary profile)",
+    "ssh": "standard SSH directory (new canary key file)",
     "cookie": "browser local storage",
-    "username-password": "password manager / .env files",
+    "username-password": "password manager / config files",
     "email": "agent config / contact lists"
   },
 

@@ -1,8 +1,8 @@
 # Incident Response Playbook — Tracebit Canary Alert
 
-This playbook is triggered when a Tracebit canary alert arrives via the Gmail hook. An isolated agent session receives the alert email and follows this procedure.
+This playbook is triggered when the heartbeat inbox check detects a Tracebit canary alert email. The agent follows this procedure immediately upon detection.
 
-**You (the agent) execute every step yourself. Do not ask the human to investigate, run commands, or take any action. You notify them with results — they don't do the work.**
+**Human-in-the-loop**: the agent notifies the human immediately (Phase 1), investigates autonomously (Phase 2 — read-only operations: checking logs, memory files, canary status), and reports findings (Phase 3). **Phase 4 (canary rotation) requires human acknowledgement before proceeding** — the human may want to preserve the current state for further analysis.
 
 **Speed matters.** The human should hear from you within seconds of the alert arriving. Don't wait for investigation to complete before sending the initial notification.
 
@@ -12,7 +12,7 @@ This playbook is triggered when a Tracebit canary alert arrives via the Gmail ho
 
 **Before investigating, notify the human.**
 
-Send to the human via the best available messaging channel (Telegram, Discord, Signal, WhatsApp — use whatever the agent has configured):
+Send to the human via their configured messaging channel (the one they set up in OpenClaw before activating this skill — do NOT send to any other channel or recipient):
 
 ```
 🚨 TRACEBIT CANARY ALERT
@@ -34,6 +34,8 @@ Do not wait for the investigation to finish before sending this. The human needs
 ---
 
 ## Phase 2: Investigation (1–5 minutes)
+
+> **All operations in this phase are read-only.** The agent reads memory files, logs, and canary status to assess the alert. No files are modified, no credentials are used, and no external calls are made (except `tracebit show` which queries the Tracebit API for canary status).
 
 ### 2.1 Parse the Alert
 
@@ -151,9 +153,11 @@ OR: Recommend running: tracebit deploy all]
 
 ---
 
-## Phase 4: Rotate Canaries
+## Phase 4: Rotate Canaries (after human acknowledgement)
 
-After sending the report, redeploy all canaries:
+**Wait for the human to acknowledge the Phase 3 report before rotating canaries.** The human may want to preserve the current state for further investigation, or may want to take other actions first.
+
+Once the human confirms, redeploy:
 
 ```bash
 tracebit deploy all

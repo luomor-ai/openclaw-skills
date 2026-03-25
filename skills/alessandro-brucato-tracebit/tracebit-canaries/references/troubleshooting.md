@@ -5,9 +5,8 @@
 2. [Authentication Problems](#authentication-problems)
 3. [Deployment Issues](#deployment-issues)
 4. [Canary Not Firing](#canary-not-firing)
-5. [Gmail Hook Issues](#gmail-hook-issues)
-6. [API Errors (if using API fallback)](#api-errors-if-using-api-fallback)
-7. [Script Errors](#script-errors)
+5. [API Errors (if using API fallback)](#api-errors-if-using-api-fallback)
+6. [Script Errors](#script-errors)
 
 ---
 
@@ -203,57 +202,6 @@ Email settings issue:
 - Go to community.tracebit.com → Settings → Notifications
 - Verify your email address is correct and notifications are enabled
 - Add `@tracebit.com` to your allowed senders / whitelist
-
----
-
-## Gmail Hook Issues
-
-### Alert email arrives but no agent session spawns
-
-**Step-by-step diagnosis:**
-
-1. **Verify gateway is running:**
-   ```bash
-   openclaw gateway status
-   ```
-
-2. **Check Gmail watch is active:**
-   ```bash
-   gog gmail watch status
-   # If expired:
-   gog gmail watch renew
-   ```
-
-3. **Check gateway received the webhook:**
-   ```bash
-   openclaw gateway logs | grep -i 'gmail\|tracebit\|hook' | tail -20
-   ```
-
-4. **Verify hook config:**
-   ```bash
-   openclaw config path
-   # Open the config and verify:
-   # - hooks.enabled: true
-   # - hooks.token is set
-   # - mappings includes the tracebit entry with match.body: "tracebit"
-   ```
-
-5. **Verify the email contains "tracebit":** The `match.body: "tracebit"` filter is case-insensitive but the word must appear in the email body.
-
-6. **After any config change:**
-   ```bash
-   openclaw gateway restart
-   ```
-
-### Gmail watch keeps expiring
-
-Gmail PubSub watches expire every 7 days. OpenClaw auto-renews while the gateway is running. If it lapses repeatedly:
-- Check if the gateway is running 24/7
-- If not, manually renew before using: `openclaw webhooks gmail setup --account your@gmail.com`
-
-### Agent session spawns but delivers to wrong channel
-
-Change `channel: "last"` to a specific channel ID in the hook mapping. Find channel IDs in your OpenClaw channel config.
 
 ---
 
