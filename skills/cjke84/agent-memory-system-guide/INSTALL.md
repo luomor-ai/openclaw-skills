@@ -10,4 +10,4 @@ Please install agent-memory-system-guide as a usable skill. Keep SKILL.md, READM
 
 GitHub release archive: [v0.1.0](https://github.com/cjke84/agent-memory-system-guide/releases/tag/v0.1.0)
 
-Current published skill version: `1.0.10`
+Current published skill version: `1.0.12`

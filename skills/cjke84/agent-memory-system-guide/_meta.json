@@ -3,11 +3,16 @@
   "slug": "agent-memory-system-guide",
   "displayName": "Agent Memory System Guide",
   "latest": {
-    "version": "1.0.10",
-    "publishedAt": 1774354353384,
-    "commit": "https://github.com/openclaw/skills/commit/06f20d5f82c7d5fba7086b357c38a52d866fa526"
+    "version": "1.1.1",
+    "publishedAt": 1774435878136,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.10",
+      "publishedAt": 1774354353384,
+      "commit": "https://github.com/openclaw/skills/commit/06f20d5f82c7d5fba7086b357c38a52d866fa526"
+    },
     {
       "version": "1.0.9",
       "publishedAt": 1774119034425,

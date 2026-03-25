@@ -16,7 +16,7 @@ def test_manifest_exists_for_publish_workflows():
     for token in [
         'name = "Agent Memory System Guide"',
         'slug = "agent-memory-system-guide"',
-        'version = "1.0.10"',
+        'version = "1.1.1"',
         'skill_id = "14ff5aad-4df3-4b33-ba0b-6cc217cdb939"',
         '[openclaw]',
         '[clawhub]',
