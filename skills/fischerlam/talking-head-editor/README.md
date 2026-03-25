@@ -1,38 +1,28 @@
 # talking-head-editor
 
 [![ClawHub Skill](https://img.shields.io/badge/ClawHub-Skill-blueviolet)](https://clawhub.io)
-[![Version](https://img.shields.io/badge/version-1.0.7-blue)](SKILL.md)
+[![Version](https://img.shields.io/badge/version-1.0.12-blue)](SKILL.md)
 
-> **Talking-head Editor.**
-> Scenario-specific AI video editing powered by Sparki.
->
-> Powered by [Sparki](https://sparki.io).
+> **Tighten talking-head footage so it feels cleaner, sharper, and easier to watch.**
 
-## What It Does
+## Best for
+Presenter videos, direct-to-camera footage, interviews, tutorials, founder videos, and explainers.
 
-This skill is a scenario-focused wrapper around Sparki's AI video editing workflow.
-
-- Uploads a video file
-- Creates an AI processing job with scene-specific defaults
-- Polls until processing completes
-- Returns a result download URL
-
-## Best For
-- "edit this talking-head video"
-- "make this presenter video cleaner"
-- "turn this into a better explainer"
-- "tighten this direct-to-camera footage"
-
-## Quick Start
+## Quick start
 
 ```bash
-export SPARKI_API_KEY="sk_live_your_key_here"
-export SPARKI_API_BASE="https://business-agent-api.sparki.io/api/v1"
-RESULT_URL=$(bash scripts/edit_video.sh my_video.mp4 "25" "tighten the talking-head pacing and keep it clear and sharp" "9:16")
-echo "$RESULT_URL"
+sparki run --file ./video.mp4 --mode prompt-driven --prompt "tighten this talking-head video and make it clearer" --aspect-ratio 9:16
 ```
 
-## Notes
-- Requires `SPARKI_API_KEY`
-- Optionally set `SPARKI_API_BASE` to the API endpoint provided for your Sparki account
-- Supports `9:16`, `1:1`, `16:9`
+## Prompt templates
+- Tighten this talking-head video and make it clearer.
+- Clean up this presenter video and improve the pacing.
+- Turn this interview into a sharper explainer-style edit.
+
+## Related skills
+- `ai-commentary`
+- `ai-caption`
+- `video-resizer`
+
+## Shared core
+This skill follows the latest official Sparki setup, API-key, upload, and command guidance from the main `sparki-video-editor` skill.
