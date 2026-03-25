@@ -9,11 +9,11 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
-from pathlib import Path
 from typing import Any
 
-DEFAULT_BASE_URL = "http://127.0.0.1"
 HTTP_TIMEOUT = 30
+RAGFLOW_API_URL_ENV = "RAGFLOW_API_URL"
+RAGFLOW_API_KEY_ENV = "RAGFLOW_API_KEY"
 
 
 class ScriptError(Exception):
@@ -65,63 +65,42 @@ def configure_stdio_utf8() -> None:
             continue
 
 
-def repo_root_from_path(file_path: str) -> Path:
-    return Path(file_path).resolve().parents[1]
+def add_runtime_config_arguments(parser: Any) -> None:
+    requirement = (
+        f"Runtime prerequisites: set {RAGFLOW_API_URL_ENV} and {RAGFLOW_API_KEY_ENV} "
+        "in the environment before running this script."
+    )
+    existing_epilog = getattr(parser, "epilog", None)
+    parser.epilog = f"{existing_epilog}\n\n{requirement}" if existing_epilog else requirement
 
 
-def load_repo_env(repo_root: Path) -> None:
-    env_path = repo_root / ".env"
-    if not env_path.is_file():
-        return
-
-    try:
-        lines = env_path.read_text(encoding="utf-8").splitlines()
-    except OSError as exc:
-        raise ConfigError(f"Failed to read {env_path}: {exc}") from exc
-
-    for raw_line in lines:
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if line.startswith("export "):
-            line = line[7:].strip()
-        if "=" not in line:
-            continue
-
-        key, value = line.split("=", 1)
-        key = key.strip()
-        if not key or key in os.environ:
-            continue
-
-        # Only load RAGFLOW_ prefixed variables to avoid accidentally loading
-        # unrelated credentials (e.g., AWS keys, GitHub tokens) from the .env file
-        if not key.startswith('RAGFLOW_'):
-            continue
-
-        value = value.strip()
-        if len(value) >= 2 and value[0] == value[-1] and value[0] in ("'", '"'):
-            value = value[1:-1]
-        os.environ[key] = value
+def _require_env_var(name: str) -> str:
+    value = os.environ.get(name, "").strip()
+    if value:
+        return value
+    raise ConfigError(f"{name} environment variable is required.")
 
 
 def resolve_base_url(cli_base_url: str | None = None) -> str:
-    base_url = (
-        cli_base_url
-        or os.getenv("RAGFLOW_API_URL")
-        or DEFAULT_BASE_URL
-    ).strip()
+    base_url = (cli_base_url or "").strip() or _require_env_var(RAGFLOW_API_URL_ENV)
 
     parsed = urllib.parse.urlsplit(base_url)
     if not parsed.scheme or not parsed.netloc:
-        raise ConfigError("Invalid base URL. Use an absolute URL such as http://127.0.0.1:9380.")
+        raise ConfigError(
+            f"Invalid {RAGFLOW_API_URL_ENV}. Use an absolute URL such as http://127.0.0.1:9380."
+        )
     return base_url.rstrip("/")
 
 
-def require_api_key() -> str:
-    api_key = (os.getenv("RAGFLOW_API_KEY") or "").strip()
-    if not api_key:
-        raise ConfigError("RAGFLOW_API_KEY is not configured. Set it in the environment or in the repository .env file.")
+def require_api_key(api_key: str | None = None) -> str:
+    api_key = (api_key or "").strip() or _require_env_var(RAGFLOW_API_KEY_ENV)
     return api_key
+
+
+def resolve_runtime_config(args: Any) -> tuple[str, str]:
+    base_url = resolve_base_url(getattr(args, "base_url", None))
+    api_key = require_api_key(getattr(args, "api_key", None))
+    return base_url, api_key
 
 
 def decode_json_response(body: bytes) -> dict[str, Any]:

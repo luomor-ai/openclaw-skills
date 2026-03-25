@@ -3,11 +3,16 @@
   "slug": "ragflow-skill",
   "displayName": "RAGFlow",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1774008079921,
-    "commit": "https://github.com/openclaw/skills/commit/86d64eff70a37088aec4f482fac2a889bfcb7164"
+    "version": "1.0.8",
+    "publishedAt": 1774331740805,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1774008079921,
+      "commit": "https://github.com/openclaw/skills/commit/86d64eff70a37088aec4f482fac2a889bfcb7164"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773811063933,
