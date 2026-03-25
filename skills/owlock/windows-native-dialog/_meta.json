@@ -1,0 +1,11 @@
+{
+  "owner": "owlock",
+  "slug": "windows-native-dialog",
+  "displayName": "Windows Native Dialog",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1774225805502,
+    "commit": null
+  },
+  "history": []
+}
