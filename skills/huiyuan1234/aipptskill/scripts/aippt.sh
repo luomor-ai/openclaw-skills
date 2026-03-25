@@ -467,7 +467,7 @@ cmd_generate() {
 
     local title="${1:?用法: generate <标题> [template_id] [output_dir] [formats] [template_type] [--model <m>] [--options <json>]}"
     local tpl_id="${2:-}"
-    local output_dir="${3:-$SKILL_DIR}"
+    local output_dir="${3:-$HOME/Desktop}"
     local formats="${4:-ppt}"  # 逗号分隔: ppt,pdf,word,png
     local tpl_type="${5:-}"    # enterprise=企业模板, 空=普通模板
     shift 5 2>/dev/null || shift $# 2>/dev/null || true
@@ -607,7 +607,7 @@ cmd_generate_continue() {
     local task_id="${1:?用法: generate_continue <task_id> <title> [template_id] [output_dir] [formats] [template_type]}"
     local title="${2:?用法: generate_continue <task_id> <title> [template_id] [output_dir] [formats] [template_type]}"
     local tpl_id="${3:-}"
-    local output_dir="${4:-$SKILL_DIR}"
+    local output_dir="${4:-$HOME/Desktop}"
     local formats="${5:-ppt}"
     local tpl_type="${6:-}"
 
@@ -719,7 +719,7 @@ cmd_generate_save() {
     local task_id="${1:?用法: generate_save <task_id> <title> [template_id] [output_dir] [formats] [template_type]}"
     local title="${2:?用法: generate_save <task_id> <title> [template_id] [output_dir] [formats] [template_type]}"
     local tpl_id="${3:-}"
-    local output_dir="${4:-$SKILL_DIR}"
+    local output_dir="${4:-$HOME/Desktop}"
     local formats="${5:-ppt}"
     local tpl_type="${6:-}"
 
@@ -820,7 +820,7 @@ cmd_generate_from_file() {
 
     local file="${1:?用法: generate_from_file <文件路径> [template_id] [output_dir] [formats] [template_type] [--model <m>] [--options <json>]}"
     local tpl_id="${2:-}"
-    local output_dir="${3:-$SKILL_DIR}"
+    local output_dir="${3:-$HOME/Desktop}"
     local formats="${4:-ppt}"
     local tpl_type="${5:-}"  # enterprise=企业模板, 空=普通模板
     shift 5 2>/dev/null || shift $# 2>/dev/null || true
@@ -1000,7 +1000,7 @@ cmd_generate_with_refer() {
     local title="${1:?用法: generate_with_refer <PPT主题> <文件1> [文件2..文件5]}"
     shift
 
-    local tpl_id="" output_dir="$SKILL_DIR" formats="ppt" tpl_type="" outline_only=false
+    local tpl_id="" output_dir="$HOME/Desktop" formats="ppt" tpl_type="" outline_only=false
     local -a refer_files=()
 
     # 解析剩余参数：文件路径 或 --key value 选项
