@@ -1,288 +1,257 @@
 ---
 name: qa-skill
-description: 根据生成的代码自动创建测试用例和测试步骤。当接收到dev-skill的输出时自动触发，确保代码质量和功能完整性。
+description: Generate comprehensive test cases and quality assurance documentation from SwiftUI iOS code. Use when iOS application code is available and needs testing strategies, test cases, and quality validation. This skill receives input from dev-skill and completes the auto-dev-pipeline by providing testing coverage.
 ---
 
-# QA Skill - 自动化测试生成器
+# QA Skill - Quality Assurance Test Generator
 
-## 🎯 功能概述
+## Overview
 
-本skill根据生成的SwiftUI iOS代码自动创建测试用例和测试步骤。作为"一人公司自动开发流水线"的第三环节，负责质量保证和功能验证。
+This skill analyzes SwiftUI iOS application code and generates comprehensive test cases, testing strategies, and quality assurance documentation. It ensures code quality, identifies potential issues, and provides testing coverage for the entire application.
 
-## 🔄 触发条件
+## Testing Strategy
 
-自动触发条件：
-1. dev-skill生成代码后自动触发
-2. 接收到包含代码仓库路径的消息
-3. 检测到新生成的iOS工程目录
+### 1. Test Pyramid Approach
+- **Unit Tests (70%)**: Test individual components and business logic
+- **Integration Tests (20%)**: Test component interactions and data flow
+- **UI Tests (10%)**: Test user interface and user flows
 
-## 📋 输入输出规范
+### 2. Test Categories
 
-### 输入
-- SwiftUI iOS工程代码
-- PRD文档（用于验证需求覆盖）
-- 项目元数据
+#### 2.1 Functional Testing
+- Feature validation against PRD requirements
+- User story acceptance criteria
+- Edge cases and boundary conditions
 
-### 输出
-完整的测试套件，包含：
-1. 单元测试用例
-2. UI测试用例
-3. 集成测试用例
-4. 测试步骤文档
-5. 测试报告模板
+#### 2.2 Non-Functional Testing
+- Performance testing (load time, memory usage)
+- Security testing (data protection, authentication)
+- Accessibility testing (VoiceOver, Dynamic Type)
+- Compatibility testing (iOS versions, device sizes)
 
-## 🚀 处理流程
+#### 2.3 Regression Testing
+- Ensure new changes don't break existing functionality
+- Automated test suite for critical paths
+- Smoke tests for release validation
 
-### 步骤1：代码分析
-1. 扫描工程结构
-2. 分析SwiftUI视图组件
-3. 识别数据模型和业务逻辑
-4. 提取功能点和交互流程
+## Test Generation Workflow
 
-### 步骤2：测试策略制定
-1. 根据PRD确定测试范围
-2. 设计测试金字塔（单元/集成/UI）
-3. 确定测试优先级
-4. 规划测试数据
+### 1. Code Analysis
+- Parse SwiftUI project structure
+- Identify ViewModels and business logic
+- Map data flows and dependencies
+- Analyze PRD requirements for test coverage
 
-### 步骤3：测试用例生成
-1. 生成单元测试（XCTest）
-2. 生成UI测试（XCUITest）
-3. 创建测试辅助类
-4. 生成测试数据工厂
+### 2. Test Case Generation
 
-### 步骤4：测试步骤文档
-1. 创建手动测试步骤
-2. 生成测试检查清单
-3. 编写测试场景描述
-4. 创建缺陷报告模板
-
-### 步骤5：测试执行准备
-1. 配置测试环境
-2. 设置测试目标
-3. 创建测试计划
-4. 生成测试报告模板
-
-## 📁 测试结构
-
-生成的测试工程结构：
-```
-Tests/
-├── UnitTests/
-│   ├── {项目名称}Tests.swift
-│   ├── ModelsTests/
-│   │   ├── {模型1}Tests.swift
-│   │   └── {模型2}Tests.swift
-│   ├── ViewModelsTests/
-│   │   ├── {视图模型1}Tests.swift
-│   │   └── {视图模型2}Tests.swift
-│   └── ServicesTests/
-│       ├── {服务1}Tests.swift
-│       └── {服务2}Tests.swift
-├── UITests/
-│   ├── {项目名称}UITests.swift
-│   ├── {功能1}UITests.swift
-│   └── {功能2}UITests.swift
-└── TestResources/
-    ├── TestData/
-    ├── TestHelpers/
-    └── TestConfigurations/
-```
-
-## 🔧 测试技术栈
-
-### 测试框架
-- **单元测试**: XCTest
-- **UI测试**: XCUITest
-- **模拟框架**: 使用协议和依赖注入
-- **测试数据**: 工厂模式生成
-
-### 测试策略
-- **测试金字塔**: 70%单元测试，20%集成测试，10%UI测试
-- **测试驱动**: 关键路径优先测试
-- **边界测试**: 异常情况和边界条件
-- **回归测试**: 核心功能持续验证
-
-## 🔗 与其他Skill的集成
-
-### 上游依赖
-- 从dev-skill接收代码工程
-- 从prd-skill获取需求文档
-- 验证需求与实现的一致性
-
-### 测试反馈
-- 生成测试报告
-- 标识潜在问题
-- 提供改进建议
-
-### 流水线完成
-- 标记流水线完成状态
-- 生成最终交付物
-- 提供部署建议
-
-## ⚙️ 配置参数
-
-### 测试生成选项
-```yaml
-test_coverage: 80
-include_unit_tests: true
-include_ui_tests: true
-include_integration_tests: true
-test_priority: critical_first
-```
-
-### 测试环境
-- `test_device`: 测试设备（iPhone 14 Pro）
-- `ios_version`: iOS测试版本（16.0+）
-- `test_timeout`: 测试超时时间（默认10秒）
-- `retry_count`: 失败重试次数（默认3次）
-
-## 📊 质量指标
-
-### 测试覆盖率目标
-- 总体覆盖率: > 80%
-- 核心功能覆盖率: > 95%
-- 关键路径覆盖率: 100%
-
-### 测试质量
-- 测试用例可执行性: 100%
-- 测试步骤清晰度: > 90%
-- 缺陷发现率: > 85%
-
-## 🎨 测试模板
-
-### 单元测试模板
+#### 2.1 Unit Test Templates
 ```swift
 import XCTest
-@testable import {项目名称}
+@testable import ProjectName
 
-final class {模型名称}Tests: XCTestCase {
-    var sut: {模型名称}!
+class TaskViewModelTests: XCTestCase {
+    var viewModel: TaskViewModel!
+    var mockDataService: MockDataService!
     
     override func setUp() {
         super.setUp()
-        sut = {模型名称}()
+        mockDataService = MockDataService()
+        viewModel = TaskViewModel(dataService: mockDataService)
     }
     
-    override func tearDown() {
-        sut = nil
-        super.tearDown()
-    }
-    
-    func test{功能名称}_When{条件}_Should{预期结果}() {
+    func testAddTask() {
         // Given
-        let input = "test input"
+        let initialCount = viewModel.tasks.count
+        let newTask = Task(title: "Test Task")
         
         // When
-        let result = sut.{方法名称}(input)
+        viewModel.addTask(newTask)
         
         // Then
-        XCTAssertEqual(result, "expected output")
+        XCTAssertEqual(viewModel.tasks.count, initialCount + 1)
+        XCTAssertEqual(viewModel.tasks.last?.title, "Test Task")
     }
     
-    func test{功能名称}_WithInvalidInput_ShouldThrowError() {
-        // Given
-        let invalidInput = ""
-        
-        // Then
-        XCTAssertThrowsError(try sut.{方法名称}(invalidInput))
-    }
+    func testDeleteTask() { ... }
+    func testToggleCompletion() { ... }
+    func testFilterByCategory() { ... }
 }
 ```
 
-### UI测试模板
+#### 2.2 UI Test Templates
 ```swift
 import XCTest
 
-final class {功能名称}UITests: XCTestCase {
+class ProjectNameUITests: XCTestCase {
     var app: XCUIApplication!
     
     override func setUp() {
         super.setUp()
-        continueAfterFailure = false
         app = XCUIApplication()
         app.launch()
     }
     
-    func test{页面名称}_ShouldDisplayCorrectContent() {
-        // Given
-        let expectedTitle = "页面标题"
+    func testTaskCreationFlow() {
+        // Given: App is launched
+        XCTAssertTrue(app.navigationBars["Tasks"].exists)
         
-        // When
-        let titleElement = app.staticTexts[expectedTitle]
+        // When: Tap add button
+        app.buttons["Add"].tap()
         
-        // Then
-        XCTAssertTrue(titleElement.exists)
-        XCTAssertTrue(titleElement.isHittable)
+        // Then: Add task screen appears
+        XCTAssertTrue(app.textFields["Task Title"].exists)
+        
+        // When: Enter task details and save
+        app.textFields["Task Title"].tap()
+        app.textFields["Task Title"].typeText("Test UI Task")
+        app.buttons["Save"].tap()
+        
+        // Then: Task appears in list
+        XCTAssertTrue(app.staticTexts["Test UI Task"].exists)
     }
     
-    func test{交互名称}_WhenTapped_ShouldNavigateToNextScreen() {
-        // Given
-        let button = app.buttons["按钮名称"]
+    func testTaskCompletion() { ... }
+    func testCategoryFiltering() { ... }
+    func testReminderSettings() { ... }
+}
+```
+
+#### 2.3 Integration Test Templates
+```swift
+class DataServiceIntegrationTests: XCTestCase {
+    func testDataPersistence() {
+        // Given: Fresh data service
+        let dataService = DataService()
         
-        // When
-        button.tap()
+        // When: Save data
+        let task = Task(title: "Integration Test")
+        dataService.saveTask(task)
         
-        // Then
-        let nextScreen = app.staticTexts["下一个页面标题"]
-        XCTAssertTrue(nextScreen.waitForExistence(timeout: 2))
+        // Then: Data should be retrievable
+        let retrieved = dataService.loadTasks()
+        XCTAssertEqual(retrieved.count, 1)
+        XCTAssertEqual(retrieved.first?.title, "Integration Test")
     }
 }
 ```
 
-### 测试步骤文档模板
-```markdown
-# {功能名称} - 测试步骤
+### 3. Test Documentation Generation
 
-## 测试场景
-- **场景描述**: {描述测试场景}
-- **前置条件**: {测试前需要满足的条件}
-- **测试数据**: {使用的测试数据}
+#### 3.1 Test Plan Document
+```
+# Test Plan: [App Name]
 
-## 测试步骤
-1. {步骤1描述}
-2. {步骤2描述}
-3. {步骤3描述}
+## 1. Testing Scope
+- Features to be tested
+- Features out of scope
+- Testing environments
 
-## 预期结果
-- {预期结果1}
-- {预期结果2}
+## 2. Test Strategy
+- Testing types and approaches
+- Test data requirements
+- Entry/exit criteria
 
-## 实际结果
-- [ ] 通过
-- [ ] 失败（备注原因）
+## 3. Test Cases
+### 3.1 Functional Tests
+- [TC-001] Task Creation
+  - Preconditions: App launched, no tasks
+  - Steps: Tap + → Enter title → Tap Save
+  - Expected: Task appears in list
+  - Priority: P0
 
-## 缺陷记录（如适用）
-- **缺陷描述**: 
-- **重现步骤**:
-- **严重程度**: 
-- **优先级**: 
+### 3.2 Non-Functional Tests
+- [TC-101] Performance: App launch < 2 seconds
+- [TC-102] Memory: < 100MB peak usage
+- [TC-103] Accessibility: VoiceOver compatible
 ```
 
-## 📈 性能指标
+#### 3.2 Test Report Template
+```
+# Test Report: [App Name] v1.0
 
-### 测试生成时间
-- 小型项目: < 2分钟
-- 中型项目: < 5分钟
-- 大型项目: < 10分钟
+## Executive Summary
+- Total test cases: XX
+- Passed: XX
+- Failed: XX
+- Blocked: XX
+- Test coverage: XX%
 
-### 测试有效性
-- 测试用例通过率: > 95%
-- 需求覆盖度: > 90%
-- 缺陷发现有效性: > 80%
+## Detailed Results
+### Functional Testing
+- Feature A: 10/10 passed
+- Feature B: 8/10 passed (2 failed)
+- Feature C: 5/5 passed
 
-## 🔄 持续改进
+### Issues Found
+1. **High Priority**: Crash when deleting last task
+2. **Medium Priority**: UI misalignment on iPhone SE
+3. **Low Priority**: Typo in settings screen
 
-### 测试优化
-1. 分析测试执行结果
-2. 优化测试用例设计
-3. 改进测试数据生成
+## Recommendations
+- Fix high priority issues before release
+- Address medium priority in next sprint
+- Document low priority for future
+```
 
-### 质量提升
-- 跟踪测试覆盖率趋势
-- 分析缺陷模式
-- 优化测试策略
+## Example: Todo App Testing
 
----
+**Code Input:** SwiftUI todo app with categories and reminders
 
-**注意**: 本skill是"一人公司自动开发流水线"的最终环节，完成测试后标记流水线完成，提供可交付的iOS应用。
+**Generated Test Coverage:**
+
+### Unit Tests (15 test cases)
+1. `TaskViewModelTests`: Add/delete/toggle tasks
+2. `CategoryViewModelTests`: Filter by category
+3. `ReminderServiceTests`: Schedule/cancel reminders
+4. `DataServiceTests`: CRUD operations
+
+### UI Tests (8 test cases)
+1. `testTaskCreationFlow`: Complete user journey
+2. `testCategoryManagement`: Add/edit/delete categories
+3. `testReminderSetup`: Configure and test reminders
+4. `testSharingFunctionality`: Share tasks via share sheet
+
+### Integration Tests (5 test cases)
+1. `testDataPersistence`: Verify data survives app restart
+2. `testNotificationIntegration`: Test reminder delivery
+3. `testICloudSync`: Verify cross-device synchronization
+
+## Auto-Trigger Completion
+
+After generating test cases, this skill automatically:
+1. Creates test files in `qa-output/` directory
+2. Generates test execution report
+3. Provides quality metrics and recommendations
+4. Completes the auto-dev-pipeline with final summary
+
+## Quality Metrics
+
+### Code Coverage Targets
+- **Minimum**: 70% line coverage
+- **Good**: 80% line coverage  
+- **Excellent**: 90% line coverage
+
+### Performance Benchmarks
+- App launch: < 2 seconds
+- Screen transitions: < 0.5 seconds
+- Memory usage: < 150MB peak
+- Battery impact: < 5% per hour
+
+### Accessibility Compliance
+- VoiceOver: All interactive elements labeled
+- Dynamic Type: Supports all text sizes
+- Color contrast: WCAG AA compliant
+- Reduced motion: Respects user preferences
+
+## Integration with Pipeline
+
+### Input Requirements
+- SwiftUI project from `dev-skill`
+- PRD document for requirement validation
+- Compilation verification
+
+### Output Delivery
+- Complete XCTest test suite
+- Test plan and strategy document
+- Quality assessment report
+- Release readiness checklist
