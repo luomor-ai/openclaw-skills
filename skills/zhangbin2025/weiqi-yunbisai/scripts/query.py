@@ -8,6 +8,7 @@ import requests
 import json
 import time
 import sys
+import html
 from collections import defaultdict
 from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass, field
@@ -109,19 +110,31 @@ class YunbisaiClient:
         return response.json()
     
     def get_events(self, area: str = "广东省", month: int = 1, 
-                   event_type: int = 2, page_size: int = 50) -> Tuple[List[Dict], Dict]:
+                   event_type: int = 2, page_size: int = 100, 
+                   keyword: str = None, search_all: bool = True) -> Tuple[List[Dict], Dict]:
         """
         获取比赛列表
+        
+        Args:
+            area: 地区名称
+            month: 最近多少个月
+            event_type: 赛事类型 (2=围棋)
+            page_size: 每页数量 (默认100，最大200)
+            keyword: 关键词过滤 (在标题/城市中搜索)
+            search_all: 是否搜索所有页 (默认True)
         
         Returns:
             (events_list, perf_info)
         """
         timer = self.perf.start("获取比赛列表")
-        self._log(f"正在获取比赛列表: area={area}, month={month}")
+        keyword_hint = f", keyword={keyword}" if keyword else ""
+        self._log(f"正在获取比赛列表: area={area}, month={month}{keyword_hint}")
         
         all_events = []
+        matched_events = []
         page = 1
         total_pages = 1
+        api_calls = 0
         
         while page <= total_pages:
             url = f"{self.BASE_URL}/lswl-events"
@@ -130,17 +143,34 @@ class YunbisaiClient:
                 "eventType": event_type,
                 "month": month,
                 "areaNum": area,
-                "PageSize": page_size
+                "PageSize": min(page_size, 200)  # API限制最大200
             }
             
             try:
                 data = self._request(url, params)
-                if data.get("error") == 0:
-                    rows = data.get("datArr", {}).get("rows", [])
+                api_calls += 1
+                # 处理两种返回格式：带areaNum时返回{rows: []}，不带时返回{datArr: {rows: []}}
+                if data.get("error") == 0 or "datArr" in data or "rows" in data:
+                    rows = data.get("datArr", {}).get("rows") if "datArr" in data else data.get("rows", [])
                     all_events.extend(rows)
                     
-                    total_pages = data.get("datArr", {}).get("TotalPage", 1)
-                    self._log(f"  获取第 {page}/{total_pages} 页，本页 {len(rows)} 条数据")
+                    # 如果有关键词，实时过滤并检查是否可以提前退出
+                    if keyword:
+                        for row in rows:
+                            title = row.get('title', '')
+                            city = row.get('city_name', '')
+                            if keyword in title or keyword in city:
+                                matched_events.append(row)
+                        
+                        # 如果找到了匹配项且不需要全部数据，可以提前退出
+                        if matched_events and not search_all:
+                            self._log(f"  ✓ 第 {page} 页找到匹配项，提前结束搜索")
+                            break
+                    
+                    # 处理两种返回格式
+                    total_pages = data.get("datArr", {}).get("TotalPage", 1) if "datArr" in data else data.get("TotalPage", 1)
+                    progress = f" ({len(matched_events)} 匹配)" if keyword and matched_events else ""
+                    self._log(f"  获取第 {page}/{total_pages} 页，本页 {len(rows)} 条数据{progress}")
                     
                     if page >= total_pages:
                         break
@@ -152,9 +182,11 @@ class YunbisaiClient:
                 break
         
         elapsed = timer.stop()
-        self._log(f"✓ 共获取 {len(all_events)} 场比赛，耗时 {elapsed:.3f}s")
+        result_events = matched_events if keyword else all_events
+        search_info = f" (搜索了 {api_calls} 页)" if api_calls > 1 else ""
+        self._log(f"✓ 共获取 {len(result_events)} 场比赛{search_info}，耗时 {elapsed:.3f}s")
         
-        return all_events, {"count": len(all_events), "seconds": round(elapsed, 3)}
+        return result_events, {"count": len(result_events), "seconds": round(elapsed, 3), "api_calls": api_calls}
     
     def get_groups_from_html(self, event_id: int) -> List[Dict]:
         """
@@ -329,20 +361,43 @@ class YunbisaiClient:
             return [], 0, {"count": 0, "seconds": round(elapsed, 3)}
         
         total_bouts = int(first_round.get("total_bout", 0) or 0)
-        all_matches.extend(first_round.get("rows", []))
+        # 为第1轮的对局添加轮次信息
+        first_rows = first_round.get("rows", [])
+        for row in first_rows:
+            row['bout'] = 1
+        all_matches.extend(first_rows)
         
         self._log(f"  总轮数: {total_bouts}")
         
         # 获取剩余轮次
+        completed_rounds = 1  # 第1轮已添加
         for bout in range(2, total_bouts + 1):
             round_data, _ = self.get_against_plan(group_id, bout)
-            if round_data:
-                all_matches.extend(round_data.get("rows", []))
+            if not round_data:
+                break
+            
+            rows = round_data.get("rows", [])
+            
+            # 检查该轮是否已经完成（不是所有对局的 p1_score 和 p2_score 都是 0.0）
+            is_round_completed = any(
+                float(m.get('p1_score') or 0) != 0.0 or float(m.get('p2_score') or 0) != 0.0
+                for m in rows
+            )
+            
+            if not is_round_completed:
+                self._log(f"  第 {bout} 轮尚未完成，停止获取")
+                break
+            
+            # 为该轮的对局添加轮次信息
+            for row in rows:
+                row['bout'] = bout
+            all_matches.extend(rows)
+            completed_rounds += 1
         
         elapsed = timer.stop()
-        self._log(f"✓ 共获取 {len(all_matches)} 场对局（{total_bouts}轮），耗时 {elapsed:.3f}s")
+        self._log(f"✓ 共获取 {len(all_matches)} 场对局（{completed_rounds}/{total_bouts}轮），耗时 {elapsed:.3f}s")
         
-        return all_matches, total_bouts, {"count": len(all_matches), "rounds": total_bouts, "seconds": round(elapsed, 3)}
+        return all_matches, completed_rounds, {"count": len(all_matches), "rounds": completed_rounds, "total_rounds": total_bouts, "seconds": round(elapsed, 3)}
     
     def calculate_ranking(self, matches: List[Dict]) -> Tuple[List[Dict], Dict]:
         """
@@ -375,47 +430,65 @@ class YunbisaiClient:
                         'draws': 0,
                         'score': 0,
                         'opponents': [],
-                        'progressive': []
+                        'progressive': [],
+                        'games': []  # 存储每轮对局详情
                     }
         
         # 逐轮解析
         for match in matches:
             p1_id = match.get('p1id')
             p2_id = match.get('p2id')
-            p1_score_raw = match.get('p1_score')
-            p2_score_raw = match.get('p2_score')
-            p1_score = float(p1_score_raw) if p1_score_raw is not None else None
-            p2_score = float(p2_score_raw) if p2_score_raw is not None else None
-            
-            # 判断比赛是否已结束（有明确结果，不是双方都是0）
-            match_finished = (p1_score is not None and p2_score is not None and 
-                              not (p1_score == 0 and p2_score == 0))
+            p1_name = match.get('p1', '')
+            p2_name = match.get('p2', '')
+            p1_score = float(match.get('p1_score') or 0)
+            p2_score = float(match.get('p2_score') or 0)
+            bout = match.get('bout', 0)  # 轮次
             
             # 处理p1
-            if p1_id and p1_id in players and match_finished:
-                if p2_id and match.get('p2') and p2_id in players:
+            if p1_id and p1_id in players:
+                if p2_id and p2_name and p2_id in players:
                     players[p1_id]['opponents'].append(p2_id)
                 if p1_score == 2.0:
                     players[p1_id]['wins'] += 1
+                    result = '胜'
                 elif p1_score == 0.0:
                     players[p1_id]['losses'] += 1
-                elif p1_score == 1.0:
+                    result = '负'
+                else:
                     players[p1_id]['draws'] += 1
+                    result = '和'
                 players[p1_id]['score'] += p1_score
                 players[p1_id]['progressive'].append(players[p1_id]['score'])
+                # 记录对局详情
+                players[p1_id]['games'].append({
+                    'round': bout,
+                    'opponent': p2_name or '轮空',
+                    'result': result,
+                    'score': p1_score
+                })
             
             # 处理p2
-            if p2_id and p2_id in players and match_finished:
-                if p1_id and match.get('p1') and p1_id in players:
+            if p2_id and p2_id in players:
+                if p1_id and p1_name and p1_id in players:
                     players[p2_id]['opponents'].append(p1_id)
                 if p2_score == 2.0:
                     players[p2_id]['wins'] += 1
+                    result = '胜'
                 elif p2_score == 0.0:
                     players[p2_id]['losses'] += 1
-                elif p2_score == 1.0:
+                    result = '负'
+                else:
                     players[p2_id]['draws'] += 1
+                    result = '和'
                 players[p2_id]['score'] += p2_score
                 players[p2_id]['progressive'].append(players[p2_id]['score'])
+                # 记录对局详情
+                players[p2_id]['games'].append({
+                    'round': bout,
+                    'opponent': p1_name or '轮空',
+                    'result': result,
+                    'score': p2_score
+                })
         
         # 计算对手分和累进分
         for pid, p in players.items():
@@ -436,15 +509,8 @@ class YunbisaiClient:
         
         return sorted_players, {"count": len(sorted_players), "seconds": round(elapsed, 3)}
     
-    def print_ranking(self, rankings: List[Dict], top_n: int = None, output_file: str = None, matches: List[Dict] = None):
-        """打印排名表 - 智能格式：≤10行用单行格式，>10行输出HTML文件+显示前10名预览
-        
-        Args:
-            rankings: 排名列表
-            top_n: 只显示前N名
-            output_file: 输出文件路径
-            matches: 对局数据，用于生成选手对局详情
-        """
+    def print_ranking(self, rankings: List[Dict], top_n: int = None, output_file: str = None):
+        """打印排名表 - 智能格式：≤10行用单行格式，>10行输出HTML文件+显示前10名预览"""
         rankings_to_print = rankings[:top_n] if top_n else rankings
         total = len(rankings_to_print)
         
@@ -484,19 +550,17 @@ class YunbisaiClient:
         .rank.gold {{ color: #d4af37; font-size: 13px; }}
         .rank.silver {{ color: #c0c0c0; font-size: 13px; }}
         .rank.bronze {{ color: #cd7f32; font-size: 13px; }}
-        .info {{ flex: 1; margin-left: 12px; min-width: 0; cursor: pointer; }}
+        .info {{ flex: 1; margin-left: 12px; min-width: 0; }}
         .name {{ font-size: 16px; font-weight: 600; color: #333; margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }}
-        .name:hover {{ color: #667eea; }}
         .details {{ font-size: 13px; color: #666; display: flex; gap: 12px; flex-wrap: wrap; }}
         .score {{ font-weight: bold; color: #e74c3c; }}
-        .match-detail {{ display: none; background: #f8f9fa; padding: 10px 16px; border-left: 3px solid #667eea; margin-top: 8px; font-size: 13px; }}
-        .match-detail.active {{ display: block; }}
-        .match-item {{ padding: 4px 0; border-bottom: 1px dashed #ddd; }}
-        .match-item:last-child {{ border-bottom: none; }}
-        .match-result {{ display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 11px; margin-left: 8px; }}
-        .match-result.win {{ background: #d4edda; color: #155724; }}
-        .match-result.loss {{ background: #f8d7da; color: #721c24; }}
-        .match-result.pending {{ background: #fff3cd; color: #856404; }}
+        .item {{ cursor: pointer; }}
+        .item:active {{ background: #f0f0f0; }}
+        .games-detail {{ display: none; padding: 10px 16px; background: #f8f9fa; border-bottom: 1px solid #e0e0e0; }}
+        .games-table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+        .games-table th {{ background: #667eea; color: white; padding: 6px; text-align: center; }}
+        .games-table td {{ padding: 6px; border-bottom: 1px solid #eee; text-align: center; }}
+        .games-table tr:nth-child(even) {{ background: #f0f0f0; }}
         @media (max-width: 375px) {{
             .header h1 {{ font-size: 20px; }}
             .name {{ font-size: 15px; }}
@@ -504,24 +568,12 @@ class YunbisaiClient:
             .rank {{ width: 35px; font-size: 15px; }}
         }}
     </style>
-    <script>
-        function toggleDetail(id) {{
-            var el = document.getElementById(id);
-            if (el.classList.contains('active')) {{
-                el.classList.remove('active');
-            }} else {{
-                // 先关闭其他的
-                document.querySelectorAll('.match-detail').forEach(function(d) {{ d.classList.remove('active'); }});
-                el.classList.add('active');
-            }}
-        }}
-    </script>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🏆 比赛排名</h1>
-            <div class="subtitle">5段及以上组<br>👆点击选手名字查看对局详情</div>
+            <div class="subtitle">5段及以上组</div>
         </div>
         <div class="stats">
             <div class="stat">
@@ -535,51 +587,6 @@ class YunbisaiClient:
         </div>
         <div class="list">
 '''
-            # 预处理对局数据：按选手ID分组
-            player_matches = dict()
-            if matches:
-                for match in matches:
-                    p1_id = match.get('p1id')
-                    p2_id = match.get('p2id')
-                    p1_name = match.get('p1', '')
-                    p2_name = match.get('p2', '')
-                    p1_score = match.get('p1_score')
-                    p2_score = match.get('p2_score')
-                    bout = match.get('bout', 0)
-                    
-                    # 判断比赛状态
-                    if p1_score is None or p2_score is None:
-                        status = '未开始'
-                    else:
-                        s1 = float(p1_score) if p1_score else 0
-                        s2 = float(p2_score) if p2_score else 0
-                        if s1 == 0 and s2 == 0:
-                            status = '进行中'
-                        elif s1 > s2:
-                            status = 'p1胜'
-                        elif s2 > s1:
-                            status = 'p2胜'
-                        else:
-                            status = '和棋'
-                    
-                    match_info = dict(
-                        bout=bout,
-                        p1_name=p1_name,
-                        p2_name=p2_name,
-                        status=status,
-                        p1_score=p1_score,
-                        p2_score=p2_score
-                    )
-                    
-                    if p1_id:
-                        if p1_id not in player_matches:
-                            player_matches[p1_id] = []
-                        player_matches[p1_id].append(match_info)
-                    if p2_id:
-                        if p2_id not in player_matches:
-                            player_matches[p2_id] = []
-                        player_matches[p2_id].append(match_info)
-            
             for i, p in enumerate(rankings_to_print, 1):
                 record = f"{p['wins']}胜{p['losses']}负"
                 if p['draws'] > 0:
@@ -597,92 +604,60 @@ class YunbisaiClient:
                 else:
                     rank_text = str(i)
                 
-                player_id = p.get('id')
-                detail_id = f"detail_{player_id}_{i}" if player_id else f"detail_{i}"
+                # 构建对局详情HTML
+                games_html = '<div class="games-detail" id="games-' + str(i) + '">'
+                games_html += '<table class="games-table">'
+                games_html += '<tr><th>轮次</th><th>对手</th><th>结果</th></tr>'
+                for game in sorted(p.get('games', []), key=lambda x: x.get('round', 0)):
+                    games_html += f"<tr><td>第{game.get('round', '-')}轮</td><td>{html.escape(str(game.get('opponent', '-')))}</td><td>{game.get('result', '-')}</td></tr>"
+                games_html += '</table></div>'
                 
-                # 生成对局详情HTML
-                detail_html = ""
-                if player_id and player_id in player_matches:
-                    detail_html = f'<div id="{detail_id}" class="match-detail">'
-                    sorted_matches = sorted(player_matches[player_id], key=lambda x: x['bout'])
-                    for idx, m in enumerate(sorted_matches, 1):
-                        bout = m['bout']
-                        # 如果bout为0，用序号代替
-                        round_num = bout if bout > 0 else idx
-                        p1 = m['p1_name'] or '轮空'
-                        p2 = m['p2_name'] or '轮空'
-                        status = m['status']
-                        
-                        # 确定当前选手是p1还是p2
-                        is_p1 = p['name'] in p1
-                        opponent = p2 if is_p1 else p1
-                        color = '⚫' if is_p1 else '⚪'
-                        
-                        # 确定结果
-                        if status == '未开始':
-                            result_class = 'pending'
-                            result_text = '未开始'
-                        elif status == '进行中':
-                            result_class = 'pending'
-                            result_text = '进行中'
-                        elif status == '和棋':
-                            result_class = 'pending'
-                            result_text = '和棋'
-                        elif (is_p1 and status == 'p1胜') or (not is_p1 and status == 'p2胜'):
-                            result_class = 'win'
-                            result_text = '胜'
-                        else:
-                            result_class = 'loss'
-                            result_text = '负'
-                        
-                        detail_html += f'<div class="match-item" style="display:flex;justify-content:space-between;align-items:center;"><span>第{round_num}轮 {color} vs {opponent}</span><span class="match-result {result_class}">{result_text}</span></div>'
-                    detail_html += '</div>'
-                
-                onclick_attr = f'onclick="toggleDetail(\'{detail_id}\')"' if detail_html else ''
-                
-                html_content += f'''            <div class="item">
+                html_content += f'''            <div class="item" onclick="toggleGames({i})">
                 <div class="{rank_class}">{rank_text}</div>
-                <div class="info" {onclick_attr}>
-                    <div class="name">{p['name']}</div>
+                <div class="info">
+                    <div class="name">{html.escape(str(p['name']))}</div>
                     <div class="details">
                         <span class="score">积分 {int(p['score'])}</span>
                         <span>对手分 {int(p['opponent_score'])}</span>
                         <span>累进分 {int(p['progressive_score'])}</span>
-                        <span>{record}</span>
+                        <span>{html.escape(record)}</span>
                     </div>
-                    {detail_html}
                 </div>
             </div>
+            {games_html}
 '''
             html_content += '''        </div>
     </div>
+    <script>
+        function toggleGames(idx) {
+            var detail = document.getElementById('games-' + idx);
+            if (detail.style.display === 'block') {
+                detail.style.display = 'none';
+            } else {
+                // 先关闭所有其他详情
+                var allDetails = document.querySelectorAll('.games-detail');
+                allDetails.forEach(function(d) { d.style.display = 'none'; });
+                detail.style.display = 'block';
+            }
+        }
+    </script>
 </body>
 </html>'''
             
             with open(html_path, 'w', encoding='utf-8') as f:
                 f.write(html_content)
             
-            print(f"\n📊 排名数据已导出到 HTML 文件")
+            print(f"\n📊 排名数据已导出到 HTML 文件: {html_path}")
             print(f"   共 {total} 条记录\n")
-            print(f"<qqfile>{html_path}</qqfile>\n")
             
-            # 显示前10名预览（单行 Markdown 格式）
+            # 显示前10名预览
             print("📋 前10名预览:\n")
             for i, p in enumerate(rankings_to_print[:10], 1):
                 record = f"{p['wins']}胜{p['losses']}负"
                 if p['draws'] > 0:
                     record += f"{p['draws']}和"
-                # 单行格式
-                rank_emoji = ""
-                if i == 1:
-                    rank_emoji = "🥇 "
-                elif i == 2:
-                    rank_emoji = "🥈 "
-                elif i == 3:
-                    rank_emoji = "🥉 "
-                print(f"{i}. {rank_emoji}**{p['name']}** | 积分: {int(p['score'])} | 对手分: {int(p['opponent_score'])} | 累进分: {int(p['progressive_score'])} | {record}")
-            if total > 10:
-                print(f"\n... 还有 {total - 10} 名选手\n")
+                print(f"{i}. **{p['name']}** | 积分: {int(p['score'])} | 对手分: {int(p['opponent_score'])} | 累进分: {int(p['progressive_score'])} | {record}")
+            print(f"\n... 还有 {total - 10} 名选手\n")
     
     def print_perf_report(self):
         """打印性能报告"""
@@ -702,6 +677,8 @@ def main():
     parser.add_argument('--group-id', '-g', type=int, help='分组ID')
     parser.add_argument('--area', '-a', default='广东省', help='地区（默认：广东省）')
     parser.add_argument('--month', '-m', type=int, default=1, help='最近多少个月（默认：1）')
+    parser.add_argument('--keyword', '-k', help='关键词过滤（在标题/城市中搜索）')
+    parser.add_argument('--page-size', '-p', type=int, default=100, help='每页数量（默认：100，最大200）')
     parser.add_argument('--limit', '-l', type=int, help='限制显示条数（≤15时用单行格式）')
     parser.add_argument('--ranking', '-r', action='store_true', help='计算排名')
     parser.add_argument('--matchups', '-u', type=int, help='查询第N轮对阵表')
@@ -716,7 +693,12 @@ def main():
     try:
         # 查询比赛列表
         if not args.event_id:
-            events, perf = client.get_events(area=args.area, month=args.month)
+            events, perf = client.get_events(
+                area=args.area, 
+                month=args.month,
+                page_size=args.page_size,
+                keyword=args.keyword
+            )
             result["data"]["events"] = events
             result["data"]["_perf"] = perf
             
@@ -781,9 +763,9 @@ def main():
 '''
                     for e in events:
                         event_id = e.get('event_id')
-                        title = e.get('title')
-                        city = e.get('city_name')
-                        date = e.get('max_time', '')[:10]
+                        title = html.escape(str(e.get('title', '')))
+                        city = html.escape(str(e.get('city_name', '')))
+                        date = html.escape(str(e.get('max_time', ''))[:10])
                         players = e.get('play_num') or '-'
                         html_content += f'''            <div class="item">
                 <div class="title">{title}</div>
@@ -891,7 +873,7 @@ def main():
 '''
                     for i, g in enumerate(groups, 1):
                         group_id = g.get('group_id')
-                        group_name = g.get('groupname')
+                        group_name = html.escape(str(g.get('groupname', '')))
                         # 优先使用从对阵表计算的人数
                         players_count = group_counts.get(group_id, g.get('playernum') or g.get('participant_count') or '-')
                         html_content += f'''            <div class="item">
@@ -1006,23 +988,18 @@ def main():
 '''
                         for m in rows:
                             seat = m.get('seatnum')
-                            p1 = m.get('p1') or '轮空'
-                            p2 = m.get('p2') or '轮空'
+                            p1 = html.escape(str(m.get('p1') or '轮空'))
+                            p2 = html.escape(str(m.get('p2') or '轮空'))
                             score1 = m.get('p1_score')
                             score2 = m.get('p2_score')
-                            
-                            # 判断比赛状态：None 或双方都0表示未开始
+
                             if score1 is None or score2 is None:
                                 result_text = '未开始'
                                 result_class = 'pending'
                             else:
                                 s1 = int(float(score1))
                                 s2 = int(float(score2))
-                                # 双方都0表示比赛还未结束，不算结果
-                                if s1 == 0 and s2 == 0:
-                                    result_text = '进行中'
-                                    result_class = 'pending'
-                                elif s1 > s2:
+                                if s1 > s2:
                                     result_text = '黑胜'
                                     result_class = 'win'
                                 elif s2 > s1:
@@ -1031,7 +1008,7 @@ def main():
                                 else:
                                     result_text = '平局'
                                     result_class = 'pending'
-                            
+
                             html_content += f'''            <div class="item">
                 <div class="table-num"><div class="num">{seat}</div>台</div>
                 <div class="match">
@@ -1050,17 +1027,16 @@ def main():
                         with open(html_path, 'w', encoding='utf-8') as f:
                             f.write(html_content)
                         
-                        print(f"\n📊 对阵表已导出到 HTML 文件")
+                        print(f"\n📊 对阵表已导出到 HTML 文件: {html_path}")
                         print(f"   共 {total_matches} 台对局\n")
-                        print(f"<qqfile>{html_path}</qqfile>\n")
                         
-                        # 显示前10条预览（单行 Markdown 格式）
+                        # 显示前10条预览
                         print(f"📋 第{args.matchups}轮对阵预览:\n")
                         for m in rows[:10]:
                             p1 = m.get('p1') or '轮空'
                             p2 = m.get('p2') or '轮空'
                             seat = m.get('seatnum')
-                            print(f"• 台{seat}: **{p1}** vs **{p2}**")
+                            print(f"台{seat}: {p1} vs {p2}")
                         if total_matches > 10:
                             print(f"\n... 还有 {total_matches - 10} 台对局\n")
             
@@ -1076,7 +1052,7 @@ def main():
                 }
                 
                 if not args.json:
-                    client.print_ranking(rankings, matches=matches)
+                    client.print_ranking(rankings)
             else:
                 players, perf = client.get_group_players(args.event_id, args.group_id)
                 result["data"]["players"] = players
@@ -1134,7 +1110,7 @@ def main():
 '''
                         for i, p in enumerate(players, 1):
                             rank = p.get('rank_num')
-                            name = p.get('participantname')
+                            name = html.escape(str(p.get('participantname', '')))
                             score = p.get('integral')
                             rank_class = 'rank'
                             if rank and int(rank) <= 3:
@@ -1155,19 +1131,17 @@ def main():
                         with open(html_path, 'w', encoding='utf-8') as f:
                             f.write(html_content)
                         
-                        print(f"\n📊 选手列表已导出到 HTML 文件")
+                        print(f"\n📊 选手列表已导出到 HTML 文件: {html_path}")
                         print(f"   共 {total_players} 名选手\n")
-                        print(f"<qqfile>{html_path}</qqfile>\n")
                         
-                        # 显示前10条预览（单行 Markdown 格式）
+                        # 显示前10条预览
                         print("📋 前10名选手预览:\n")
                         for p in players[:10]:
                             name = p.get('participantname')
                             rank = p.get('rank_num')
                             score = p.get('integral')
                             print(f"• **{name}** | 排名: {rank} | 积分: {score}")
-                        if total_players > 10:
-                            print(f"\n... 还有 {total_players - 10} 名选手\n")
+                        print(f"\n... 还有 {total_players - 10} 名选手\n")
         
         # 输出性能报告
         if not args.json and not args.quiet:

@@ -1,5 +1,5 @@
 ---
-name: weiqi-yunbisai
+name: 云比赛网围棋数据查询
 description: weiqi-yunbisai 云比赛网围棋比赛数据查询 - 支持比赛列表、分组信息、对阵数据、排名计算。当用户需要"查比赛"、"云比赛网"、"围棋比赛"时使用此技能。
 tags: ["围棋", "weiqi", "go", "比赛", "云比赛网", "排名", "对阵"]
 ---
@@ -7,6 +7,8 @@ tags: ["围棋", "weiqi", "go", "比赛", "云比赛网", "排名", "对阵"]
 # 云比赛网完整数据查询
 
 > **🔒 安全说明**: 本技能通过云比赛网公开 API 查询围棋比赛公开数据。所有请求仅读取公开的赛事信息、分组数据和比赛结果，不涉及任何敏感信息或未经授权的访问。代码开源可审计。
+>
+> **v1.1.1 安全更新**: 已修复潜在 HTML 注入漏洞，所有从 API 获取的数据（选手名、比赛标题等）在生成 HTML 报告前均进行转义处理。
 
 
 ## 功能描述
@@ -37,6 +39,12 @@ pip3 install requests
 # 查询广东省最近1个月的比赛
 python3 scripts/query.py
 
+# 查询浙江省最近3个月的比赛
+python3 scripts/query.py --area "浙江省" --month 3
+
+# 关键词搜索（在所有比赛中搜索含"秦山"的比赛）
+python3 scripts/query.py --area "浙江省" --month 6 --keyword "秦山"
+
 # 查询指定比赛的分组
 python3 scripts/query.py --event-id 12345
 
@@ -52,6 +60,22 @@ python3 scripts/query.py --event-id 12345 --group-id 67890 --ranking --json
 # 静默模式（减少日志输出）
 python3 scripts/query.py --group-id 67890 --ranking --quiet
 ```
+
+### 区域搜索说明
+
+**重要**：搜索特定省份比赛时，使用 `--area` 参数：
+
+```bash
+# ✅ 正确用法 - 使用完整省份名称
+python3 scripts/query.py --area "浙江省" --month 3
+python3 scripts/query.py --area "广东省" --month 1
+
+# ✅ 配合关键词快速定位比赛
+python3 scripts/query.py --area "浙江省" --keyword "秦山核电"
+```
+
+**区域代码参考**：
+- `广东省`、`浙江省`、`江苏省`、`山东省` ...
 
 ### 输出格式规则
 
@@ -98,6 +122,20 @@ python3 scripts/query.py --group-id 67890 --ranking --quiet
 - 📌 **固定头部**：标题栏随页面滚动固定顶部
 - 👆 **点击反馈**：点击时有视觉反馈效果
 - 🚫 **禁止缩放**：优化移动端浏览体验
+
+### 📤 文件发送方式
+
+当通过 QQ 等即时通讯工具发送时，使用 `<qqmedia>` 标签发送 HTML 文件：
+
+```
+对阵表已生成：
+<qqmedia>/tmp/matchups_xxx.html</qqmedia>
+```
+
+**注意**：
+- 必须使用 `<qqmedia>绝对路径</qqmedia>` 格式
+- 文件大小需小于 10MB
+- 系统会根据扩展名自动识别为文件类型
 
 ### 性能报告示例
 
@@ -262,6 +300,30 @@ curl -s -A "Mozilla/5.0" \
 - 轮空选手的对手是 `None` / `null`
 - 轮空获胜也得2分
 - 轮空对手的积分（0分）不计入对手分
+
+#### 6. 未完成轮次的处理 ⚠️
+
+**重要**：计算排名时，必须检查每一轮是否已经完成。
+
+**判断方法**：
+```python
+# 如果一轮中所有对局的 p1_score 和 p2_score 都是 0.0
+# 说明该轮对阵表已出，但比赛尚未完成
+is_round_completed = any(
+    m.get('p1_score') not in [None, 0.0] or m.get('p2_score') not in [None, 0.0]
+    for m in round_data
+)
+```
+
+**处理规则**：
+- ✅ **已完成的轮次**：正常计入排名计算
+- ❌ **未完成的轮次**：**不得计入**排名计算，即使对阵表已发布
+
+**错误示例**：
+> 某比赛第2轮，所有对局 p1_score=0.0, p2_score=0.0，表示比赛还在进行中。若此时计入排名，会导致所有选手都是0分，排名计算错误。
+
+**正确做法**：
+> 只计算已完成的轮次（如第1轮），未完成的轮次等比赛结束后再更新。
 
 ---
 
