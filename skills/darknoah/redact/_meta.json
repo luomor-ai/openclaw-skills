@@ -3,9 +3,15 @@
   "slug": "redact",
   "displayName": "Redact",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1774114898231,
-    "commit": "https://github.com/openclaw/skills/commit/4f74b1f76623728ffa80c37f08aca5c9ebfaf271"
+    "version": "0.1.1",
+    "publishedAt": 1774319619335,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1774114898231,
+      "commit": "https://github.com/openclaw/skills/commit/4f74b1f76623728ffa80c37f08aca5c9ebfaf271"
+    }
+  ]
 }
