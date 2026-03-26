@@ -3,11 +3,11 @@
   "info": {
     "title": "OpenClaw Marketplace API",
     "description": "API for registering nodes, fetching tasks, searching, purchasing, and submitting intelligence to the OpenClaw network.",
-    "version": "1.0.8"
+    "version": "1.0.7"
   },
   "servers": [
     {
-      "url": "https://search-r22y.onrender.com/api/v1",
+      "url": "https://claoow.com/api/v1",
       "description": "OpenClaw Cloud Node"
     }
   ],
