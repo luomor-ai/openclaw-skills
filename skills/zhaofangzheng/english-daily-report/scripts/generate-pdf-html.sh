@@ -1,6 +1,7 @@
 #!/bin/bash
 # Generate English Daily Report PDF
-# Usage: generate-pdf-html.sh "DATE" "ENGLISH_TITLE" "ENGLISH_CONTENT" "CHINESE_TRANSLATION" "WORD1:MEANING1" "WORD2:MEANING2" ...
+# Usage: generate-pdf-html.sh "DATE" "TYPE" "ENGLISH_TITLE" "ENGLISH_CONTENT" "CHINESE_TRANSLATION" "WORD1:MEANING1" "WORD2:MEANING2" ...
+#   TYPE: "real" for real news, "study" for study material
 
 set -euo pipefail
 
@@ -10,10 +11,11 @@ cd "$WORKSPACE_DIR"
 
 # Parse arguments
 DATE="${1:-$(date +%Y-%m-%d)}"
-ENGLISH_TITLE="${2:-Daily Report}"
-ENGLISH_CONTENT="${3:-No content provided}"
-CHINESE_TRANSLATION="${4:-无内容}"
-shift 4 || true
+CONTENT_TYPE="${2:-study}"  # "real" or "study"
+ENGLISH_TITLE="${3:-Daily Report}"
+ENGLISH_CONTENT="${4:-No content provided}"
+CHINESE_TRANSLATION="${5:-无内容}"
+shift 5 || true
 VOCAB_WORDS=("$@")
 
 # Output paths (portable)
@@ -35,6 +37,17 @@ escape_html() {
 ENGLISH_TITLE_ESCAPED=$(escape_html "$ENGLISH_TITLE")
 ENGLISH_CONTENT_ESCAPED=$(escape_html "$ENGLISH_CONTENT")
 CHINESE_TRANSLATION_ESCAPED=$(escape_html "$CHINESE_TRANSLATION")
+
+# Build content type badge and warning
+if [[ "$CONTENT_TYPE" == "real" ]]; then
+    TYPE_BADGE="【真实新闻 · Real News】"
+    TYPE_WARNING=""
+    TYPE_BG="linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
+else
+    TYPE_BADGE="【学习材料 · Study Material · 非真实新闻】"
+    TYPE_WARNING="⚠️ 本文为英语学习材料，基于真实时事趋势编写，非真实新闻报道"
+    TYPE_BG="linear-gradient(135deg, #f093fb 0%, #f5576c 100%)"
+fi
 
 # Build vocabulary HTML safely
 VOCAB_HTML=""
@@ -108,6 +121,29 @@ cat > "$HTML_FILE" << HTMLEOF
     }
     .title { font-size: 28px; font-weight: bold; margin-bottom: 10px; }
     .date { font-size: 16px; opacity: 0.9; }
+    .type-badge {
+      background: ${TYPE_BG};
+      color: white;
+      padding: 8px 15px;
+      border-radius: 5px;
+      font-size: 14px;
+      font-weight: bold;
+      margin-top: 10px;
+      display: inline-block;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .type-warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      color: #856404;
+      padding: 10px 15px;
+      margin: 15px 0;
+      border-radius: 5px;
+      font-size: 13px;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
     .section { 
       margin: 20px 0; 
       padding: 20px; 
@@ -148,7 +184,10 @@ cat > "$HTML_FILE" << HTMLEOF
   <div class="header">
     <div class="title">📰 English Daily Report</div>
     <div class="date">${DATE}</div>
+    <div class="type-badge">${TYPE_BADGE}</div>
   </div>
+
+  ${TYPE_WARNING:+<div class="type-warning">${TYPE_WARNING}</div>}
 
   <div class="section">
     <div class="section-title">📄 News Summary</div>
