@@ -1,0 +1,11 @@
+{
+  "owner": "urbantech",
+  "slug": "ainative-chat-completions",
+  "displayName": "Ainative Chat Completions",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774311020576,
+    "commit": null
+  },
+  "history": []
+}
