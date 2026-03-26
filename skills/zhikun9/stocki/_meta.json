@@ -1,11 +1,17 @@
 {
   "owner": "zhikun9",
   "slug": "stocki",
-  "displayName": "Open Stocki",
+  "displayName": "Stocki",
   "latest": {
-    "version": "0.1.0",
-    "publishedAt": 1774428047792,
-    "commit": "https://github.com/openclaw/skills/commit/e6f3636a5ba9f5317f2c0cb930a7511d62b29a1c"
+    "version": "0.2.2",
+    "publishedAt": 1774513694926,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "0.1.0",
+      "publishedAt": 1774428047792,
+      "commit": "https://github.com/openclaw/skills/commit/e6f3636a5ba9f5317f2c0cb930a7511d62b29a1c"
+    }
+  ]
 }
