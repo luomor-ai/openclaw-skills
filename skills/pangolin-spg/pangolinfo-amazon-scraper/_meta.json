@@ -1,0 +1,11 @@
+{
+  "owner": "pangolin-spg",
+  "slug": "pangolinfo-amazon-scraper",
+  "displayName": "Pangolinfo Amazon Scraper: Products + Keywords + Categories",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1774506524302,
+    "commit": null
+  },
+  "history": []
+}
