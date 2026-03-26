@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "benchmark-email",
+  "displayName": "Benchmark Email",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774414975172,
+    "commit": null
+  },
+  "history": []
+}
