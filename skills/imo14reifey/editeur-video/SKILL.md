@@ -1,10 +1,13 @@
 ---
 name: editeur-video
-version: "1.0.3"
+version: "1.0.5"
 displayName: "Éditeur Vidéo IA — Modifier et Créer des Vidéos avec Intelligence Artificielle"
 description: >
   Éditeur Vidéo IA — Modifier et Créer des Vidéos avec Intelligence Artificielle.
   Editez vos videos en decrivant simplement ce que vous voulez obtenir — pas besoin de logiciel de montage. Importez votre video, expliquez les modifications souhaitees : 'couper les 30 premieres secondes', 'ajouter une musique de fond douce', 'inserer des sous-titres en francais', 'appliquer un effet cinematographique'. L'IA execute toutes les modifications et vous renvoie la video editee. Prend en charge le decoupage, la fusion de clips, l'ajout de musique, la generation de sous-titres, la correction colorimetrique, le changement de format et bien plus encore. Ideal pour les createurs de contenu, les marketeurs et toute personne qui a besoin de produire des videos de qualite sans maitriser le montage video. Exportez en MP4. Formats supportes : mp4, mov, avi, webm, mkv.
+  
+  Works by connecting to the NemoVideo AI backend at mega-api-prod.nemovideo.ai.
+  Supports MP4, MOV, AVI, WebM.
 homepage: https://nemovideo.com
 repository: https://github.com/nemovideo/nemovideo_skills
 metadata: {"openclaw": {"emoji": "🎬", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
@@ -26,3 +29,4 @@ Demandez à l'agent de modifier votre vidéo en langage naturel.
 - Exporter des vidéos pour les médias sociaux
 
 ## API
+Uses NemoVideo API (mega-api-prod.nemovideo.ai) for all video processing.
