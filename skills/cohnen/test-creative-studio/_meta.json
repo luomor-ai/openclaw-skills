@@ -1,0 +1,11 @@
+{
+  "owner": "cohnen",
+  "slug": "test-creative-studio",
+  "displayName": "Test Skill",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1774554975230,
+    "commit": null
+  },
+  "history": []
+}
