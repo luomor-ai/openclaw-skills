@@ -1,0 +1,11 @@
+{
+  "owner": "setg-git",
+  "slug": "sat-agent",
+  "displayName": "SATAgent",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774611911669,
+    "commit": null
+  },
+  "history": []
+}
