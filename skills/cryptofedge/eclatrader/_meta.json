@@ -1,0 +1,11 @@
+{
+  "owner": "cryptofedge",
+  "slug": "eclatrader",
+  "displayName": "Trader Bot",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774568150460,
+    "commit": null
+  },
+  "history": []
+}
