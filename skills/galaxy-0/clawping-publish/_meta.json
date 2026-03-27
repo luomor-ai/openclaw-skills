@@ -1,0 +1,11 @@
+{
+  "owner": "galaxy-0",
+  "slug": "clawping-publish",
+  "displayName": "Clawping Publish",
+  "latest": {
+    "version": "1.3.6",
+    "publishedAt": 1774599703680,
+    "commit": null
+  },
+  "history": []
+}
