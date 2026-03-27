@@ -1,0 +1,11 @@
+{
+  "owner": "coinmarketcap-official",
+  "slug": "market-report-cmc-cli",
+  "displayName": "market-report-using-cmc-cli",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1774613608955,
+    "commit": null
+  },
+  "history": []
+}
