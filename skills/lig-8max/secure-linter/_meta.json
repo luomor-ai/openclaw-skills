@@ -1,0 +1,11 @@
+{
+  "owner": "lig-8max",
+  "slug": "secure-linter",
+  "displayName": "Secure Linter",
+  "latest": {
+    "version": "0.1.0",
+    "publishedAt": 1774502572901,
+    "commit": null
+  },
+  "history": []
+}
