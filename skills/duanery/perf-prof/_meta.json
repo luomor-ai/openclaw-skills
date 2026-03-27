@@ -1,0 +1,11 @@
+{
+  "owner": "duanery",
+  "slug": "perf-prof",
+  "displayName": "Perf Profiler",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774601984491,
+    "commit": null
+  },
+  "history": []
+}
