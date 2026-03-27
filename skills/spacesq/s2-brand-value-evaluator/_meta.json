@@ -1,0 +1,11 @@
+{
+  "owner": "spacesq",
+  "slug": "s2-brand-value-evaluator",
+  "displayName": "S2 品牌价值动态演算模型",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774616857155,
+    "commit": null
+  },
+  "history": []
+}
