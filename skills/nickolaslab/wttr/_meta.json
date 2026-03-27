@@ -1,0 +1,11 @@
+{
+  "owner": "nickolaslab",
+  "slug": "wttr",
+  "displayName": "Wttr",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774584490735,
+    "commit": null
+  },
+  "history": []
+}
