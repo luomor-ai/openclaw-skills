@@ -384,42 +384,45 @@ function resetUserSession(userId) {
     const { execSync } = require('child_process');
     const openclawBin = process.env.OPENCLAW_BIN || 'openclaw';
 
-    let existingNames = [];
+    let existingJobs = {};
     try {
       const out = execSync(`${openclawBin} cron list --json 2>/dev/null`, { encoding: 'utf-8', timeout: 12000 });
       // Output may contain [plugins] warning lines before the JSON — extract only the JSON object
       const jsonMatch = out.match(/\{[\s\S]*\}/);
       if (jsonMatch) {
         const parsed = JSON.parse(jsonMatch[0]);
-        existingNames = (parsed.jobs || []).map(j => j.name || '');
+        (parsed.jobs || []).forEach(j => { if (j.name) existingJobs[j.name] = j.id; });
       }
     } catch (_) {}
 
-    if (!existingNames.includes('LoveClaw-每日匹配')) {
-      execSync(
-        `${openclawBin} cron add` +
-        ` --name "LoveClaw-每日匹配"` +
-        ` --cron "50 19 * * *"` +
-        ` --tz "Asia/Shanghai"` +
-        ` --session isolated` +
-        ` --no-deliver` +
-        ` --message "执行每日八字匹配任务。请运行: cd ~/.openclaw/workspace/skills/loveclaw/scripts && node cloud-cron.js match。匹配结果已存入云端。"`,
-        { timeout: 15000, stdio: 'ignore' }
-      );
+    // 先删再建，确保幂等（避免重复创建）
+    if (existingJobs['LoveClaw-每日匹配']) {
+      try { execSync(`${openclawBin} cron rm ${existingJobs['LoveClaw-每日匹配']}`, { timeout: 10000, stdio: 'ignore' }); } catch (_) {}
     }
+    execSync(
+      `${openclawBin} cron add` +
+      ` --name "LoveClaw-每日匹配"` +
+      ` --cron "50 19 * * *"` +
+      ` --tz "Asia/Shanghai"` +
+      ` --session isolated` +
+      ` --no-deliver` +
+      ` --message "执行每日八字匹配任务。请运行: cd ~/.openclaw/workspace/skills/loveclaw/scripts && node cloud-cron.js match。匹配结果已存入云端。"`,
+      { timeout: 15000, stdio: 'ignore' }
+    );
 
-    if (!existingNames.includes('LoveClaw-晚间报告')) {
-      execSync(
-        `${openclawBin} cron add` +
-        ` --name "LoveClaw-晚间报告"` +
-        ` --cron "0 20 * * *"` +
-        ` --tz "Asia/Shanghai"` +
-        ` --session isolated` +
-        ` --no-deliver` +
-        ` --message "执行每日八字匹配晚间报告，步骤如下：\n\n1. 运行命令：cd ~/.openclaw/workspace/skills/loveclaw/scripts && node cloud-cron.js report\n2. 从命令输出中找到 【REPORTS_JSON】 和 【REPORTS_JSON_END】 之间的内容，解析为 JSON 数组\n3. 对数组中的每一条记录，使用 message 工具发送通知：\n   - channel：使用 item.channel 字段（如 webchat、feishu）\n   - target：使用 item.target 字段（用户手机号或渠道 ID）\n   - 内容：直接使用 item.message 字段，不要修改\n4. 若该条记录的 item.partnerPhotoUrl 不为空字符串，则在发送文字消息之后，额外再发一条图片消息到同一个 channel 和 target，内容为该图片 URL\n5. 若 JSON 数组为空，则不发送任何消息，静默退出"`,
-        { timeout: 15000, stdio: 'ignore' }
-      );
+    if (existingJobs['LoveClaw-晚间报告']) {
+      try { execSync(`${openclawBin} cron rm ${existingJobs['LoveClaw-晚间报告']}`, { timeout: 10000, stdio: 'ignore' }); } catch (_) {}
     }
+    execSync(
+      `${openclawBin} cron add` +
+      ` --name "LoveClaw-晚间报告"` +
+      ` --cron "0 20 * * *"` +
+      ` --tz "Asia/Shanghai"` +
+      ` --session isolated` +
+      ` --no-deliver` +
+      ` --message "执行每日八字匹配晚间报告，步骤如下：\n\n1. 运行命令：cd ~/.openclaw/workspace/skills/loveclaw/scripts && node cloud-cron.js report\n2. 从命令输出中找到 【REPORTS_JSON】 和 【REPORTS_JSON_END】 之间的内容，解析为 JSON 数组\n3. 对数组中的每一条记录，使用 message 工具发送通知：\n   - channel：使用 item.channel 字段（如 webchat、feishu）\n   - target：使用 item.target 字段（用户手机号或渠道 ID）\n   - 内容：直接使用 item.message 字段，不要修改\n4. 若该条记录的 item.partnerPhotoUrl 不为空字符串，则在发送文字消息之后，额外再发一条图片消息到同一个 channel 和 target，内容为该图片 URL\n5. 若 JSON 数组为空，则不发送任何消息，静默退出"`,
+      { timeout: 15000, stdio: 'ignore' }
+    );
   } catch (_) {}
 })();
 

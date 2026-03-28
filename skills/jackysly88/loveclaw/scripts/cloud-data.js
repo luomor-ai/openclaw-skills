@@ -182,15 +182,23 @@ async function uploadPhoto(phone, photoData) {
   const objectKey = `photos/${phone}/${Date.now()}.jpg`;
   
   // 使用阿里云 OSS SDK 上传
-  const { OSS } = await import('aliyun-sdk');
+  const OSS = require('ali-oss');
+  let ossEndpoint = ossConfig.endpoint;
+  if (ossEndpoint) {
+    ossEndpoint = ossEndpoint.replace(/^https?:\/\//, '');
+  } else {
+    ossEndpoint = `${region}.aliyuncs.com`;
+  }
   const ossClient = new OSS({
     region,
     accessKeyId,
     accessKeySecret,
     stsToken: securityToken,
     bucket,
+    endpoint: ossEndpoint,
+    secure: true,
   });
-  
+
   // photoData 可以是 base64、ArrayBuffer 或 Blob
   let buffer;
   if (typeof photoData === 'string' && photoData.startsWith('data:')) {
@@ -202,13 +210,13 @@ async function uploadPhoto(phone, photoData) {
   } else {
     buffer = photoData;
   }
-  
+
   const result = await ossClient.put(objectKey, buffer, {
     contentType: 'image/jpeg',
   });
-  
+
   // 构建公开访问 URL
-  const photoUrl = `https://${bucket}.oss-${region}.aliyuncs.com/${objectKey}`;
+  const photoUrl = `https://${bucket}.${ossEndpoint}/${objectKey}`;
   return photoUrl;
 }
 
