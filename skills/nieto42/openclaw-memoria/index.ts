@@ -1,25 +1,41 @@
 /**
- * 🧠 Memoria — Multi-layer memory plugin for OpenClaw
+ * 🧠 Memoria — Multi-layer memory plugin for OpenClaw (v3.22.2)
  * 
- * v3.2.0 — Reasoning models, dated recall, Anthropic provider, adaptive FTS, procedures
- * v3.0.0 — Semantic/Episodic memory, Observations, Procedural memory, Adaptive recall
+ * This file is the plugin entry point. It:
+ *   1. Parses config from openclaw.json → MemoriaConfig
+ *   2. Creates all managers (db, embedding, graph, topics, etc.)
+ *   3. Registers 5 OpenClaw hooks to power recall + capture + continuous learning
+ *   4. Orchestrates the post-capture pipeline (postProcessNewFacts)
  * 
- * Layers:
- *   1. Perception (capture) — agent_end + after_compaction hooks
- *   2. Selective Memory — dedup, contradiction, enrichment
- *   3. Embeddings — cosine similarity + hybrid search (FTS5 + cosine + temporal)
- *   4. Knowledge Graph — entity extraction, Hebbian reinforcement, BFS traversal
- *   5. Context Tree — hierarchical fact organization, query-weighted
- *   6. Adaptive Budget — dynamic recall limit based on context usage
- *   7. Sync .md — append new facts to workspace markdown files
- *   8. Topics Émergents — auto-clustering, sub-topics, decay, semantic search
- *   9. .md Vivants — bounded regeneration, archive old facts
- *  10. Fallback Chain — Ollama → OpenAI → LM Studio → FTS-only survival
+ * == HOOKS (in order of a typical turn) ==
+ *   message_received  → Layer 21: buffer user message, detect urgent signals
+ *   before_prompt_build → RECALL: budget → search → score → inject facts into context
+ *   llm_output        → Layer 21: buffer assistant response, trigger extraction if due
+ *   after_tool_call   → Layer 13: real-time procedural capture from tool executions
+ *   agent_end         → CAPTURE: LLM extract → selective → postProcess (embed, graph, topics...)
+ *   after_compaction   → Safety net: same as agent_end but from compacted summaries
  * 
- * Hooks:
- *   before_prompt_build → search facts, inject via prependContext
- *   agent_end → extract facts via LLM, store in SQLite
- *   after_compaction → extract durable facts from summaries
+ * == 21 LAYERS ==
+ *   1. SQLite + FTS5 (db.ts)          12. Fallback Chain (fallback.ts)
+ *   2. Temporal Scoring (scoring.ts)   13. Procedural Memory (procedural.ts)
+ *   3. Selective Memory (selective.ts) 14. Lifecycle (lifecycle.ts)
+ *   4. Embeddings (embeddings.ts)      15. Feedback Loop (feedback.ts)
+ *   5. Knowledge Graph (graph.ts)      16. Hebbian (hebbian.ts)
+ *   6. Context Tree (context-tree.ts)  17. Identity Parser (identity-parser.ts)
+ *   7. Adaptive Budget (budget.ts)     18. Expertise (expertise.ts)
+ *   8. Emergent Topics (topics.ts)     19. Proactive Revision (revision.ts)
+ *   9. Observations (observations.ts)  20. Behavioral Patterns (patterns.ts)
+ *  10. Fact Clusters (fact-clusters.ts)21. Continuous Learning (this file, hooks)
+ *  11. .md Sync (sync.ts, md-regen.ts)
+ * 
+ * == KEY INTERNAL FUNCTIONS ==
+ *   parseConfig()          — raw JSON → typed MemoriaConfig
+ *   formatRecallContext()   — facts → text block injected before prompt
+ *   normalizeCategory()     — free-form category → one of 7 canonical categories
+ *   postProcessNewFacts()   — 8-step pipeline after each capture batch
+ *   doContinuousExtraction() — Layer 21 micro-extraction from rolling buffer
+ * 
+ * For the full architecture, see docs/ARCHITECTURE.md and docs/MODULES.md.
  */
 
 import fs from "fs";
@@ -44,6 +60,13 @@ import { ObservationManager } from "./observations.js";
 import { FactClusterManager } from "./fact-clusters.js";
 import { FeedbackManager } from "./feedback.js";
 import { AnthropicLLM } from "./providers/anthropic.js";
+import { IdentityParser } from "./identity-parser.js";
+import { LifecycleManager } from "./lifecycle.js";
+import { RevisionManager } from "./revision.js";
+import { HebbianManager } from "./hebbian.js";
+import { ExpertiseManager } from "./expertise.js";
+import { ProceduralMemory } from "./procedural.js";
+import { PatternManager } from "./patterns.js";
 
 // ─── Config ───
 
@@ -57,6 +80,15 @@ interface MemoriaConfig {
   workspacePath: string;
   syncMd: boolean;
   fallback: FallbackProviderConfig[];
+  /** Continuous Learning (Layer 21) config */
+  continuous?: {
+    /** Extract every N turns (default 4) */
+    interval?: number;
+    /** Cooldown between periodic extractions in ms (default 45000) */
+    cooldownMs?: number;
+    /** Enable/disable (default true when autoCapture is true) */
+    enabled?: boolean;
+  };
   embed: {
     provider: "ollama" | "lmstudio" | "openai" | "openrouter" | "anthropic";
     baseUrl?: string;
@@ -75,7 +107,7 @@ interface MemoriaConfig {
 }
 
 /** Named layers that accept a per-layer LLM override */
-type MemoriaLayer = "extract" | "contradiction" | "graph" | "topics";
+type MemoriaLayer = "extract" | "contradiction" | "graph" | "topics" | "procedural";
 
 interface LayerLLMConfig {
   provider: "ollama" | "lmstudio" | "openai" | "openrouter" | "anthropic";
@@ -84,6 +116,7 @@ interface LayerLLMConfig {
   apiKey?: string;
 }
 
+/** Parse raw plugin config (from openclaw.json) into typed MemoriaConfig with smart defaults. */
 function parseConfig(raw: Record<string, unknown> | undefined): MemoriaConfig {
   const embed = (raw?.embed as Record<string, unknown>) || {};
   const llm = (raw?.llm as Record<string, unknown>) || {};
@@ -121,6 +154,7 @@ function parseConfig(raw: Record<string, unknown> | undefined): MemoriaConfig {
 
 // ─── Provider Factory ───
 
+/** Create an embedding provider from config. Used for the main embedder + fallback list. */
 function createEmbedProvider(cfg: MemoriaConfig["embed"]): EmbedProvider {
   switch (cfg.provider) {
     case "ollama":
@@ -136,6 +170,7 @@ function createEmbedProvider(cfg: MemoriaConfig["embed"]): EmbedProvider {
   }
 }
 
+/** Create an LLM provider from config. Used for the main chain + per-layer overrides. */
 function createLLMProvider(cfg: MemoriaConfig["llm"]): LLMProvider {
   switch (cfg.provider) {
     case "ollama":
@@ -158,65 +193,75 @@ function createLLMProvider(cfg: MemoriaConfig["llm"]): LLMProvider {
 const WORKSPACE = process.env.OPENCLAW_WORKSPACE || `${process.env.HOME}/.openclaw/workspace`;
 
 const LLM_EXTRACT_PROMPT = `Tu es un extracteur de faits pour un système de mémoire AI.
-Analyse le texte et extrais les faits qui méritent d'être retenus à long terme.
+Analyse le texte et extrais les faits qui méritent d'être retenus.
 
-TROIS TYPES de faits:
-- "semantic" = vérité durable ou PROCESSUS APPRIS (comment faire X, ce qui marche, tricks, patterns)
-- "episodic" = événement daté important (déploiement, bug trouvé, milestone atteint)
+DEUX TYPES de faits:
+- "semantic" = vérité durable, processus appris, configuration, règle découverte
+- "episodic" = événement daté, état temporaire, action en cours, résultat observé
 
-STOCKER — comme un cerveau humain qui apprend:
-✅ Processus appris ("pour migrer SQLite WAL, utiliser VACUUM INTO au lieu de cp")
-✅ Ce qui a marché ("le fallback chain a résolu les crashes quand Ollama est off")
-✅ Tricks/patterns ("tsx -e ne marche pas avec les imports locaux → utiliser un fichier .ts")
-✅ Leçons d'erreurs ("api.config ≠ api.pluginConfig — toutes les configs étaient ignorées")
-✅ Décisions techniques ("on utilise Ollama pour l'extraction")
-✅ Configurations ("fallback: ollama → lmstudio, zéro cloud")
-✅ Architectures ("Memoria utilise SQLite + FTS5 + embeddings")
-✅ Préférences utilisateur ("Neto veut du step-by-step")
-✅ États durables ("Sol tourne Memoria v2.7.0 en local")
-✅ Événements importants avec date ("25/03 — bug api.pluginConfig corrigé")
-✅ RÉSULTATS DE TESTS/BENCHMARKS avec chiffres ("Benchmark LongMemEval-S: Retrieval 92% (11/12), RAG 25%, bottleneck = modèle local pas le retrieval")
-✅ CONCLUSIONS tirées d'expériences ("GPT-OSS 20B est 4x plus rapide que Qwen 35B mais accuracy 0% → le problème est l'absence de RAG, pas le modèle")
-✅ COMPARAISONS mesurées ("AMT retrieval 100% en 291s vs ByteRover 50% en 2297s — AMT plus rapide et plus précis")
-✅ CARACTÉRISTIQUES machine/infra ("Mac Mini Sol = 64 Go RAM, Ollama + LM Studio installés")
+RÈGLE D'OR: TOUJOURS INCLURE LES DÉTAILS CONCRETS
+Imagine que tu notes pour une secrétaire qui doit pouvoir tout retrouver plus tard.
+❌ "Neto a eu une réunion importante" → MANQUE: avec qui? quand? sur quoi?
+✅ "Neto a eu une réunion avec le client CCOG le 28/03 à 14h sur la refonte du site"
+❌ "Sol a été redémarré" → MANQUE: pourquoi? quel était le problème?
+✅ "Sol a été redémarré le 28/03 à 18h25 car better-sqlite3 était compilé pour la mauvaise version de Node (137 vs 141). Fix: npm rebuild"
+❌ "Une réflexion excellente a été faite" → MANQUE: quelle réflexion? quel contenu?
+✅ "Neto propose que la mémoire fonctionne comme un cerveau humain: ne rien supprimer, prioriser par usage, les détails éphémères (heure d'un vol) s'effacent mais l'expérience (le vol était long) reste"
+
+EXTRAIRE — tout ce qui a du contenu:
+✅ Processus appris avec les étapes ("pour migrer SQLite WAL: VACUUM INTO au lieu de cp")
+✅ Ce qui a marché ET pourquoi ("le fallback chain résout les crashes car Ollama tombe parfois")
+✅ Leçons d'erreurs avec la cause ("api.config ≠ api.pluginConfig → configs ignorées")
+✅ Décisions avec la raison ("on utilise qwen3.5:4b car meilleure qualité JSON, avec think:false")
+✅ Configs exactes ("Memoria: recallLimit=8, extract LLM qwen3.5:4b, fallback gemma3:4b")
+✅ Résultats avec chiffres ("Benchmark: retrieval 92% (11/12), RAG 25%, bottleneck = modèle local")
+✅ Préférences avec contexte ("Neto veut du step-by-step, une feature à la fois avec validation")
+✅ États temporaires AVEC CONTEXTE ("Sol est en train de refaire HydroTrack — blocker: API endpoint changé")
+✅ Événements avec date ET détail ("28/03 — Memoria v3.13.0 live: lifecycle fresh/settled/dormant, 385f/90s/0d")
+✅ Ce que quelqu'un fait en ce moment ET pourquoi ("Sol travaille sur la refonte HydroTrack depuis le 26/03, priorité car le client attend la démo")
+✅ Outils internes et leur état ("Memoria v3.13.0: lifecycle humain, curseur détail 1-10, 475 facts, publié ClawHub + GitHub")
+✅ Produits/MVPs et leur avancement ("Bureau module CA v1.2.0 en prod, matching auto Qonto↔projets fonctionnel")
 
 GÉNÉRALISER — quand un pattern se répète:
-🔄 Si le même type de problème arrive 2+ fois → stocker la RÈGLE GÉNÉRALE, pas juste le cas
-   Exemple: "npm introuvable en SSH" + "ollama introuvable en SSH" → "Les commandes installées via brew/nvm ne sont pas dans le PATH en SSH non-interactif — utiliser source ~/.zprofile ou le chemin complet"
-🔄 Si une commande marche pour un cas → généraliser: "lms server start démarre LM Studio sans GUI" (pas juste "j'ai démarré LM Studio")
+🔄 Même problème 2+ fois → stocker la RÈGLE + les cas concrets
+   "Les commandes brew/nvm (npm, ollama, node) ne sont pas dans le PATH en SSH non-interactif — fix: source ~/.zprofile ou chemin complet /opt/homebrew/bin/"
 
-NE PAS STOCKER — seulement le jetable:
-❌ TODOs sans contexte ("pull X", "faire Y") — SAUF si explique POURQUOI/COMMENT
-❌ Confirmations vides ("ok", "merci", "compris", "c'est fait")
-❌ Narration sans résultat ("je lis le fichier", "je regarde") — MAIS stocker si un RÉSULTAT suit ("j'ai testé X → résultat Y")
-❌ Évidences triviales ("Node.js est installé") sauf si c'était un problème résolu
-❌ Statuts binaires sans info ("test passé ✅", "ça marche") — stocker plutôt les CHIFFRES et CONCLUSIONS
-❌ MÉTA-FAITS qui parlent DU PROCESSUS de stockage lui-même ("le nouveau fait complète l'info précédente", "ce fait a été ajouté", "la migration vers Memoria inclut des liens") — stocker le CONTENU, pas le commentaire sur le contenu
-❌ Faits VAGUES sans nom propre, chiffre, commande ou date concrète ("des informations supplémentaires ont été fournies", "la configuration a été mise à jour") — ÊTRE SPÉCIFIQUE : quel outil, quelle version, quelle commande, quel chiffre ?
+🔥 ERREURS ET DANGERS — PRIORITÉ MAXIMALE (comme toucher du feu):
+Quand quelque chose a causé un PROBLÈME RÉEL (crash, perte de données, service mort, bug en prod, Neto qui doit intervenir physiquement):
+→ Catégorie "erreur", confidence 0.95+
+→ Inclure: CE QUI S'EST PASSÉ + POURQUOI c'est dangereux + CE QU'IL NE FAUT JAMAIS REFAIRE + L'ALTERNATIVE SÛRE
+→ C'est comme un panneau "DANGER" : on le note dès la PREMIÈRE FOIS, pas après la 2ème brûlure
+Exemples de VRAIS dangers à capter:
+✅ "NE JAMAIS utiliser openclaw gateway stop via exec — tue le daemon sans le relancer, gateway reste mort. Utiliser gateway restart (SIGUSR1)." (catégorie erreur)
+✅ "NE JAMAIS faire cp sur une DB SQLite en mode WAL — données perdues. Utiliser VACUUM INTO." (catégorie erreur)
+✅ "NE JAMAIS push sur main sans test — régression garantie. Toujours une branche séparée." (catégorie erreur)
+Signaux qu'un fait est un DANGER:
+- Quelqu'un dit "ne fais plus ça", "c'est la 2ème fois", "putain", "j'ai dû aller faire X manuellement"
+- Un service/outil est mort/cassé après une action
+- Un rollback ou fix manuel a été nécessaire
+- Le mot "jamais", "interdit", "critique", "ne pas" dans la conversation
 
-PRIORITÉ D'EXTRACTION — ce qui compte le plus:
-🥇 Apprentissages = ce qu'on a APPRIS en faisant (conclusions, règles découvertes)
-🥈 Résultats mesurés = chiffres, métriques, comparaisons avant/après
-🥉 Faits durables = configs, architectures, états des systèmes
+NE PAS STOCKER:
+❌ Confirmations vides ("ok", "merci", "compris")
+❌ Narration pure sans résultat ("je lis le fichier", "je regarde le code")
+❌ MÉTA-FAITS sur le stockage lui-même ("le nouveau fait complète l'ancien", "ce fait a été ajouté")
+❌ Faits sans AUCUN élément concret ("des informations ont été fournies", "la configuration a été mise à jour")
 
-QUALITÉ OBLIGATOIRE — chaque fait DOIT respecter ces critères:
-⚠️ Contenir au moins UN élément concret: nom propre (Ollama, Sol, Neto), OU chiffre (2.8s, 616 faits), OU commande (clawhub install), OU version (v3.4.1), OU date (26/03)
-⚠️ Être AUTONOME = compréhensible par quelqu'un qui lit ce fait seul, sans contexte
-⚠️ Ne JAMAIS commencer par "Le nouveau fait..." ou "Ce fait..." ou "L'information..." — commencer par le SUJET réel
+QUALITÉ — chaque fait DOIT:
+⚠️ Contenir au moins UN élément concret: nom propre, chiffre, commande, version, ou date
+⚠️ Être AUTONOME = compréhensible seul, sans contexte
+⚠️ Inclure le POURQUOI ou le CONTEXTE quand c'est pertinent (pas juste QUOI)
+⚠️ Ne JAMAIS commencer par "Le nouveau fait..." ou "Ce fait..." → commencer par le SUJET réel
 
 Règles:
-- Chaque fait = phrase(s) complète(s) et autonome(s) (compréhensible sans contexte)
-- Pour les PROCÉDURES (comment faire X): garder les étapes ensemble en UN SEUL fait (2-4 phrases OK)
-  Exemple bon: "Pour migrer SQLite WAL: 1) ouvrir en readonly, 2) VACUUM INTO target, 3) fermer. Ne pas utiliser cp car ça perd les données WAL."
-  Exemple mauvais: "Étape 1: ouvrir en readonly" (inutile seul)
-- UN FAIT PAR ENTITÉ DISTINCTE — si le texte parle de 3 personnes/outils/projets, créer 3 faits séparés
-  Exemple bon: "Alexandre gagne 6.50€/h" + "Pierre a quitté l'entreprise, son taux était 7.39€/h"
-  Exemple mauvais: "Alexandre et Pierre travaillent chez Primo Studio" (trop vague, mélange les infos)
+- Phrase(s) complète(s) et autonome(s)
+- Pour les PROCÉDURES: garder les étapes ensemble en UN fait (2-4 phrases OK)
+- UN FAIT PAR ENTITÉ — si le texte parle de 3 sujets distincts, 3 faits séparés
 - Catégories: savoir, erreur, preference, outil, chronologie, rh, client
 - type: "semantic" ou "episodic"
 - confidence: 0.7 minimum
 - Maximum {MAX_FACTS} faits
-- Si rien de durable → {"facts": []}
+- Si rien de concret → {"facts": []}
 
 Texte:
 "{TEXT}"
@@ -226,6 +271,11 @@ JSON valide uniquement:
 
 // ─── Formatting ───
 
+/**
+ * Format recalled facts + observations into the text block injected before the prompt.
+ * Output goes into `event.prependContext` in the before_prompt_build hook.
+ * Includes: header, observations section, per-fact lines with [category] [age] prefix, known procedures.
+ */
 function formatRecallContext(facts: Array<{ fact: string; category: string; confidence: number; temporalScore: number; created_at?: number; updated_at?: number; fact_type?: string }>, observationContext = ""): string {
   if (facts.length === 0 && !observationContext) return "";
   const parts: string[] = [
@@ -271,6 +321,7 @@ function formatRecallContext(facts: Array<{ fact: string; category: string; conf
 
 // ─── JSON Parse Helper ───
 
+/** Safely parse JSON from LLM output. Handles markdown code fences, trailing commas, and partial JSON. */
 function parseJSON(text: string): unknown {
   // Strip markdown code blocks (```json ... ``` or ``` ... ```)
   let cleaned = text.trim();
@@ -290,6 +341,11 @@ function parseJSON(text: string): unknown {
 
 const VALID_CATEGORIES = new Set(["savoir", "erreur", "preference", "outil", "chronologie", "rh", "client"]);
 
+/**
+ * Normalize free-form LLM category output → one of 7 canonical categories.
+ * Mapping: architecture/mécanisme → savoir, sévérité/bug → erreur, financier → client, etc.
+ * Unknown categories default to "savoir".
+ */
 function normalizeCategory(raw: string): string {
   const lower = (raw || "savoir").toLowerCase().trim();
   if (VALID_CATEGORIES.has(lower)) return lower;
@@ -303,6 +359,11 @@ function normalizeCategory(raw: string): string {
 
 // ─── Plugin Registration ───
 
+/**
+ * Plugin entry point called by OpenClaw on load.
+ * Creates all managers, registers all hooks, starts background tasks.
+ * This is the only export that matters — OpenClaw calls register() on startup.
+ */
 export function register(api: OpenClawPluginApi): void {
   // api.pluginConfig = plugin-specific config from openclaw.json plugins.entries.memoria.config
   // api.config = global OpenClaw config (NOT what we want)
@@ -411,6 +472,40 @@ export function register(api: OpenClawPluginApi): void {
     subtopicThreshold: 5,
     scanInterval: 15,
   });
+  const identityParser = new IdentityParser(cfg.workspacePath);
+  const lifecycleMgr = new LifecycleManager(db, {
+    freshDays: cfg.lifecycle?.freshDays ?? 15,
+    settledMinAccess: cfg.lifecycle?.settledMinAccess ?? 3,
+    dormantAfterDays: cfg.lifecycle?.dormantAfterDays ?? 60,
+    detailCursor: cfg.lifecycle?.detailCursor ?? 5,
+    revisionRecallThreshold: cfg.lifecycle?.revisionRecallThreshold ?? 10,
+  });
+  const revisionMgr = new RevisionManager(db, chain);
+  const hebbianMgr = new HebbianManager(db);
+  const expertiseMgr = new ExpertiseManager(db);
+  const proceduralLlm = layerLLM("procedural");
+  const proceduralMem = new ProceduralMemory(db.raw, proceduralLlm, {
+    reflectEvery: cfg.procedural?.reflectEvery ?? 3,
+    degradedThreshold: cfg.procedural?.degradedThreshold ?? 0.5,
+    defaultSafety: cfg.procedural?.defaultSafety ?? 0.8,
+    staleDays: cfg.procedural?.staleDays ?? 30,
+    docCheckDays: cfg.procedural?.docCheckDays ?? 60,
+  });
+  proceduralMem.ensureSchema(); // migrate quality columns + doc_sources if missing
+
+  // Pattern detection manager (Layer 20)
+  const patternMgr = new PatternManager(db, extractLlm, cfg.patterns);
+
+  // Apply staleness penalties — once per process, not per session
+  // OpenClaw calls register() once per active session, but staleness is global
+  const stalenessKey = '__memoria_staleness_applied';
+  if (!(globalThis as any)[stalenessKey]) {
+    (globalThis as any)[stalenessKey] = true;
+    const stalenessResult = proceduralMem.applyStalenessPenalties();
+    if (stalenessResult.updated > 0 || stalenessResult.flaggedForDocCheck > 0) {
+      console.log(`[memoria] 🕰️ Staleness check: ${stalenessResult.updated} aged, ${stalenessResult.flaggedForDocCheck} flagged for doc check`);
+    }
+  }
   const budget = new AdaptiveBudget({
     contextWindow: cfg.contextWindow || 200000,
     maxFacts: cfg.recallLimit || 12,
@@ -471,9 +566,41 @@ export function register(api: OpenClawPluginApi): void {
     const pkg = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
     pluginVersion = pkg.version || pluginVersion;
   } catch { /* fallback to hardcoded */ }
+  // Refresh lifecycle states on boot
+  const lifecycleRefresh = lifecycleMgr.refreshAll();
+
+  // Re-parent orphan topics (fix topics created before hierarchy logic)
+  try {
+    const reparented = topicMgr.reparentExistingTopics();
+    if (reparented > 0) {
+      api.logger.info?.(`memoria: reparented ${reparented} orphan topics`);
+    }
+  } catch { /* non-critical */ }
+  const lifecycleStats = lifecycleMgr.getStats();
+
+  // Hebbian + Expertise stats
+  const hebbianStats = hebbianMgr.getStats();
+  const expertiseStats = expertiseMgr.getStats();
+
+  // Procedural memory stats
+  const procStats = proceduralMem.getStats();
+
+  // Pattern detection stats
+  const patStats = patternMgr.stats();
+
   const fbStats = feedbackMgr.getStats();
   const fbNote = fbStats.totalWithFeedback > 0 ? `, feedback: ${fbStats.totalWithFeedback} tracked (avg ${fbStats.avgUsefulness.toFixed(1)})` : "";
-  api.logger.info?.(`memoria: v${pluginVersion} registered (${stats.active} facts, ${cStats.total} clusters, ${oStats.total} observations, ${embCount} embedded, ${gStats.entities} entities, ${gStats.relations} relations, ${tStats.totalTopics} topics${fbNote}, fallback: ${chain.providerNames.join(" → ")})`);
+  const lifecycleNote = ` | lifecycle: ${lifecycleStats.fresh ?? 0}f/${lifecycleStats.settled ?? 0}s/${lifecycleStats.dormant ?? 0}d (cursor:${lifecycleMgr.detailCursor})`;
+  const hebbianNote = ` | graph: ${hebbianStats.strong} strong, ${hebbianStats.weak} weak`;
+  const expertiseNote = ` | expertise: ${expertiseStats.expert}★★★/${expertiseStats.experienced}★★/${expertiseStats.familiar}★`;
+  const procNote = procStats.total > 0 
+    ? ` | procedures: ${procStats.healthy}✓/${procStats.degraded}⚠${procStats.stale > 0 ? `/${procStats.stale}🕰️` : ''}` 
+    : "";
+  const patNote = patStats.total > 0 ? ` | patterns: ${patStats.total} (avg ${patStats.avgOccurrences} occ)` : "";
+  const contEnabled = cfg.continuous?.enabled !== false && cfg.autoCapture;
+  const contInterval = cfg.continuous?.interval ?? 4;
+  const contNote = contEnabled ? ` | continuous: every ${contInterval} turns` : "";
+  api.logger.info?.(`memoria: v${pluginVersion} registered (${stats.active} facts, ${cStats.total} clusters, ${oStats.total} observations, ${embCount} embedded, ${gStats.entities} entities, ${gStats.relations} relations, ${tStats.totalTopics} topics${fbNote}${lifecycleNote}${hebbianNote}${expertiseNote}${procNote}${patNote}${contNote}, fallback: ${chain.providerNames.join(" → ")})`);
   
   // Log .md file sizes
   const fileSizes = mdRegen.fileSizes();
@@ -490,8 +617,21 @@ export function register(api: OpenClawPluginApi): void {
   }
 
   // ─── Shared post-processing for newly captured facts ───
-  // Called by agent_end AND after_compaction to ensure ALL facts get enriched
-
+  /**
+   * Post-capture pipeline — runs after every batch of new facts.
+   * Called by: agent_end, after_compaction, AND doContinuousExtraction.
+   * 
+   * 8 steps:
+   *   1. embedBatch() — vectorize unembedded facts
+   *   2. graph.extractAndStore() — entities + relations from new facts
+   *   3. hebbian.reinforce() — strengthen co-occurring entity relations
+   *   4. topics.onFactCaptured() + scanAndEmerge() — keyword extraction, topic creation
+   *   5. observations.onFactCaptured() — match/create living syntheses
+   *   6. clusters.generateClusters() — entity-grouped summaries
+   *   7. mdSync.syncToMd() + mdRegen — append to .md files, regenerate if > 200 lines
+   *   8. patterns.detectAndConsolidate() — consolidate repeated similar facts
+   *   9. Cross-layer: feedback→lifecycle, hebbian→topics hierarchy, lifecycle→patterns
+   */
   async function postProcessNewFacts(source: "capture" | "compaction"): Promise<void> {
     // 1. Embed unembedded facts
     try {
@@ -511,6 +651,12 @@ export function register(api: OpenClawPluginApi): void {
         const { entities: ne, relations: nr } = await graph.extractAndStore(f.id, f.fact);
         totalEnt += ne;
         totalRel += nr;
+
+        // Hebbian reinforcement: co-occurring entities strengthen relations
+        if (f.entity_ids && f.entity_ids !== "[]") {
+          const entityIds = JSON.parse(f.entity_ids) as string[];
+          hebbianMgr.reinforceFromFact(f.id, entityIds);
+        }
       }
       if (totalEnt > 0 || totalRel > 0) {
         api.logger.info?.(`memoria: [${source}] graph extracted ${totalEnt} entities, ${totalRel} relations`);
@@ -581,6 +727,89 @@ export function register(api: OpenClawPluginApi): void {
         api.logger.info?.(`memoria: [${source}] auto md-regen triggered (${regenReason}) — ${regenResult.files} files, ${regenResult.recentFacts} recent, ${regenResult.archivedFacts} archived`);
       }
     } catch { /* non-critical */ }
+
+    // 8. Pattern detection: consolidate repeated similar facts
+    try {
+      const patternResult = await patternMgr.detectAndConsolidate();
+      if (patternResult.consolidated > 0) {
+        api.logger.info?.(`memoria: [${source}] patterns — ${patternResult.detected} groups found, ${patternResult.consolidated} consolidated`);
+      }
+    } catch { /* non-critical */ }
+
+    // 9. Cross-layer connections (Phase 3)
+    try {
+      let crossUpdates = 0;
+
+      // 9a. Feedback → lifecycle promotion
+      // Facts recalled 5+ times with positive usefulness → force settled
+      const highUseFacts = db.raw.prepare(
+        `SELECT id, lifecycle_state, recall_count, usefulness FROM facts 
+         WHERE superseded = 0 AND recall_count >= 5 AND usefulness >= 2 
+         AND (lifecycle_state IS NULL OR lifecycle_state = 'fresh')`
+      ).all() as Array<{ id: string; lifecycle_state: string; recall_count: number; usefulness: number }>;
+      for (const f of highUseFacts) {
+        db.raw.prepare("UPDATE facts SET lifecycle_state = 'settled' WHERE id = ?").run(f.id);
+        crossUpdates++;
+      }
+
+      // 9b. Hebbian → topics: strong relations (weight >= 1.0) between entities
+      // If both entities belong to different topics, suggest parent-child or merge
+      const strongRelations = db.raw.prepare(
+        `SELECT source_id, target_id, weight FROM relations WHERE weight >= 1.0 ORDER BY weight DESC LIMIT 20`
+      ).all() as Array<{ source_id: string; target_id: string; weight: number }>;
+      for (const rel of strongRelations) {
+        // Find topics for each entity
+        const fromTopics = db.raw.prepare(
+          `SELECT DISTINCT t.id, t.name, t.parent_topic_id FROM topics t 
+           JOIN fact_topics ft ON ft.topic_id = t.id 
+           JOIN facts f ON f.id = ft.fact_id 
+           WHERE f.entity_ids LIKE ? AND f.superseded = 0`
+        ).all(`%${rel.source_id}%`) as Array<{ id: string; name: string; parent_topic_id: string | null }>;
+        const toTopics = db.raw.prepare(
+          `SELECT DISTINCT t.id, t.name, t.parent_topic_id FROM topics t 
+           JOIN fact_topics ft ON ft.topic_id = t.id 
+           JOIN facts f ON f.id = ft.fact_id 
+           WHERE f.entity_ids LIKE ? AND f.superseded = 0`
+        ).all(`%${rel.target_id}%`) as Array<{ id: string; name: string; parent_topic_id: string | null }>;
+
+        // If one topic is smaller, make it child of the larger
+        for (const ft of fromTopics) {
+          for (const tt of toTopics) {
+            if (ft.id === tt.id) continue;
+            if (ft.parent_topic_id || tt.parent_topic_id) continue; // already has parent
+            const ftCount = (db.raw.prepare("SELECT fact_count FROM topics WHERE id = ?").get(ft.id) as any)?.fact_count || 0;
+            const ttCount = (db.raw.prepare("SELECT fact_count FROM topics WHERE id = ?").get(tt.id) as any)?.fact_count || 0;
+            // Smaller becomes child of larger (only if ratio > 2:1)
+            if (ftCount > ttCount * 2 && ttCount > 0) {
+              db.raw.prepare("UPDATE topics SET parent_topic_id = ? WHERE id = ?").run(ft.id, tt.id);
+              crossUpdates++;
+            } else if (ttCount > ftCount * 2 && ftCount > 0) {
+              db.raw.prepare("UPDATE topics SET parent_topic_id = ? WHERE id = ?").run(tt.id, ft.id);
+              crossUpdates++;
+            }
+          }
+        }
+      }
+
+      // 9c. Lifecycle → patterns: confirmed patterns (5+ occurrences) → settled
+      const freshPatterns = db.raw.prepare(
+        `SELECT id, tags FROM facts WHERE fact_type = 'pattern' AND superseded = 0 
+         AND (lifecycle_state IS NULL OR lifecycle_state = 'fresh')`
+      ).all() as Array<{ id: string; tags: string }>;
+      for (const p of freshPatterns) {
+        try {
+          const meta = JSON.parse(p.tags || "{}");
+          if (meta.occurrences && meta.occurrences.length >= 5) {
+            db.raw.prepare("UPDATE facts SET lifecycle_state = 'settled' WHERE id = ?").run(p.id);
+            crossUpdates++;
+          }
+        } catch { /* skip malformed */ }
+      }
+
+      if (crossUpdates > 0) {
+        api.logger.info?.(`memoria: [${source}] cross-layer — ${crossUpdates} updates (feedback→lifecycle, hebbian→topics, lifecycle→patterns)`);
+      }
+    } catch { /* cross-layer non-critical */ }
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -590,8 +819,26 @@ export function register(api: OpenClawPluginApi): void {
   if (cfg.autoRecall) {
     api.on("before_prompt_build", async (event, _ctx) => {
       try {
-        const prompt = typeof event.prompt === "string" ? event.prompt : "";
-        if (!prompt || prompt.length < 3) return undefined;
+        const rawPrompt = typeof event.prompt === "string" ? event.prompt : "";
+        if (!rawPrompt || rawPrompt.length < 3) return undefined;
+
+        // Strip OpenClaw envelope metadata to get the real user message
+        // The prompt contains "Conversation info (untrusted metadata)..." + JSON blocks
+        // which pollute FTS search with irrelevant tokens
+        let prompt = rawPrompt;
+        const lastJsonEnd = rawPrompt.lastIndexOf("```\n\n");
+        if (lastJsonEnd !== -1 && rawPrompt.includes("untrusted metadata")) {
+          prompt = rawPrompt.slice(lastJsonEnd + 5).trim();
+        }
+        // Also strip Memoria injection header if re-entering
+        if (prompt.startsWith("## 🧠 Memoria")) {
+          const afterMemoria = prompt.indexOf("\n\n", prompt.indexOf("Conversation info"));
+          if (afterMemoria !== -1) prompt = prompt.slice(afterMemoria).trim();
+        }
+        // Fallback: if stripping removed everything, use last 500 chars of raw
+        if (!prompt || prompt.length < 3) {
+          prompt = rawPrompt.slice(-500).trim();
+        }
 
         // ── User signal detection (correction / frustration) ──
         // Analyze the user message BEFORE recall so we can penalize
@@ -703,11 +950,110 @@ export function register(api: OpenClawPluginApi): void {
           }
         } catch { /* non-critical */ }
 
+        // Procedural memory: search for matching "how-to" procedures
+        // Cross-layer: uses Graph entities to enhance search + Embeddings for semantic match
+        let proceduresContext = "";
+        const matchedProcedureIds: string[] = [];
+        try {
+          // Strategy 1: Direct text search (fast, always works)
+          let procedures = proceduralMem.search(prompt, 3);
+
+          // Strategy 2: If few results, expand via Graph entities
+          // The graph knows "ClawHub" relates to "publish", "Memoria" relates to "plugin" etc.
+          if (procedures.length < 2) {
+            try {
+              const graphEntities = graph.findEntitiesInText(prompt);
+              if (graphEntities.length > 0) {
+                const relatedTerms = graphEntities
+                  .flatMap((e: any) => [e.name, ...(e.aliases || [])])
+                  .slice(0, 5);
+                for (const term of relatedTerms) {
+                  const extra = proceduralMem.search(term, 2);
+                  for (const p of extra) {
+                    if (!procedures.find(existing => existing.id === p.id)) {
+                      procedures.push(p);
+                    }
+                  }
+                }
+                if (procedures.length > 3) procedures = procedures.slice(0, 3);
+              }
+            } catch { /* graph expansion is non-critical */ }
+          }
+
+          if (procedures.length > 0) {
+            const procTexts: string[] = [];
+            for (const proc of procedures) {
+              matchedProcedureIds.push(proc.id);
+              const successRate = proc.success_count / Math.max(proc.success_count + proc.failure_count, 1);
+              const degThreshold = cfg.procedural?.degradedThreshold ?? 0.5;
+              const isStale = proceduralMem.needsDocCheck(proc);
+              const isDegraded = proc.degradation_score > degThreshold;
+              const status = isDegraded ? "⚠ degraded" 
+                : isStale ? "🕰️ stale — verify before using"
+                : proc.preferred ? "★ preferred" : "✓";
+              const qualityStr = `quality: ${(proc.quality.overall * 100).toFixed(0)}%`;
+              const versionStr = proc.version > 1 ? ` v${proc.version}` : '';
+              const gotchaStr = proc.gotchas ? `\n  ⚠ Gotchas: ${proc.gotchas}` : '';
+              const staleStr = isStale ? `\n  🕰️ Not used in a while — check docs/help before running. Doc sources: ${(proc.doc_sources || []).join(', ') || 'run --help'}` : '';
+              procTexts.push(
+                `**${proc.name}**${versionStr} ${status} (${(successRate * 100).toFixed(0)}% success, ${qualityStr}):\n` +
+                proc.steps.map((s, i) => `  ${i + 1}. ${s}`).join('\n') +
+                gotchaStr +
+                staleStr
+              );
+            }
+            proceduresContext = `\n## 🔧 Known Procedures\n${procTexts.join('\n\n')}\n`;
+            api.logger.debug?.(`memoria: ${procedures.length} procedures matched (graph-expanded)`);
+          }
+        } catch { /* non-critical */ }
+
         // Context tree: organize facts hierarchically, weight by query
         // Merge: hot tier (always first) + search + graph + topic
         let finalFacts: Fact[] = [];
         try {
-          const allFactsCandidates = [...hotScored, ...topFacts, ...graphFacts, ...topicFacts];
+          // Build set of fact IDs that are members of active (non-stale) clusters
+          // These facts are represented by their cluster summary, so they get deprioritized
+          // (not excluded — they can still surface if directly relevant)
+          let clusteredFactIds: Set<string> = new Set();
+          try {
+            const clusters = db.raw.prepare(
+              "SELECT tags FROM facts WHERE fact_type = 'cluster' AND superseded = 0"
+            ).all() as Array<{ tags: string }>;
+            for (const c of clusters) {
+              try {
+                const meta = JSON.parse(c.tags);
+                if (!meta.stale && Array.isArray(meta.memberIds)) {
+                  for (const id of meta.memberIds) clusteredFactIds.add(id);
+                }
+              } catch { /* bad JSON, skip */ }
+            }
+          } catch { /* non-critical */ }
+
+          // Apply lifecycle multiplier + expertise boost + cluster-member deprioritization BEFORE tree building
+          const allFactsCandidates = [...hotScored, ...topFacts, ...graphFacts, ...topicFacts].map(f => {
+            let mult = lifecycleMgr.getRecallMultiplier(f.lifecycle_state);
+            // Facts already represented by a cluster get 40% penalty
+            // (the cluster summary carries their info more concisely)
+            if (clusteredFactIds.has(f.id) && f.fact_type !== "cluster") {
+              mult *= 0.6;
+            }
+            // Expertise boost: facts linked to expert-level topics get up to 1.5× score
+            try {
+              const factTopics = db.raw.prepare(
+                "SELECT t.name FROM topics t JOIN fact_topics ft ON ft.topic_id = t.id WHERE ft.fact_id = ?"
+              ).all(f.id) as Array<{ name: string }>;
+              if (factTopics.length > 0) {
+                const boost = expertiseMgr.applyExpertiseBoost(1.0, factTopics.map(t => t.name));
+                if (boost > 1.0) mult *= boost;
+              }
+            } catch { /* expertise non-critical */ }
+            // Pattern boost: consolidated patterns get 1.5× score
+            mult *= patternMgr.applyPatternBoost(1.0, f.fact_type);
+            if ((f as any).temporalScore) {
+              return { ...f, temporalScore: (f as any).temporalScore * mult };
+            }
+            return f;
+          });
           const tree = await treeBuilder.build(allFactsCandidates, prompt);
           
           // Extract facts in priority order (tree weights)
@@ -723,15 +1069,36 @@ export function register(api: OpenClawPluginApi): void {
           finalFacts = [...topFacts, ...graphFacts, ...topicFacts].slice(0, recallLimit);
         }
 
-        if (finalFacts.length === 0 && !observationContext) return undefined;
+        if (finalFacts.length === 0 && !observationContext && !proceduresContext) return undefined;
 
-        const context = formatRecallContext(finalFacts, observationContext);
+        const context = formatRecallContext(finalFacts, observationContext) + proceduresContext;
 
-        // Track access + feedback loop + budget learning
+        // Track access + feedback loop + budget learning + lifecycle update
         const ids = finalFacts.map(f => f.id);
         try { db.trackAccess(ids); } catch { /* non-critical */ }
         try { feedbackMgr.recordRecall(ids, prompt); } catch { /* non-critical */ }
         try { budget.recordRecall(recallLimit); } catch { /* non-critical */ }
+
+        // Note: procedure feedback comes from after_tool_call (reinforcement/reflect),
+        // not from recall. Unlike facts, procedures prove their worth through execution.
+        try {
+          // Update lifecycle state for recalled facts (fresh→settled transition)
+          for (const fact of finalFacts) {
+            lifecycleMgr.updateLifecycle(fact);
+          }
+        } catch { /* non-critical */ }
+
+        // Proactive revision: check if any settled facts need refinement (async, non-blocking)
+        setImmediate(async () => {
+          try {
+            const revResult = await revisionMgr.checkAndRevise();
+            if (revResult.revised > 0) {
+              api.logger.info?.(`memoria: proactive revision completed (${revResult.revised} refined, ${revResult.created} new facts)`);
+            }
+          } catch (err) {
+            api.logger.debug?.(`memoria: proactive revision failed: ${String(err)}`);
+          }
+        });
 
         const hotNote = hotLimit > 0 ? `, ${hotLimit} hot` : "";
         const graphNote = graphFacts.length > 0 ? `, +${graphFacts.length} graph` : "";
@@ -746,12 +1113,434 @@ export function register(api: OpenClawPluginApi): void {
   }
 
   // ════════════════════════════════════════════════════════════════
+  // HOOK: message_received + llm_output — Continuous Learning (Layer 21)
+  // Like a child learning while walking, not just at bedtime.
+  // Captures facts in real-time as the conversation flows,
+  // independent of context size, compaction, or session end.
+  // ════════════════════════════════════════════════════════════════
+
+  const continuousBuffer: Array<{ role: "user" | "assistant"; text: string; ts: number }> = [];
+  let continuousTurnCount = 0;
+  let lastContinuousExtraction = 0;
+  let continuousExtractionInProgress = false; // guard against concurrent extractions
+  const CONTINUOUS_ENABLED = cfg.continuous?.enabled !== false && cfg.autoCapture; // on by default if autoCapture
+  const CONTINUOUS_COOLDOWN_MS = cfg.continuous?.cooldownMs ?? 45_000; // 45s between normal extractions
+  const CONTINUOUS_MAX_BUFFER = 10; // keep last 10 exchanges
+  const CONTINUOUS_NORMAL_INTERVAL = cfg.continuous?.interval ?? 4; // extract every N turns
+  const CONTINUOUS_URGENT_PATTERNS = [
+    // Frustration / explicit error signals
+    /\bne\s+fais?\s+plus\b/i, /\bne\s+jamais\b/i, /\bputain\b/i, /\bmerde\b/i,
+    /\bc'est\s+la\s+[23]\w*\s+fois\b/i, /\bj'ai\s+d[uû]\b/i,
+    /\bdoublon\b/i, /\berreur\b/i, /\bcrash\b/i, /\bcassé\b/i, /\bmort\b/i,
+    /\brevert\b/i, /\brollback\b/i, /\bhotfix\b/i,
+    /\btu\s+as\s+pas\s+(compris|appris|retenu)\b/i,
+    /\bpourquoi\s+tu\s+(refais?|recommence)\b/i,
+    // English equivalents
+    /\bnever\s+do\b/i, /\bdon'?t\s+ever\b/i, /\bbroke\b/i, /\bdead\b/i,
+    /\bduplicate\b/i, /\bmistake\b/i,
+  ];
+
+  // Buffer user messages
+  api.on("message_received", async (event, _ctx) => {
+    if (!CONTINUOUS_ENABLED) return;
+    try {
+      if (!event.content || event.content.length < 5) return;
+      // Skip heartbeat/system messages
+      if (/^(HEARTBEAT|Read HEARTBEAT|NO_REPLY)/i.test(event.content)) return;
+
+      continuousBuffer.push({
+        role: "user",
+        text: event.content.slice(0, 3000),
+        ts: Date.now(),
+      });
+      if (continuousBuffer.length > CONTINUOUS_MAX_BUFFER) continuousBuffer.shift();
+      continuousTurnCount++;
+
+      // Check for urgent signals in user message — extract immediately
+      const isUrgent = CONTINUOUS_URGENT_PATTERNS.some(p => p.test(event.content));
+      if (isUrgent) {
+        api.logger.info?.(`memoria: ⚡ continuous — urgent signal detected in user message`);
+        await doContinuousExtraction("urgent");
+      }
+    } catch (err) {
+      api.logger.debug?.(`memoria: continuous message_received error: ${String(err)}`);
+    }
+  });
+
+  // Buffer assistant responses + trigger periodic extraction
+  api.on("llm_output", async (event, _ctx) => {
+    if (!CONTINUOUS_ENABLED) return;
+    try {
+      const texts = event.assistantTexts?.filter(t => t && t.length > 15) || [];
+      if (texts.length === 0) return;
+
+      const combined = texts.join("\n").slice(0, 3000);
+      // Skip empty/system responses
+      if (/^(HEARTBEAT_OK|NO_REPLY)$/i.test(combined.trim())) return;
+
+      continuousBuffer.push({
+        role: "assistant",
+        text: combined,
+        ts: Date.now(),
+      });
+      if (continuousBuffer.length > CONTINUOUS_MAX_BUFFER) continuousBuffer.shift();
+
+      // Check for self-detected errors in assistant response
+      const selfErrorPatterns = [
+        /erreur.*j'ai\s+(fait|commis|créé)/i,
+        /mon\s+erreur/i, /j'aurais\s+d[uû]/i,
+        /je\s+n'aurais\s+pas\s+d[uû]/i,
+        /confond[ure]/i, /par\s+erreur/i,
+        /ERREUR\s+CRITIQUE/i,
+      ];
+      const selfError = selfErrorPatterns.some(p => p.test(combined));
+      if (selfError) {
+        api.logger.info?.(`memoria: ⚡ continuous — self-detected error in assistant response`);
+        await doContinuousExtraction("self-error");
+      }
+
+      // Normal periodic extraction
+      if (continuousTurnCount >= CONTINUOUS_NORMAL_INTERVAL) {
+        const now = Date.now();
+        if (now - lastContinuousExtraction > CONTINUOUS_COOLDOWN_MS) {
+          await doContinuousExtraction("periodic");
+        }
+      }
+    } catch (err) {
+      api.logger.debug?.(`memoria: continuous llm_output error: ${String(err)}`);
+    }
+  });
+
+  /**
+   * Layer 21: Continuous Learning — micro-extraction from rolling buffer.
+   * 
+   * Triggers:
+   *   - "periodic": every N turns (default 4), with cooldown
+   *   - "urgent": immediate on user frustration/error keywords (bypasses cooldown)
+   *   - "self-error": immediate on assistant self-admission phrases
+   * 
+   * Uses same LLM_EXTRACT_PROMPT + selective + postProcessNewFacts as agent_end.
+   * Guarded by continuousExtractionInProgress lock to prevent concurrent runs.
+   * Buffer is snapshot + cleared before extraction to avoid re-processing.
+   */
+  async function doContinuousExtraction(trigger: "periodic" | "urgent" | "self-error"): Promise<void> {
+    if (continuousBuffer.length < 2) return;
+    if (continuousExtractionInProgress) return; // prevent concurrent extractions
+
+    const now = Date.now();
+    // Urgent bypasses cooldown, others respect it
+    if (trigger === "periodic" && now - lastContinuousExtraction < CONTINUOUS_COOLDOWN_MS) return;
+
+    continuousExtractionInProgress = true;
+    lastContinuousExtraction = now;
+    continuousTurnCount = 0;
+
+    // Snapshot and clear buffer to avoid re-processing same messages
+    const snapshot = [...continuousBuffer];
+    continuousBuffer.length = 0;
+
+    // Build context from snapshot
+    const context = snapshot
+      .map(m => `[${m.role}]: ${m.text}`)
+      .join("\n---\n");
+
+    const urgencyHint = trigger === "urgent"
+      ? "\n\n⚠️ SIGNAL D'URGENCE DÉTECTÉ — L'utilisateur exprime une frustration ou signale une erreur. PRIORITÉ MAXIMALE aux faits de catégorie 'erreur'."
+      : trigger === "self-error"
+      ? "\n\n⚠️ L'ASSISTANT A DÉTECTÉ SA PROPRE ERREUR — Capturer ce qui s'est mal passé, pourquoi, et ce qu'il ne faut plus faire."
+      : "";
+
+    const prompt = LLM_EXTRACT_PROMPT
+      .replace("{TEXT}", context + urgencyHint)
+      .replace("{MAX_FACTS}", String(Math.min(cfg.captureMaxFacts, trigger === "periodic" ? 3 : 5)));
+
+    try {
+      const result = await extractLlm.generateWithMeta(prompt, {
+        maxTokens: 768,
+        temperature: 0.1,
+        format: "json",
+        timeoutMs: 20000,
+      });
+
+      if (!result?.response) return;
+
+      const parsed = parseJSON(result.response) as { facts?: Array<{ fact: string; category: string; type?: string; confidence: number }> };
+      if (!parsed?.facts || parsed.facts.length === 0) return;
+
+      let stored = 0, skipped = 0, enriched = 0, superseded = 0;
+      for (const f of parsed.facts) {
+        if (!f.fact || f.fact.length < 5) continue;
+        if (f.confidence < 0.7) continue;
+
+        const factType = (f.type === "episodic") ? "episodic" : "semantic";
+        try {
+          const category = normalizeCategory(f.category);
+          const relevance = identityParser.calculateRelevance(f.fact, category);
+          const res = await selective.processAndApply(
+            f.fact, category, f.confidence, cfg.defaultAgent, factType, relevance
+          );
+          if (res.stored) {
+            if (res.action === "enrich") enriched++;
+            else if (res.action === "supersede") superseded++;
+            else stored++;
+          } else { skipped++; }
+        } catch {
+          const category = normalizeCategory(f.category);
+          const relevance = identityParser.calculateRelevance(f.fact, category);
+          db.storeFact({
+            id: `fact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            fact: f.fact, category, confidence: f.confidence,
+            source: `continuous-${trigger}`,
+            tags: "[]", agent: cfg.defaultAgent,
+            created_at: Date.now(), updated_at: Date.now(),
+            fact_type: factType, relevance_weight: relevance,
+          });
+          stored++;
+        }
+      }
+
+      const parts: string[] = [];
+      if (stored > 0) parts.push(`${stored} new`);
+      if (enriched > 0) parts.push(`${enriched} enriched`);
+      if (superseded > 0) parts.push(`${superseded} superseded`);
+      if (skipped > 0) parts.push(`${skipped} skipped`);
+      if (parts.length > 0) {
+        api.logger.info?.(`memoria: ⚡ continuous [${trigger}] — ${parts.join(", ")}`);
+        // Post-process (embed, graph, topics, etc.)
+        if (stored > 0 || enriched > 0) {
+          await postProcessNewFacts("capture");
+        }
+      }
+    } catch (err) {
+      api.logger.debug?.(`memoria: continuous extraction failed: ${String(err)}`);
+    } finally {
+      continuousExtractionInProgress = false;
+    }
+  }
+
+  // ════════════════════════════════════════════════════════════════
+  // ════════════════════════════════════════════════════════════════
+  // HOOK: after_tool_call — Real-time procedural capture (Layer 1b)
+  // Learn on-the-fly, not at end-of-session. Like a human learning
+  // during the task, not when they go home at night.
+  // ════════════════════════════════════════════════════════════════
+
+  // Session buffer: accumulates tool calls until a success pattern triggers assembly
+  const toolCallBuffer: Array<{
+    toolName: string;
+    params: Record<string, unknown>;
+    result?: unknown;
+    error?: string;
+    durationMs?: number;
+    timestamp: number;
+  }> = [];
+  // Track which procedures were already assembled to avoid duplicates
+  const assembledGoals = new Set<string>();
+  // Cooldown to avoid assembling too frequently
+  let lastAssemblyTime = 0;
+  const ASSEMBLY_COOLDOWN_MS = 60_000; // 1 minute between assemblies
+
+  api.on("after_tool_call", async (event, _ctx) => {
+    try {
+      const { toolName, params, result, error, durationMs } = event;
+      
+      // Buffer all tool calls (keep last 30 to avoid memory leak)
+      toolCallBuffer.push({
+        toolName,
+        params: params || {},
+        result: typeof result === 'string' ? result.slice(0, 2000) : result,
+        error,
+        durationMs,
+        timestamp: Date.now(),
+      });
+      if (toolCallBuffer.length > 30) toolCallBuffer.shift();
+
+      // Only trigger assembly on exec-type tools with a successful outcome
+      if (toolName !== 'exec' && toolName !== 'Edit' && toolName !== 'Write') return;
+      if (error) return; // failed step — don't assemble yet
+
+      // Check result for success keywords (publish, deploy, commit, install, etc.)
+      const resultStr = typeof result === 'string' ? result : JSON.stringify(result || '');
+      const successPatterns = [
+        /Published?\s/i, /✔|✅/, /success/i, /deployed/i, /created/i,
+        /\[new tag\]/, /release.*created/i, /installed/i, /committed/i,
+        /pushed/i, /merged/i, /completed/i, /OK\.\s/,
+      ];
+
+      const isSuccess = successPatterns.some(p => p.test(resultStr));
+      if (!isSuccess) return;
+
+      // Cooldown check
+      const now = Date.now();
+      if (now - lastAssemblyTime < ASSEMBLY_COOLDOWN_MS) return;
+
+      // We have a success signal — assemble procedure from recent exec calls
+      const recentExecs = toolCallBuffer
+        .filter(tc => tc.toolName === 'exec' && !tc.error)
+        .slice(-15); // last 15 exec calls
+
+      if (recentExecs.length < 2) return;
+
+      // Extract commands
+      const commands = recentExecs
+        .map(tc => (tc.params as any)?.command as string)
+        .filter(Boolean)
+        .filter(cmd => cmd.length > 5 && cmd.length < 1000);
+
+      if (commands.length < 2) return;
+
+      // ── FIX 1: Filter — only capture reusable procedures ──
+      if (!proceduralMem.isReusableProcedure(commands)) {
+        api.logger.debug?.(`memoria: procedural skipped — not reusable (${commands.length} cmds, no action pattern)`);
+        return;
+      }
+
+      // Quick fingerprint to avoid duplicate assemblies
+      const fingerprint = commands.slice(-3).join('|').slice(0, 200);
+      if (assembledGoals.has(fingerprint)) return;
+
+      // Assemble the procedure via LLM
+      api.logger.info?.(`memoria: 🔧 real-time procedural capture — ${commands.length} commands, trigger: "${resultStr.slice(0, 80)}..."`);
+
+      const prompt = `Analyze this successful command sequence and extract a reusable procedure.
+
+Commands executed (in order):
+${commands.map((c, i) => `${i + 1}. ${c}`).join('\n')}
+
+Final result (success): ${resultStr.slice(0, 500)}
+
+Output JSON only (no markdown, no explanation):
+{
+  "name": "Short name (e.g., 'Publish Memoria to ClawHub')",
+  "goal": "What this accomplishes in one sentence",
+  "trigger_patterns": ["keyword1", "keyword2"],
+  "key_steps": ["step1 description", "step2 description"],
+  "gotchas": ["pitfall or workaround learned"]
+}`;
+
+      try {
+        const response = await extractLlm.generateWithMeta(prompt, {
+          maxTokens: 512,
+          temperature: 0.1,
+          format: "json",
+          timeoutMs: 15000,
+        });
+
+        if (!response?.response) return;
+
+        const cleaned = response.response.replace(/```json\n?|\n?```/g, '').trim();
+        const meta = JSON.parse(cleaned);
+
+        if (!meta.name || !meta.goal) return;
+
+        // ── FIX 1b: Re-check name for noise patterns ──
+        if (!proceduralMem.isReusableProcedure(commands, meta.name)) {
+          api.logger.debug?.(`memoria: procedural skipped — LLM named it noise: "${meta.name}"`);
+          return;
+        }
+
+        // ── FIX 2: Smart duplicate detection ──
+        // Use findSimilarProcedure (word overlap) instead of exact match
+        const similar = proceduralMem.findSimilarProcedure(meta.name, meta.goal);
+
+        if (similar) {
+          // Reinforce existing procedure
+          const totalDuration = recentExecs.reduce((sum, tc) => sum + (tc.durationMs || 0), 0);
+          proceduralMem.recordExecution(similar.id, true, totalDuration);
+          
+          // Add improvement if steps changed
+          const newSteps = commands.filter(c => !similar.steps.includes(c));
+          if (newSteps.length > 0) {
+            proceduralMem.addImprovement(
+              similar.id,
+              `Updated steps: ${newSteps.slice(0, 3).join('; ')}`,
+              'Real-time learning from successful execution'
+            );
+          }
+
+          // ── Reflect: was this the best approach? ──
+          // Only reflect every 3rd execution (avoid LLM spam)
+          const reflectEvery = cfg.procedural?.reflectEvery ?? 3;
+          if (reflectEvery > 0 && (similar.success_count + 1) % reflectEvery === 0) {
+            try {
+              const errors = recentExecs
+                .filter(tc => tc.error)
+                .map(tc => tc.error!);
+              const reflection = await proceduralMem.reflect(similar.id, {
+                durationMs: totalDuration,
+                stepsTaken: commands,
+                errorsEncountered: errors.length > 0 ? errors : undefined,
+              });
+              if (reflection?.should_improve) {
+                api.logger.info?.(`memoria: procedural 🔍 reflected on "${similar.name}" — ${reflection.suggestions.slice(0, 2).join('; ')}`);
+              }
+            } catch { /* reflection is non-critical */ }
+          }
+
+          api.logger.info?.(`memoria: procedural ✅ reinforced "${similar.name}" (v${similar.version}, ${similar.success_count + 1} successes, quality=${similar.quality.overall})`);
+        } else {
+          // Create new procedure with full type compliance
+          const proc: import("./procedural.js").Procedure = {
+            id: `proc_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
+            name: meta.name,
+            goal: meta.goal,
+            steps: commands,
+            version: 1,
+            success_count: 1,
+            failure_count: 0,
+            last_success_at: Date.now(),
+            last_updated_at: Date.now(),
+            improvements: [],
+            quality: {
+              speed: 0.5,
+              reliability: 0.5,
+              elegance: Math.max(0.2, 1 - commands.length * 0.1), // fewer steps = more elegant
+              safety: 0.8,
+              overall: 0.5,
+            },
+            context: [...(meta.trigger_patterns || []), ...(meta.gotchas || [])].join(', '),
+            gotchas: meta.gotchas?.join(' | '),
+            degradation_score: 0,
+            preferred: false,
+          };
+
+          proceduralMem.storeProcedure(proc);
+          api.logger.info?.(`memoria: procedural ✅ NEW "${proc.name}" (${proc.steps.length} steps, real-time)`);
+
+          // Cross-layer: enrich Knowledge Graph with procedure entities
+          // "Publish to ClawHub" → entities: ClawHub, Memoria, plugin
+          try {
+            const procFact = `Procedure "${proc.name}": ${proc.goal}. Steps: ${commands.slice(0, 3).join('; ')}`;
+            await graph.extractAndStore(`proc_${proc.id}`, procFact);
+            api.logger.debug?.(`memoria: procedural → graph entities extracted for "${proc.name}"`);
+          } catch { /* graph enrichment is non-critical */ }
+        }
+
+        assembledGoals.add(fingerprint);
+        lastAssemblyTime = now;
+        
+        // Clear old buffer entries (keep last 5 for context)
+        toolCallBuffer.splice(0, Math.max(0, toolCallBuffer.length - 5));
+
+      } catch (llmErr) {
+        api.logger.debug?.(`memoria: procedural LLM failed: ${String(llmErr)}`);
+      }
+
+    } catch (err) {
+      // Non-blocking — never crash the plugin
+      api.logger.debug?.(`memoria: after_tool_call error: ${String(err)}`);
+    }
+  });
+
   // HOOK: agent_end — Capture (Layer 1)
   // ════════════════════════════════════════════════════════════════
 
   if (cfg.autoCapture) {
     api.on("agent_end", async (event, _ctx) => {
       if (!event.success || !event.messages || event.messages.length === 0) return;
+
+      // Track how many messages continuous already processed
+      const continuousAlreadyCaptured = lastContinuousExtraction > 0;
 
       try {
         // ── Feedback loop: measure if recalled facts were used in responses ──
@@ -804,8 +1593,16 @@ export function register(api: OpenClawPluginApi): void {
 
         if (texts.length === 0) return;
 
-        // Take last 3 messages (most relevant)
-        const recentTexts = texts.slice(-3).join("\n---\n");
+        // If continuous learning already captured during this session,
+        // only extract from messages NOT yet seen (reduce duplicate LLM calls)
+        const effectiveTexts = continuousAlreadyCaptured
+          ? texts.slice(-1) // Only the very last message (likely not yet captured)
+          : texts.slice(-3);
+
+        if (effectiveTexts.length === 0) return;
+
+        // Take last messages (most relevant)
+        const recentTexts = effectiveTexts.join("\n---\n");
         const prompt = LLM_EXTRACT_PROMPT
           .replace("{TEXT}", recentTexts)
           .replace("{MAX_FACTS}", String(cfg.captureMaxFacts));
@@ -836,12 +1633,15 @@ export function register(api: OpenClawPluginApi): void {
           const factType = (f.type === "episodic") ? "episodic" : "semantic";
 
           try {
+            const category = normalizeCategory(f.category);
+            const relevance = identityParser.calculateRelevance(f.fact, category);
             const result = await selective.processAndApply(
               f.fact,
-              normalizeCategory(f.category),
+              category,
               f.confidence,
               cfg.defaultAgent,
-              factType
+              factType,
+              relevance
             );
             if (result.stored) {
               if (result.action === "enrich") enriched++;
@@ -852,10 +1652,12 @@ export function register(api: OpenClawPluginApi): void {
             }
           } catch {
             // Fallback: store directly if selective fails
+            const category = normalizeCategory(f.category);
+            const relevance = identityParser.calculateRelevance(f.fact, category);
             db.storeFact({
               id: `fact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
               fact: f.fact,
-              category: normalizeCategory(f.category),
+              category,
               confidence: f.confidence,
               source: "auto-capture",
               tags: "[]",
@@ -863,6 +1665,7 @@ export function register(api: OpenClawPluginApi): void {
               created_at: Date.now(),
               updated_at: Date.now(),
               fact_type: factType,
+              relevance_weight: relevance,
             });
             stored++;
           }
@@ -881,6 +1684,53 @@ export function register(api: OpenClawPluginApi): void {
         if (stored > 0 || enriched > 0) {
           await postProcessNewFacts("capture");
         }
+
+        // ── Procedural Memory: extract successful command sequences ──
+        try {
+          // DEBUG: log what we receive
+          const toolCallCount = event.toolCalls?.length || 0;
+          const messageCount = event.messages?.length || 0;
+          api.logger.info?.(`[DEBUG] agent_end — toolCalls: ${toolCallCount}, messages: ${messageCount}`);
+
+          // Strategy A: Try toolCalls first (if available)
+          let proc: any = null;
+          if (event.toolCalls && event.toolCalls.length >= 2) {
+            api.logger.info?.(`[DEBUG] Trying toolCalls extraction...`);
+            const lastMessage = event.messages[event.messages.length - 1];
+            const lastText = typeof lastMessage === "object" && (lastMessage as any).content
+              ? String((lastMessage as any).content).toLowerCase()
+              : "";
+            
+            const successKeywords = ["success", "done", "published", "deployed", "completed", "✓", "✅"];
+            const isSuccess = successKeywords.some(kw => lastText.includes(kw));
+
+            if (isSuccess) {
+              proc = await proceduralMem.extractProcedure(
+                event.toolCalls as any,
+                'success',
+                `Session: ${event.agentId || cfg.defaultAgent}`
+              );
+            }
+          }
+
+          // Strategy B: Fallback to parsing messages (more robust)
+          if (!proc && event.messages && event.messages.length >= 3) {
+            api.logger.info?.(`[DEBUG] Trying message extraction...`);
+            proc = await proceduralMem.extractFromMessages(
+              event.messages as any,
+              `Session: ${event.agentId || cfg.defaultAgent}`
+            );
+          }
+
+          if (proc) {
+            api.logger.info?.(`memoria: procedural ✅ captured "${proc.name}" (${proc.steps.length} steps)`);
+          } else {
+            api.logger.debug?.(`[DEBUG] No procedure extracted (toolCalls=${toolCallCount}, messages=${messageCount})`);
+          }
+        } catch (err) { 
+          api.logger.warn?.(`[DEBUG] procedural extraction error: ${String(err)}`);
+        }
+
       } catch (err) {
         api.logger.warn?.(`memoria: capture failed: ${String(err)}`);
       }
@@ -926,16 +1776,20 @@ export function register(api: OpenClawPluginApi): void {
         if (!f.fact || f.fact.length < 5 || f.confidence < 0.7) continue;
         const factType = (f.type === "episodic") ? "episodic" : "semantic";
         try {
+          const category = normalizeCategory(f.category);
+          const relevance = identityParser.calculateRelevance(f.fact, category);
           const result = await selective.processAndApply(
-            f.fact, normalizeCategory(f.category), f.confidence, cfg.defaultAgent, factType
+            f.fact, category, f.confidence, cfg.defaultAgent, factType, relevance
           );
           if (result.stored) stored++;
           else skipped++;
         } catch {
+          const category = normalizeCategory(f.category);
+          const relevance = identityParser.calculateRelevance(f.fact, category);
           db.storeFact({
             id: `fact_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`,
             fact: f.fact,
-            category: normalizeCategory(f.category),
+            category,
             confidence: f.confidence,
             source: "compaction",
             tags: "[]",
@@ -943,6 +1797,7 @@ export function register(api: OpenClawPluginApi): void {
             created_at: Date.now(),
             updated_at: Date.now(),
             fact_type: factType,
+            relevance_weight: relevance,
           });
           stored++;
         }
@@ -956,6 +1811,22 @@ export function register(api: OpenClawPluginApi): void {
       if (stored > 0) {
         await postProcessNewFacts("compaction");
       }
+
+      // ── Procedural Memory: extract from compaction summary ──
+      try {
+        // Parse summary as if it were assistant messages
+        const fakeMessages = [{ role: 'assistant', content: summary }];
+        const proc = await proceduralMem.extractFromMessages(
+          fakeMessages as any,
+          `Compaction summary: ${event.agentId || cfg.defaultAgent}`
+        );
+        if (proc) {
+          api.logger.info?.(`memoria: procedural ✅ captured from compaction "${proc.name}" (${proc.steps.length} steps)`);
+        }
+      } catch (err) {
+        api.logger.debug?.(`[DEBUG] procedural compaction extraction error: ${String(err)}`);
+      }
+
     } catch (err) {
       api.logger.warn?.(`memoria: compaction capture failed: ${String(err)}`);
     }

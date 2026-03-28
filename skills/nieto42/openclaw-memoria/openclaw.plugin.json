@@ -41,6 +41,82 @@
         "type": "boolean",
         "default": true
       },
+      "lifecycle": {
+        "type": "object",
+        "additionalProperties": false,
+        "description": "Human-like memory lifecycle. Controls recall priority, never deletes. Dormant facts are always searchable on explicit request.",
+        "properties": {
+          "freshDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 90,
+            "default": 15,
+            "description": "Days a fact stays 'fresh' (highest recall priority)"
+          },
+          "settledMinAccess": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 3,
+            "description": "Access count to become 'settled' before freshDays expires"
+          },
+          "dormantAfterDays": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 365,
+            "default": 60,
+            "description": "Days without access before becoming 'dormant' (low auto-recall priority, still searchable)"
+          },
+          "detailCursor": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 10,
+            "default": 5,
+            "description": "Detail cursor (1-10). Higher = more dormant context in auto-recall. 1=minimal, 5=normal, 10=everything"
+          }
+        }
+      },
+      "procedural": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "reflectEvery": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 20,
+            "default": 3,
+            "description": "Reflect on procedure quality every N executions (0 = never)"
+          },
+          "degradedThreshold": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1.0,
+            "default": 0.5,
+            "description": "Degradation score above which a procedure is flagged as degraded"
+          },
+          "defaultSafety": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1.0,
+            "default": 0.8,
+            "description": "Default safety score for new procedures"
+          },
+          "staleDays": {
+            "type": "number",
+            "minimum": 7,
+            "maximum": 365,
+            "default": 30,
+            "description": "Days without use before a procedure starts degrading from staleness"
+          },
+          "docCheckDays": {
+            "type": "number",
+            "minimum": 7,
+            "maximum": 365,
+            "default": 60,
+            "description": "Days without use before flagging for doc verification"
+          }
+        }
+      },
       "embed": {
         "type": "object",
         "additionalProperties": true,
@@ -207,6 +283,33 @@
                   "provider",
                   "model"
                 ]
+              },
+              "procedural": {
+                "type": "object",
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "ollama",
+                      "lmstudio",
+                      "openai",
+                      "openrouter"
+                    ]
+                  },
+                  "baseUrl": {
+                    "type": "string"
+                  },
+                  "model": {
+                    "type": "string"
+                  },
+                  "apiKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "provider",
+                  "model"
+                ]
               }
             }
           }
@@ -345,7 +448,7 @@
     },
     "llm": {
       "label": "LLM Provider",
-      "help": "Default: Ollama + gemma3:4b. Per-layer overrides available for extract/contradiction/graph/topics.",
+      "help": "Default: Ollama + gemma3:4b. Per-layer overrides available for extract/contradiction/graph/topics/procedural.",
       "advanced": true
     },
     "fallback": {

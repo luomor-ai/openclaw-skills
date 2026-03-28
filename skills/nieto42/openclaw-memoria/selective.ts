@@ -1,14 +1,24 @@
 /**
- * Memoria — Couche 2: Mémoire Sélective
+ * Memoria — Layer 3: Selective Memory (Gatekeeper)
  * 
- * Filtre intelligent entre perception et stockage.
- * Comme le cerveau qui trie : important → stocker, bruit → ignorer.
+ * Decides whether a new fact should be stored, merged, or rejected.
+ * Like the brain filtering: important → store, noise → ignore.
  * 
- * 4 fonctions:
- *   1. Dédup (FTS5 + Levenshtein) — pas de doublons
- *   2. Contradiction check (LLM local) — supersede l'ancien si contredit
- *   3. Seuil d'importance — filtre le bruit ("ok", "merci", etc.)
- *   4. Enrichissement — merge si un fait existant est complété
+ * Pipeline (in processAndApply):
+ *   1. Noise filter — skip trivial facts ("ok", "merci", too short)
+ *   2. FTS5 candidates — find similar existing facts
+ *   3. Levenshtein dedup — reject near-exact duplicates
+ *   4. Prefix dedup — reject facts that start the same way
+ *   5. LLM contradiction check — if similarity > threshold, ask LLM if it contradicts
+ *   6. Store / Enrich / Supersede / Skip
+ * 
+ * Thresholds are configurable per category (preferences have tighter dedup at 0.65).
+ * LLM is only called for contradiction detection (step 5), not for every fact.
+ * 
+ * @example
+ * const result = await selective.processAndApply("Bureau uses Convex", "savoir", 0.9);
+ * // result: { stored: true, action: "store", factId: "f_abc123" }
+ * // or:     { stored: false, action: "skip", reason: "duplicate" }
  */
 
 import type { MemoriaDB, Fact } from "./db.js";
@@ -237,11 +247,42 @@ const CONTRADICTION_PROMPT = `Compare ces deux faits et détermine leur relation
 Fait existant: "{OLD}"
 Nouveau fait: "{NEW}"
 
+RÈGLES IMPORTANTES:
+- Un changement de VERSION (v2.7.0 → v3.11.0) est une CONTRADICTION (l'ancien est obsolète)
+- Un changement de STATUS (offline → online, installé → désinstallé) est une CONTRADICTION
+- Un changement de QUANTITÉ (9 facts → 450 facts) est une CONTRADICTION
+- Si les deux parlent du MÊME sujet mais avec des valeurs différentes = CONTRADICTION
+
 Réponds UNIQUEMENT en JSON:
 - Si le nouveau CONTREDIT l'ancien: {"relation": "contradiction", "reason": "explication courte"}
 - Si le nouveau COMPLÈTE l'ancien: {"relation": "enrichment", "merged": "fait fusionné en une phrase"}
 - Si les deux sont INDÉPENDANTS: {"relation": "independent"}
 - Si c'est un DOUBLON: {"relation": "duplicate"}`;
+
+// ─── Preference enrichment formatter ───
+
+/**
+ * When merging preference facts, preserve ALL details/contexts from each occurrence.
+ * Format: 'RÈGLE: [the rule]. Contextes: [context1 (date)], [context2 (date)], ...'
+ */
+function formatPreferenceEnrichment(existingFact: string, newFact: string, llmMerged: string): string {
+  const now = new Date().toISOString().slice(0, 10);
+
+  // If the existing fact already has the RÈGLE format, append new context
+  if (existingFact.startsWith("RÈGLE:")) {
+    const contextMatch = existingFact.match(/Contextes:\s*(.+)$/);
+    const existingContexts = contextMatch ? contextMatch[1] : "";
+    // Extract the rule part (up to "Contextes:" or full text)
+    const rulePart = existingFact.replace(/\s*Contextes:\s*.+$/, "");
+    const newContext = newFact.length > 80 ? newFact.slice(0, 80) + "…" : newFact;
+    return `${rulePart} Contextes: ${existingContexts}${existingContexts ? ", " : ""}${newContext} (${now})`;
+  }
+
+  // First enrichment: create the RÈGLE format from LLM merged text
+  const existingSnippet = existingFact.length > 80 ? existingFact.slice(0, 80) + "…" : existingFact;
+  const newSnippet = newFact.length > 80 ? newFact.slice(0, 80) + "…" : newFact;
+  return `RÈGLE: ${llmMerged} Contextes: ${existingSnippet} (antérieur), ${newSnippet} (${now})`;
+}
 
 // ─── Main class ───
 
@@ -317,6 +358,12 @@ export class SelectiveMemory {
       return { action: "skip", reason: "noise" };
     }
 
+    // Category-specific thresholds: preferences are often reformulated differently
+    // but carry the same intent → use lower thresholds to catch more duplicates
+    const isPreference = category === "preference";
+    const dupThreshold = isPreference ? 0.65 : this.cfg.dupThreshold;
+    const enrichThreshold = isPreference ? 0.45 : this.cfg.enrichThreshold;
+
     // 2. Dedup check (FTS5 + Levenshtein + Jaccard + prefix check)
     const candidates = this.db.searchFacts(fact, this.cfg.dupCandidates);
     const newKeywords = extractKeywords(fact);
@@ -333,12 +380,12 @@ export class SelectiveMemory {
       const combined = levSim * 0.6 + jacSim * 0.4; // weighted average
 
       // Exact duplicate
-      if (combined >= this.cfg.dupThreshold) {
+      if (combined >= dupThreshold) {
         return { action: "skip", reason: "duplicate" };
       }
 
       // Potential enrichment or contradiction (moderate similarity)
-      if (combined >= this.cfg.enrichThreshold && (this.cfg.contradictionCheck || this.cfg.enrichEnabled)) {
+      if (combined >= enrichThreshold && (this.cfg.contradictionCheck || this.cfg.enrichEnabled)) {
         const relation = await this.checkRelation(candidate, fact);
 
         if (relation.type === "duplicate") {
@@ -356,10 +403,14 @@ export class SelectiveMemory {
         }
 
         if (relation.type === "enrichment" && relation.merged) {
+          // For preferences: format enriched fact with consolidated contexts
+          const mergedText = isPreference
+            ? formatPreferenceEnrichment(candidate.fact, fact, relation.merged)
+            : relation.merged;
           return {
             action: "enrich",
             existingFactId: candidate.id,
-            mergedFact: relation.merged,
+            mergedFact: mergedText,
             confidence: Math.max(confidence, candidate.confidence),
           };
         }
@@ -415,7 +466,7 @@ export class SelectiveMemory {
    * Process and apply: run the selective filter and execute the result.
    * Returns the stored/updated fact or null if skipped.
    */
-  async processAndApply(fact: string, category: string, confidence: number, agent = "koda", factType: "semantic" | "episodic" = "semantic"): Promise<{ stored: boolean; action: string; factId?: string; reason?: string }> {
+  async processAndApply(fact: string, category: string, confidence: number, agent = "koda", factType: "semantic" | "episodic" = "semantic", relevanceWeight = 0.5): Promise<{ stored: boolean; action: string; factId?: string; reason?: string }> {
     const result = await this.process(fact, category, confidence);
 
     switch (result.action) {
@@ -434,6 +485,7 @@ export class SelectiveMemory {
           created_at: Date.now(),
           updated_at: Date.now(),
           fact_type: factType,
+          relevance_weight: relevanceWeight,
         });
         return { stored: true, action: "store", factId: stored.id };
       }
@@ -451,6 +503,7 @@ export class SelectiveMemory {
           created_at: Date.now(),
           updated_at: Date.now(),
           fact_type: factType,
+          relevance_weight: relevanceWeight,
         });
         // Mark old as superseded
         this.db.supersedeFact(result.oldFactId, newFact.id);
@@ -475,14 +528,19 @@ export class SelectiveMemory {
    * Limited to MAX_ENTITY_CANDIDATES to avoid excessive LLM calls.
    */
   private findFactsBySharedEntities(newFact: string, newEntities: Set<string>, alreadyChecked: Fact[]): Fact[] {
-    const MAX_ENTITY_CANDIDATES = 5;
+    // FIX 3: Increased from 5 to 10 — version contradictions need wider search
+    // (e.g., "Sol = v2.7.0" stored 6 times won't all be caught with limit 5)
+    const MAX_ENTITY_CANDIDATES = 10;
     const checkedIds = new Set(alreadyChecked.map(c => c.id));
     const candidates: Fact[] = [];
+
+    // FIX 3: Prioritize version-containing facts when new fact has a version
+    const hasVersion = /v\d+\.\d+/i.test(newFact);
 
     // Search for each entity via FTS (wider search to catch all related facts)
     for (const entity of newEntities) {
       if (candidates.length >= MAX_ENTITY_CANDIDATES) break;
-      const ftsResults = this.db.searchFacts(entity, 20);
+      const ftsResults = this.db.searchFacts(entity, 30);
       for (const result of ftsResults) {
         if (candidates.length >= MAX_ENTITY_CANDIDATES) break;
         if (checkedIds.has(result.id)) continue;
@@ -490,13 +548,21 @@ export class SelectiveMemory {
         const resultEntities = extractSubjectEntities(result.fact, this.getEntities());
         const shared = [...newEntities].filter(e => resultEntities.has(e));
         if (shared.length > 0) {
-          candidates.push(result);
+          // FIX 3: Boost priority for version-related facts
+          // When new fact says "Sol = v3.11", and existing says "Sol = v2.7", 
+          // this MUST be checked even if Levenshtein is low
+          if (hasVersion && /v\d+\.\d+/i.test(result.fact)) {
+            // Put version facts first (higher priority for contradiction check)
+            candidates.unshift(result);
+          } else {
+            candidates.push(result);
+          }
           checkedIds.add(result.id);
         }
       }
     }
 
-    return candidates;
+    return candidates.slice(0, MAX_ENTITY_CANDIDATES);
   }
 
   private async checkRelation(existing: Fact, newFact: string): Promise<{

@@ -1,8 +1,24 @@
 /**
- * Memoria — SQLite Database Layer
+ * Memoria — SQLite Database Layer (Layer 1)
  * 
- * Schema: facts, facts_fts, embeddings, entities, relations, chunks, meta
+ * The foundation of Memoria. Manages the SQLite database with:
+ * - facts + facts_fts (FTS5 full-text search)
+ * - embeddings (768d float vectors as BLOBs)
+ * - entities + relations (knowledge graph)
+ * - topics + fact_topics (emergent topic system)
+ * - observations (living syntheses)
+ * - procedures + procedures_fts (how-to memory)
+ * - cluster_members (fact → cluster mapping)
+ * - identity_cache, meta, chunks
+ * 
  * Uses better-sqlite3 for synchronous, fast, zero-dependency SQLite.
+ * All migrations auto-run on construction (additive, never destructive).
+ * 
+ * @example
+ * const db = new MemoriaDB("/path/to/workspace");
+ * db.storeFact({ id: "f_123", fact: "...", category: "savoir", ... });
+ * const results = db.searchFacts("Bureau"); // FTS5 search
+ * db.raw.prepare("SELECT ...").all(); // direct SQLite access
  */
 
 import Database from "better-sqlite3";
@@ -11,6 +27,16 @@ import fs from "fs";
 
 const SCHEMA_VERSION = 1;
 
+/**
+ * Core fact record stored in SQLite. Every piece of knowledge Memoria captures.
+ * 
+ * Key fields for contributors:
+ * - `fact_type`: "semantic" (durable truth) | "episodic" (dated event) | "cluster" (summary) | "pattern" (consolidated)
+ * - `lifecycle_state`: "fresh" → "settled" → "dormant" (controls recall priority, NOT deletion)
+ * - `superseded`: 0 = active, 1 = replaced by a newer/better version (superseded_by has the replacement ID)
+ * - `tags`: JSON string array, e.g. '["convex","bureau"]'
+ * - `entity_ids`: JSON string array of entity IDs linked to this fact
+ */
 export interface Fact {
   id: string;
   fact: string;
@@ -29,9 +55,16 @@ export interface Fact {
   md_file: string | null;
   md_line: number | null;
   entity_ids: string;     // JSON array
-  fact_type: "semantic" | "episodic"; // semantic = durable, episodic = dated/contextual
+  fact_type: "semantic" | "episodic" | "cluster" | "pattern"; // semantic = durable, episodic = dated/contextual, cluster = thematic summary, pattern = consolidated behavioral
+  usefulness: number;       // feedback score, higher = more useful
+  recall_count: number;     // times recalled in prompts
+  used_count: number;       // times actually used in answers
+  synced_to_md: number;     // 0 = not synced, 1 = synced, 2 = regenerated
+  relevance_weight: number; // 0.0-1.0, calculated from identity context
+  lifecycle_state: "fresh" | "settled" | "dormant"; // fresh = new, settled = confirmed, dormant = unused
 }
 
+/** Knowledge graph node. Types: person, project, tool, concept, place. */
 export interface Entity {
   id: string;
   name: string;
@@ -41,6 +74,7 @@ export interface Entity {
   access_count: number;
 }
 
+/** Knowledge graph edge. Weight increases via Hebbian reinforcement (co-occurrence), decays when unused. */
 export interface Relation {
   id: string;
   source_id: string;
@@ -52,8 +86,20 @@ export interface Relation {
   last_accessed_at: number | null;
 }
 
+/**
+ * Main database class. Created once in index.ts and shared with all managers.
+ * 
+ * Key methods:
+ * - `storeFact(fact)` — INSERT OR REPLACE with full column list
+ * - `searchFacts(query)` — FTS5 full-text search on fact text
+ * - `getActiveFacts()` — all non-superseded facts
+ * - `supersedeFact(oldId, newId)` — mark fact as replaced
+ * - `raw` — direct better-sqlite3 Database for custom queries
+ * 
+ * Schema migrations run automatically in constructor (additive only).
+ */
 export class MemoriaDB {
-  /** Exposed for direct query access (embeddings, etc.) */
+  /** Direct better-sqlite3 access for custom queries from other modules */
   readonly raw: Database.Database;
   private db: Database.Database;
 
@@ -99,6 +145,11 @@ export class MemoriaDB {
     // V2: add fact_type column for semantic/episodic distinction
     this.migrateAddFactType();
     this.migrateAddFeedbackColumns();
+    this.migrateAddRelevanceWeight();
+    this.migrateAddIdentityCache();
+    this.migrateAddLifecycleState();
+    this.migrateAddProcedures();
+    this.migrateAddClusterMembers();
     this.setSchemaVersion(SCHEMA_VERSION);
   }
 
@@ -129,6 +180,85 @@ export class MemoriaDB {
         this.db.exec("ALTER TABLE facts ADD COLUMN used_count INTEGER DEFAULT 0");
       }
     } catch { /* columns already exist or table not yet created */ }
+  }
+
+  /** Migration: add relevance_weight column for identity-aware prioritization */
+  private migrateAddRelevanceWeight(): void {
+    try {
+      const cols = this.db.prepare("PRAGMA table_info(facts)").all() as Array<{ name: string }>;
+      if (!cols.some(c => c.name === "relevance_weight")) {
+        this.db.exec("ALTER TABLE facts ADD COLUMN relevance_weight REAL DEFAULT 0.5");
+        // Index for sorting by relevance
+        this.db.exec("CREATE INDEX IF NOT EXISTS idx_facts_relevance ON facts(relevance_weight DESC)");
+      }
+    } catch { /* column already exists or table not yet created */ }
+  }
+
+  /** Migration: add identity_cache table for parsed USER.md/COMPANY.md */
+  private migrateAddIdentityCache(): void {
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS identity_cache (
+          key TEXT PRIMARY KEY,
+          value TEXT NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+      `);
+    } catch { /* table already exists */ }
+  }
+
+  /** Migration: add lifecycle_state for fact evolution (fresh/settled/dormant) */
+  private migrateAddLifecycleState(): void {
+    try {
+      const cols = this.db.prepare("PRAGMA table_info(facts)").all() as Array<{ name: string }>;
+      if (!cols.some(c => c.name === "lifecycle_state")) {
+        this.db.exec("ALTER TABLE facts ADD COLUMN lifecycle_state TEXT DEFAULT 'fresh'");
+        this.db.exec("CREATE INDEX IF NOT EXISTS idx_facts_lifecycle ON facts(lifecycle_state)");
+      }
+    } catch { /* column already exists or table not yet created */ }
+  }
+
+  /** Migration: add procedures table for procedural memory (Phase 3) */
+  private migrateAddProcedures(): void {
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS procedures (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          goal TEXT,
+          steps TEXT NOT NULL,
+          success_count INTEGER DEFAULT 0,
+          failure_count INTEGER DEFAULT 0,
+          last_success_at INTEGER,
+          last_failure_at INTEGER,
+          last_updated_at INTEGER NOT NULL,
+          avg_duration_ms INTEGER,
+          improvements TEXT DEFAULT '[]',
+          context TEXT,
+          degradation_score REAL DEFAULT 0.0,
+          alternative_of TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_procedures_name ON procedures(name);
+        CREATE INDEX IF NOT EXISTS idx_procedures_degradation ON procedures(degradation_score);
+        CREATE INDEX IF NOT EXISTS idx_procedures_success_rate ON procedures(success_count, failure_count);
+      `);
+    } catch { /* table already exists */ }
+  }
+
+  /** Migration: add cluster_members table to track which facts compose a cluster */
+  private migrateAddClusterMembers(): void {
+    try {
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS cluster_members (
+          cluster_id TEXT NOT NULL,
+          fact_id TEXT NOT NULL,
+          PRIMARY KEY (cluster_id, fact_id),
+          FOREIGN KEY (cluster_id) REFERENCES facts(id) ON DELETE CASCADE,
+          FOREIGN KEY (fact_id) REFERENCES facts(id) ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS idx_cluster_members_fact ON cluster_members(fact_id);
+      `);
+    } catch { /* table already exists */ }
   }
 
   private getSchemaVersion(): number {
@@ -282,7 +412,7 @@ export class MemoriaDB {
 
   // ─── Facts CRUD ───
 
-  storeFact(fact: Omit<Fact, "access_count" | "last_accessed_at" | "superseded" | "superseded_by" | "superseded_at" | "md_file" | "md_line" | "entity_ids"> & Partial<Fact>): Fact {
+  storeFact(fact: Omit<Fact, "access_count" | "last_accessed_at" | "superseded" | "superseded_by" | "superseded_at" | "md_file" | "md_line" | "entity_ids" | "usefulness" | "recall_count" | "used_count" | "synced_to_md" | "relevance_weight" | "lifecycle_state"> & Partial<Fact>): Fact {
     const now = Date.now();
     const row: Fact = {
       id: fact.id || `fact_${now}_${Math.random().toString(36).slice(2, 9)}`,
@@ -303,19 +433,28 @@ export class MemoriaDB {
       md_line: fact.md_line ?? null,
       entity_ids: fact.entity_ids || "[]",
       fact_type: fact.fact_type || "semantic",
+      usefulness: fact.usefulness ?? 0,
+      recall_count: fact.recall_count ?? 0,
+      used_count: fact.used_count ?? 0,
+      synced_to_md: fact.synced_to_md ?? 0,
+      relevance_weight: fact.relevance_weight ?? 0.5,
+      lifecycle_state: fact.lifecycle_state ?? "fresh",
     };
 
     this.db.prepare(`
       INSERT OR REPLACE INTO facts
       (id, fact, category, confidence, source, tags, agent, created_at, updated_at,
        access_count, last_accessed_at, superseded, superseded_by, superseded_at,
-       md_file, md_line, entity_ids, fact_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+       md_file, md_line, entity_ids, fact_type,
+       usefulness, recall_count, used_count, synced_to_md, relevance_weight, lifecycle_state)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       row.id, row.fact, row.category, row.confidence, row.source, row.tags, row.agent,
       row.created_at, row.updated_at, row.access_count, row.last_accessed_at,
       row.superseded, row.superseded_by, row.superseded_at,
-      row.md_file, row.md_line, row.entity_ids, row.fact_type
+      row.md_file, row.md_line, row.entity_ids, row.fact_type,
+      row.usefulness, row.recall_count, row.used_count, row.synced_to_md,
+      row.relevance_weight, row.lifecycle_state
     );
 
     return row;
@@ -324,7 +463,7 @@ export class MemoriaDB {
   searchFacts(query: string, limit = 10): Fact[] {
     if (!query || query.trim().length === 0) {
       return this.db.prepare(
-        "SELECT * FROM facts WHERE superseded = 0 ORDER BY updated_at DESC LIMIT ?"
+        "SELECT * FROM facts WHERE superseded = 0 AND lifecycle_state != 'dormant' ORDER BY updated_at DESC LIMIT ?"
       ).all(limit) as Fact[];
     }
 
@@ -346,14 +485,14 @@ export class MemoriaDB {
       return this.db.prepare(`
         SELECT f.* FROM facts f
         JOIN facts_fts fts ON f.rowid = fts.rowid
-        WHERE facts_fts MATCH ? AND f.superseded = 0
+        WHERE facts_fts MATCH ? AND f.superseded = 0 AND f.lifecycle_state != 'dormant'
         ORDER BY rank
         LIMIT ?
       `).all(sanitized, limit) as Fact[];
     } catch {
       // Fallback: LIKE search if FTS5 fails
       return this.db.prepare(
-        "SELECT * FROM facts WHERE superseded = 0 AND fact LIKE ? ORDER BY updated_at DESC LIMIT ?"
+        "SELECT * FROM facts WHERE superseded = 0 AND lifecycle_state != 'dormant' AND fact LIKE ? ORDER BY updated_at DESC LIMIT ?"
       ).all(`%${query.slice(0, 100)}%`, limit) as Fact[];
     }
   }
@@ -390,7 +529,7 @@ export class MemoriaDB {
   hotFacts(minAccess: number = 5, staleDays: number = 30, limit: number = 5): Fact[] {
     const cutoff = Date.now() - staleDays * 24 * 60 * 60 * 1000;
     return this.db.prepare(
-      `SELECT * FROM facts WHERE superseded = 0 AND access_count >= ? 
+      `SELECT * FROM facts WHERE superseded = 0 AND lifecycle_state != 'dormant' AND access_count >= ? 
        AND COALESCE(last_accessed_at, updated_at) >= ?
        ORDER BY access_count DESC LIMIT ?`
     ).all(minAccess, cutoff, limit) as Fact[];
@@ -521,6 +660,20 @@ export class MemoriaDB {
       return count;
     });
     return tx();
+  }
+
+  // ─── Identity Cache ───
+
+  /** Store identity cache (JSON stringified) */
+  storeIdentityCache(key: string, value: string): void {
+    const now = Date.now();
+    this.db.prepare("INSERT OR REPLACE INTO identity_cache (key, value, updated_at) VALUES (?, ?, ?)").run(key, value, now);
+  }
+
+  /** Get identity cache */
+  getIdentityCache(key: string): string | null {
+    const row = this.db.prepare("SELECT value FROM identity_cache WHERE key = ?").get(key) as { value: string } | undefined;
+    return row?.value ?? null;
   }
 
   // ─── Close ───
