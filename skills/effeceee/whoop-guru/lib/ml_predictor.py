@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-import os
 """
 ML Prediction Model - Advanced prediction using simple ML
 """
+import os
 import json
 import math
 from datetime import datetime, timedelta
 
-DATA_FILE = os.environ.get('WHOOP_DATA_DIR', '/root/.openclaw/workspace-healthgao/data/processed/latest.json')
+# 路径配置 - 使用环境变量
+SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_DIR = os.environ.get("OPENCLAW_WORKSPACE", os.path.dirname(os.path.dirname(SKILL_DIR)))
+PROCESSED_DIR = os.environ.get("WHOOP_DATA_DIR", os.path.join(WORKSPACE_DIR, "data", "processed"))
+
+DATA_FILE = os.path.join(PROCESSED_DIR, 'latest.json')
 
 def load_data():
     with open(DATA_FILE) as f:

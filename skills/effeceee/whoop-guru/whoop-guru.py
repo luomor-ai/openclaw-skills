@@ -4,6 +4,7 @@ Whoop Guru - Main Entry Point
 """
 import sys
 import os
+import subprocess
 
 # Add lib to path
 SKILL_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -40,9 +41,11 @@ def main():
                 print(f"数据获取失败: {e}")
                 
         elif cmd == "score":
-            os.system(f"python3 {SKILL_DIR}/lib/health_score.py")
+            script_path = os.path.join(SKILL_DIR, 'lib', 'health_score.py')
+            subprocess.run(['python3', script_path], check=False)
         elif cmd == "report":
-            os.system(f"python3 {SKILL_DIR}/lib/enhanced_report.py")
+            script_path = os.path.join(SKILL_DIR, 'lib', 'enhanced_report.py')
+            subprocess.run(['python3', script_path], check=False)
         else:
             print(f"Unknown command: {cmd}")
 

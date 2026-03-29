@@ -1,6 +1,6 @@
 # ClawHub Metadata
 
-version: 8.1.1
+version: 8.2.0
 slug: whoop-guru
 name: WHOOP Guru
 description: |
@@ -96,27 +96,20 @@ commands:
   - /chart
     description: 生成健康图表
 
-environment:
-  WHOOP_CLIENT_ID:
-    description: WHOOP API客户端ID
-    required: true
-  WHOOP_CLIENT_SECRET:
-    description: WHOOP API客户端密钥
-    required: true
-  WHOOP_REFRESH_TOKEN:
-    description: WHOOP刷新令牌
-    required: true
-  OPENCLAW_WORKSPACE:
-    description: OpenClaw工作区路径
-    required: false
-  WHOOP_DATA_DIR:
-    description: WHOOP数据目录
-    required: false
+configuration:
+  whoop_oauth:
+    description: WHOOP OAuth credentials
+    used_during: python3 scripts/whoop_auth.py login
+    stored_at: ~/.clawdbot/whoop-tokens.json
+  llm_api:
+    description: LLM API key (optional)
+    used_during: Setup command via chat
+    stored_at: data/config/llm_config.json
 
 data_storage:
   profiles:
     path: data/profiles/
-    description: 用户健身档案和目标
+    description: 用户健身档案和目标（相对路径，相对于skill目录）
   plans:
     path: data/plans/
     description: AI生成的训练计划
@@ -124,12 +117,20 @@ data_storage:
     path: data/logs/
     description: 打卡记录和追踪数据
   config:
-    path: data/config/
-    description: LLM API配置（用户密钥）
+    path: data/config/llm_config.json
+    description: LLM API密钥配置（用户自行配置，不上传）
+  tokens:
+    description: WHOOP OAuth token存储
+    storage_path: ~/.clawdbot/whoop-tokens.json
+    handling: |
+      WHOOP OAuth token存储在 ~/.clawdbot/whoop-tokens.json
+      LLM API密钥存储在 data/config/llm_config.json
+      所有凭证文件由OpenClaw管理，不上传外部服务
   privacy: |
-    所有数据存储在本地设备，不上传外部服务器。
-    LLM API密钥和WHOOP Token仅存储在本地。
-    用户可随时删除data/目录清除所有数据。
+    所有数据存储在本地设备，不上传外部服务器（除WHOOP/LLM官方API）。
+    WHOOP OAuth token仅用于获取用户WHOOP数据。
+    LLM API密钥仅用于生成个性化建议，不作其他用途。
+    用户可随时删除data/目录或重装skill清除所有本地数据。
 
 installation_notes: |
     首次使用需要配置WHOOP API凭证：

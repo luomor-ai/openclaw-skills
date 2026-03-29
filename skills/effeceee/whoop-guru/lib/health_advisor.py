@@ -1,13 +1,18 @@
 #!/usr/bin/env python3
-import os
 """
 AI Health Advisor - Intelligent health consultation
 """
+import os
 import json
 from datetime import datetime, timedelta
 
-DATA_FILE = os.environ.get('WHOOP_DATA_DIR', '/root/.openclaw/workspace-healthgao/data/processed/latest.json')
-PATTERNS_FILE = os.environ.get('WHOOP_DATA_DIR', '/root/.openclaw/workspace-healthgao/data/processed') + '/patterns.json'
+# 路径配置 - 使用环境变量
+SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_DIR = os.environ.get("OPENCLAW_WORKSPACE", os.path.dirname(os.path.dirname(SKILL_DIR)))
+PROCESSED_DIR = os.environ.get("WHOOP_DATA_DIR", os.path.join(WORKSPACE_DIR, "data", "processed"))
+
+DATA_FILE = os.path.join(PROCESSED_DIR, 'latest.json')
+PATTERNS_FILE = os.path.join(PROCESSED_DIR, 'patterns.json')
 
 def load_data():
     with open(DATA_FILE) as f:

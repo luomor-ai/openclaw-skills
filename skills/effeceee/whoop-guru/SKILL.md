@@ -129,15 +129,32 @@ python3 whoop-guru.py 16week --goal 增肌
 
 ---
 
-## 环境变量
+## 配置说明
 
-| 变量 | 说明 | 必需 |
-|------|------|------|
-| WHOOP_CLIENT_ID | WHOOP API客户端ID | 是 |
-| WHOOP_CLIENT_SECRET | WHOOP API客户端密钥 | 是 |
-| WHOOP_REFRESH_TOKEN | WHOOP刷新令牌 | 是 |
+### WHOOP OAuth（必需）
 
-Token存储在 `~/.clawdbot/whoop-tokens.json`
+WHOOP 使用 OAuth 2.0 授权，配置步骤：
+
+1. 在 [developer.whoop.com](https://developer.whoop.com) 创建 App 获取 Client ID 和 Secret
+2. 运行：`python3 scripts/whoop_auth.py login --client-id YOUR_ID --client-secret YOUR_SECRET`
+3. 浏览器自动打开，完成授权
+4. Token 自动存储在 `~/.clawdbot/whoop-tokens.json`
+
+### LLM API（可选）
+
+用于 AI 个性化分析。配置方式：
+- 发送「设置模型」给机器人
+- 按提示输入 API Key 和选择模型
+- 配置存储在 `data/config/llm_config.json`
+
+### 本地数据存储
+
+所有数据存储在本地，不上传外部服务器：
+- `data/profiles/` - 用户健身档案
+- `data/plans/` - AI训练计划
+- `data/logs/` - 打卡记录
+- `data/config/llm_config.json` - LLM API密钥
+- `~/.clawdbot/whoop-tokens.json` - WHOOP OAuth令牌
 
 ---
 
@@ -197,3 +214,41 @@ whoop-guru/
 
 **当前版本**: v8.0  
 **最后更新**: 2026-03-29 14:27 UTC+8
+
+---
+
+## 版本历史
+
+### v8.2.6 (2026-03-29)
+- 修复：统一 SKILL.md 和 _meta.json 的配置说明
+- 新增：homepage 字段
+- 修复：移除 WHOOP_REFRESH_TOKEN（OAuth自动获取）
+- 修复：统一三个文件的凭证说明
+
+### v8.2.2 (2026-03-29)
+- 修复：移除所有硬编码路径，统一使用环境变量
+- 修复：统一 SKILL.md、CLAWHUB.md、_meta.json 凭证说明
+- 新增：完整测试套件 (24 tests)
+
+### v8.2.0 (2026-03-29)
+- 新增：LLM 增强报告模块
+- 推送系统集成所有模块
+
+### v8.1.5-8.1.7 (2026-03-29)
+- 新增：09:00 早安推送、18:00 晚间推送、20:00 打卡推送
+- 集成：dynamic_planner、goals、tracker 模块
+
+### v8.0 (2026-03-26)
+- LLM 集成（支持 8 种提供商）
+- 个性化训练计划生成
+- 用户需求分析系统
+
+### v7.2 (2026-03-26)
+- 主动推送系统
+- 打卡追踪系统
+- ML 预测模块
+
+### v7.0 (2026-03-26)
+- 完整 WHOOP 数据获取
+- 健康分析引擎
+- 健康评分系统

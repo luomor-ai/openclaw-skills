@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
-import os
 """
 Feedback Learning System - Collects user feedback and learns from it
 """
+import os
 import json
 from datetime import datetime, timedelta
 
-FEEDBACK_FILE = os.environ.get('WHOOP_DATA_DIR', '/root/.openclaw/workspace-healthgao/data/processed') + '/feedback_learn.json'
+# 路径配置 - 使用环境变量
+SKILL_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+WORKSPACE_DIR = os.environ.get("OPENCLAW_WORKSPACE", os.path.dirname(os.path.dirname(SKILL_DIR)))
+PROCESSED_DIR = os.environ.get("WHOOP_DATA_DIR", os.path.join(WORKSPACE_DIR, "data", "processed"))
+
+FEEDBACK_FILE = os.path.join(PROCESSED_DIR, 'feedback_learn.json')
 
 def load_feedback():
     try:
