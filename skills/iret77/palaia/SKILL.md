@@ -1,6 +1,6 @@
 ---
 name: palaia
-version: "2.2.0"
+version: "2.4"
 description: >
   Local, crash-safe persistent memory for OpenClaw agents.
   SQLite-backed by default. Semantic search, projects, scopes, auto-capture.
@@ -25,17 +25,18 @@ metadata:
       - command: "python3 -m pip install --upgrade 'palaia[fastembed]' && (npm install -g @byte5ai/palaia@latest 2>/dev/null || true) && palaia doctor --fix && palaia warmup"
         label: "Upgrade Palaia with semantic search (pip + npm plugin) and run health checks"
     postUpdateMessage: >
-      Palaia has been updated to v2.2. New: SQLite default backend, injection priorities,
-      knowledge curation, ContextEngine integration. Run `palaia doctor --fix` to upgrade.
+      Palaia has been updated to v2.4. New: session continuity (automatic briefings and
+      summaries), privacy markers, recency boost, progressive disclosure. Run `palaia doctor --fix` to upgrade.
     plugin:
       slot: memory
       package: "@byte5ai/palaia"
 ---
 
-# Palaia v2.2 — Agent Memory Skill
+# Palaia v2.4 — Agent Memory Skill
 
 Palaia is the memory system for OpenClaw agents. It gives you persistent, searchable, crash-safe memory across sessions. You don't need to understand how it works — just use the commands below.
 
+<!-- begin:install -->
 ## First-Time Setup
 
 When a user asks you to "set up palaia", "enable memory", or "remember things across sessions", run these steps:
@@ -59,10 +60,13 @@ uv tool install "palaia[fastembed]"
 pipx install "palaia[fastembed]"
 ```
 
-For knowledge curation features (optional):
+Optional extras (install as needed):
 ```bash
-pip install "palaia[curate]"
+pip install "palaia[mcp]"          # MCP server for Claude Desktop, Cursor
+pip install "palaia[curate]"       # Knowledge curation
 ```
+
+Note: `palaia[fastembed]` already includes sqlite-vec for native SIMD vector search. No separate install needed.
 
 ### OpenClaw Plugin Setup (for Auto-Capture and Auto-Recall)
 
@@ -107,17 +111,33 @@ palaia init --agent YOUR_AGENT_NAME
 When the user asks to update, or when `palaia status` shows a version mismatch:
 
 ```bash
-pip install --upgrade "palaia[fastembed]"
-palaia doctor --fix
+palaia upgrade
 ```
+This auto-detects the install method (pip/uv/pipx), preserves all installed extras (fastembed, mcp, sqlite-vec, curate), runs `palaia doctor --fix`, and upgrades the OpenClaw plugin if installed. No manual steps needed.
 
-Storage migration happens automatically — no manual steps needed. The doctor detects and fixes any issues from the upgrade. If you see "storage upgraded" or "migrated to SQLite" messages, this is normal and expected — do not treat it as an error.
+**If `palaia upgrade` is not recognized** (versions before v2.3.0), update manually:
 
-If the OpenClaw plugin is installed:
 ```bash
+# Step 1: Find install method
+which palaia
+
+# Step 2: Upgrade (use the method matching the path from Step 1)
+# pip (path contains site-packages or .local):
+pip install --upgrade "palaia[fastembed]"
+# uv (path contains uv):
+uv tool install "palaia[fastembed]"
+# pipx (path contains pipx):
+pipx install "palaia[fastembed]" --force
+
+# Step 3: Health check + migration
+palaia doctor --fix
+
+# Step 4: Update OpenClaw plugin (if installed)
 npm install -g @byte5ai/palaia@latest
-openclaw gateway restart
 ```
+
+After the manual update, `palaia upgrade` will be available for future updates.
+<!-- end:install -->
 
 ## Auto-Check (run every time this skill is loaded)
 
@@ -144,6 +164,100 @@ Conversations are automatically captured when the OpenClaw plugin is active. You
 - **memory** — Facts, decisions, learnings (default)
 - **process** — Workflows, checklists, SOPs
 - **task** — Action items with status, priority, assignee, due date
+
+---
+
+## Storage & Search
+
+### Database Backends
+
+| Backend | Use Case | Vector Search | Install |
+|---------|----------|---------------|---------|
+| **SQLite** (default) | Local, single-agent or small team | sqlite-vec (native KNN) or Python fallback | Included |
+| **PostgreSQL** | Distributed teams, multiple hosts | pgvector (ANN, IVFFlat/HNSW) | `pip install 'palaia[postgres]'` |
+
+SQLite is zero-config — `palaia init` creates a single `palaia.db` file with WAL mode for crash safety. For teams with agents on multiple machines, PostgreSQL centralizes the store:
+```bash
+palaia config set database_url postgresql://user:pass@host/db
+# or: export PALAIA_DATABASE_URL=postgresql://...
+```
+
+### Semantic Vector Search
+
+Palaia uses **hybrid search**: BM25 keyword matching (always active) combined with semantic vector embeddings (when a provider is configured). This finds memories by meaning, not just keywords.
+
+**Embedding providers** (checked in chain order, first available wins):
+
+| Provider | Type | Latency | Install |
+|----------|------|---------|---------|
+| **fastembed** | Local (CPU) | ~10ms/query | `pip install 'palaia[fastembed]'` (default) |
+| **sentence-transformers** | Local (CPU/GPU) | ~10ms/query | `pip install 'palaia[sentence-transformers]'` |
+| **Ollama** | Local (server) | ~50ms/query | `ollama pull nomic-embed-text` |
+| **OpenAI** | API | ~200ms/query | Set `OPENAI_API_KEY` |
+| **Gemini** | API | ~200ms/query | Set `GEMINI_API_KEY` |
+| **BM25** | Built-in | <1ms/query | Always available (keyword only) |
+
+Configure the chain: `palaia config set embedding_chain '["fastembed", "bm25"]'`
+
+Check what's available: `palaia detect`
+
+### Embed Server (Performance)
+
+For fast CLI queries, palaia runs a background embed-server that keeps the model loaded in memory:
+```bash
+palaia embed-server --socket --daemon   # Start background server
+palaia embed-server --status            # Check if running
+palaia embed-server --stop              # Stop server
+```
+Without the server, each CLI call loads the model fresh (~3-5s). With the embed-server: **~1.5s per CLI query** (Python startup + server call) or **<500ms via MCP/Plugin** (no CLI overhead).
+
+The OpenClaw plugin starts the embed-server automatically. For CLI-only usage, it auto-starts on first query when a local provider (fastembed, sentence-transformers) is configured.
+
+### MCP Server (Claude Desktop, Cursor, any MCP host)
+
+Palaia works as a standalone MCP memory server — **no OpenClaw required**. Any AI tool that supports MCP can use palaia as persistent local memory.
+
+```bash
+pip install 'palaia[mcp]'
+palaia-mcp                              # Start MCP server (stdio)
+palaia-mcp --root /path/to/.palaia      # Explicit store
+palaia-mcp --read-only                  # No writes (untrusted hosts)
+```
+
+**Claude Desktop** (`~/.config/claude/claude_desktop_config.json`):
+```json
+{
+  "mcpServers": {
+    "palaia": {
+      "command": "palaia-mcp",
+      "args": []
+    }
+  }
+}
+```
+
+**Cursor** (Settings → MCP Servers → Add, or `.cursor/mcp.json`):
+- Command: `palaia-mcp`
+- Arguments: (none, or `--root /path/to/.palaia`)
+
+**Claude Code** (`~/.claude/settings.json`):
+```json
+{"mcpServers": {"palaia": {"command": "palaia-mcp"}}}
+```
+
+**MCP Tools:**
+
+| Tool | Purpose |
+|------|---------|
+| `palaia_search` | Semantic + keyword search across all memories |
+| `palaia_store` | Save new memory (fact, process, task) |
+| `palaia_read` | Read a specific entry by ID |
+| `palaia_edit` | Update an existing entry |
+| `palaia_list` | List entries by tier, type, or project |
+| `palaia_status` | Show store health, entry counts, provider info |
+| `palaia_gc` | Run garbage collection (tier rotation) |
+
+**Read-only mode** (`--read-only`): Disables `palaia_store`, `palaia_edit`, `palaia_gc`. Use this when connecting untrusted AI tools that should only read memories, not modify them.
 
 ---
 
@@ -178,6 +292,9 @@ palaia query "what's the rate limit"
 # Filter by type and status
 palaia query "tasks" --type task --status open
 
+# Filter by tags
+palaia query "session-summary" --tags session-summary
+
 # Search within a project
 palaia query "deploy steps" --project myapp
 
@@ -211,6 +328,9 @@ palaia list
 
 # Filter by tier, type, status
 palaia list --tier warm --type task --status open --priority high
+
+# Limit results
+palaia list --type task --status open --limit 5
 
 # Filter by project or assignee
 palaia list --project myapp --assignee Elliot
@@ -309,6 +429,14 @@ palaia package import myapp.palaia-pkg.json --project target --merge skip
 # View package metadata
 palaia package info myapp.palaia-pkg.json
 ```
+
+### `palaia upgrade` — Update to latest version
+
+```bash
+palaia upgrade
+```
+
+Auto-detects the install method (pip/uv/pipx/brew), preserves all installed extras (fastembed, mcp, sqlite-vec, curate), runs `palaia doctor --fix`, and upgrades the OpenClaw npm plugin if present. Always use this instead of manual pip commands.
 
 ### `palaia doctor` — Diagnostics and auto-fix
 
@@ -473,7 +601,7 @@ palaia instance set Claw-Main
 | Review accumulated knowledge | `palaia curate analyze` |
 | Share knowledge | `palaia sync export` or `palaia package export` |
 | Check for messages | `palaia memo inbox` |
-| Start of session | `palaia doctor` then `palaia query "active work"` then `palaia memo inbox` |
+| Start of session | Session briefing is now automatic. Just run `palaia doctor` and check `palaia memo inbox`. |
 
 **Do NOT manually write:** facts, decisions, or preferences that came up in the current conversation. Auto-Capture handles these.
 
@@ -512,6 +640,33 @@ palaia init --capture-level <off|minimal|normal|aggressive>
 
 ---
 
+## Session Continuity (NEW in v2.4)
+
+Session continuity gives agents automatic context restoration across sessions. These features work out of the box with the OpenClaw plugin -- no manual setup needed.
+
+### Session Briefings
+On session start, Palaia automatically injects a briefing with the last session summary and any open tasks. This means agents resume work without needing to manually search for context.
+
+### Session Summaries
+When a session ends or resets, Palaia auto-saves a summary of what happened. These are stored as entries with the `session-summary` tag and can be queried:
+```bash
+palaia query "session-summary" --tags session-summary
+```
+
+### Privacy Markers
+Wrap sensitive content in `<private>...</private>` blocks to exclude it from auto-capture. Private blocks are stripped before any extraction runs.
+
+### Recency Boost
+Fresh memories are ranked higher in recall results. The boost factor is configurable via `recallRecencyBoost` (default `0.3`, set to `0` to disable).
+
+### Progressive Disclosure
+When result sets exceed 100 entries, Palaia uses compact mode to keep context manageable. Use `--limit` to control result size explicitly:
+```bash
+palaia list --type task --status open --limit 5
+```
+
+---
+
 ## Plugin Configuration (OpenClaw)
 
 Set in `openclaw.json` under `plugins.entries.palaia.config`:
@@ -529,20 +684,11 @@ Set in `openclaw.json` under `plugins.entries.palaia.config`:
 | `embeddingServer` | `true` | Keep embedding model loaded for fast queries |
 | `showMemorySources` | `true` | Show memory source footnotes |
 | `showCaptureConfirm` | `true` | Show capture confirmations |
-
----
-
-## Storage Backends
-
-Palaia v2.2 uses **SQLite by default** — zero-config, single-file database with WAL mode, hybrid BM25 + semantic search.
-
-For distributed agent teams, PostgreSQL + pgvector is available:
-```bash
-palaia config set database_url postgresql://user:pass@host/db
-# or: export PALAIA_DATABASE_URL=postgresql://...
-```
-
-Existing flat-file stores are automatically migrated to SQLite on first use.
+| `sessionSummary` | `true` | Auto-save session summaries on end/reset |
+| `sessionBriefing` | `true` | Load session context on session start |
+| `sessionBriefingMaxChars` | `1500` | Max chars for session briefing injection |
+| `captureToolObservations` | `true` | Track tool usage as session context |
+| `recallRecencyBoost` | `0.3` | Boost factor for fresh memories (0=off) |
 
 ---
 
@@ -566,7 +712,7 @@ Existing flat-file stores are automatically migrated to SQLite on first use.
 | `palaia write` fails | Run `palaia doctor --fix`, then retry. If WAL replay needed, run `palaia recover`. |
 | `palaia query` returns nothing | Try `palaia query "..." --all` to include COLD tier. Check `palaia list` to verify entries exist. |
 | Entries seem missing | `palaia recover` then `palaia list --tier cold` |
-| Slow queries | `palaia warmup` then check `palaia detect` |
+| Slow queries | `pip install 'palaia[sqlite-vec]'` for native vector search, then `palaia warmup`. Check `palaia detect` and `palaia status` |
 | Provider not available | Chain auto-falls back. Check `palaia status` |
 | `.palaia` missing | `palaia init` |
 | Embedding provider unavailable | BM25 works without embeddings. Check `palaia detect` for available providers. |
@@ -586,6 +732,8 @@ If `palaia doctor --fix` cannot resolve an issue, report the full error output t
 | `warm_threshold_days` | `30` | Days before WARM -> COLD |
 | `hot_max_entries` | `50` | Max entries in HOT tier |
 | `decay_lambda` | `0.1` | Decay rate for memory scores |
+| `embed_server_auto_start` | `true` | Auto-start embed-server daemon on first CLI query |
+| `embed_server_idle_timeout` | `1800` | Daemon auto-shutdown after N seconds idle |
 
 ---
 
