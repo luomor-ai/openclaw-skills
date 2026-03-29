@@ -18,17 +18,10 @@ SKILL_SLUG = "polymarket-sports-edge"
 TRADE_SOURCE = f"sdk:{SKILL_SLUG}"
 
 # ── Configuration (all overridable via env) ──────────────────────────
-MIN_DIVERGENCE = float(os.environ.get("MIN_DIVERGENCE", "0.08"))
+MIN_DIVERGENCE = float(os.environ.get("MIN_DIVERGENCE", "0.05"))
 TRADE_AMOUNT = float(os.environ.get("TRADE_AMOUNT", "10.0"))
 DRY_RUN = os.environ.get("LIVE", "").lower() != "true"
 API_TIMEOUT = int(os.environ.get("API_TIMEOUT", "30"))
-
-# Position management — spread-based exit
-EXIT_SPREAD = float(os.environ.get("EXIT_SPREAD", "0.02"))  # exit when divergence drops below 2%
-MIN_SHARES_TO_SELL = float(os.environ.get("MIN_SHARES_TO_SELL", "5.0"))  # Polymarket minimum
-
-# Skip futures that resolve too far out (capital lock-up)
-MAX_RESOLVE_DAYS = int(os.environ.get("MAX_RESOLVE_DAYS", "30"))
 
 DEFAULT_SPORTS = [
     "basketball_nba",
@@ -179,7 +172,6 @@ def get_outright_teams(events):
                 for outcome in market["outcomes"]:
                     teams.add(outcome["name"])
     return teams
-
 
 
 # ── Matching ────────────────────────────────────────────────────────
@@ -408,17 +400,6 @@ def scan_futures(sport_key):
         if market_price is None:
             continue
 
-        # Skip markets that resolve too far out (capital lock-up)
-        resolves_at = market.get("resolves_at")
-        if resolves_at and MAX_RESOLVE_DAYS > 0:
-            try:
-                resolve_date = datetime.fromisoformat(str(resolves_at).replace("Z", "+00:00")).date()
-                days_to_resolve = (resolve_date - datetime.utcnow().date()).days
-                if days_to_resolve > MAX_RESOLVE_DAYS:
-                    continue
-            except (ValueError, TypeError):
-                pass
-
         # For futures, we WANT markets with futures keywords
         team = match_market_to_outright(question, outright_teams)
         if team is None:
@@ -482,150 +463,14 @@ def execute_trade(market_id, side, market_price, book_prob, edge, question, team
         return {"error": str(e)}
 
 
-# ── Position management ────────────────────────────────────────────
-def manage_positions():
-    """
-    Review open positions opened by this skill.  Re-check the live spread
-    (sportsbook vs Polymarket) and sell when the divergence has closed
-    below EXIT_SPREAD.  Pure arbitrage: capture the spread, get out.
-    """
-    client = get_client()
-    log("Checking open positions for spread-based exits...")
-
-    try:
-        positions = client.get_positions(source=SKILL_SLUG)
-    except Exception as e:
-        log(f"  Could not fetch positions: {e}")
-        return []
-
-    if not positions:
-        log("  No open positions from this skill.")
-        return []
-
-    log(f"  Found {len(positions)} position(s) from {TRADE_SOURCE}")
-
-    # Pre-fetch outrights for all futures sports (avoid re-fetching per position)
-    odds_cache = {}
-    for sport_key in FUTURES:
-        try:
-            odds_cache[sport_key] = fetch_odds(sport_key)
-        except Exception:
-            odds_cache[sport_key] = []
-
-    exits = []
-    for pos in positions:
-        if pos.status != "active":
-            continue
-
-        shares = pos.shares_yes or pos.shares_no or 0
-        side = "yes" if (pos.shares_yes or 0) > 0 else "no"
-        question = pos.question or ""
-        market_price = pos.current_price if hasattr(pos, "current_price") else None
-
-        # Fallback: use current_value / shares as price estimate
-        if market_price is None and shares > 0:
-            market_price = pos.current_value / shares if pos.current_value else None
-
-        label = f"\"{question[:55]}\""
-
-        if market_price is None:
-            log(f"  {label} — cannot determine current price, skipping")
-            continue
-
-        # Find the matching team and sportsbook probability
-        book_prob = None
-        matched_team = None
-        for sport_key, events in odds_cache.items():
-            if not events:
-                continue
-            outright_teams = get_outright_teams(events)
-            team = match_market_to_outright(question, outright_teams)
-            if team:
-                book_prob = consensus_prob_outright(events, team)
-                matched_team = team
-                break
-
-        if book_prob is None or matched_team is None:
-            log(f"  {label} — cannot find sportsbook odds, skipping")
-            continue
-
-        # Compute live spread
-        if side == "yes":
-            live_spread = round(book_prob - market_price, 4)
-        else:
-            live_spread = round((1 - book_prob) - market_price, 4)
-
-        cost_basis = pos.cost_basis or pos.current_value
-        pnl_pct = pos.pnl / cost_basis if cost_basis and cost_basis > 0 else 0
-
-        log(
-            f"  {label} → {matched_team}\n"
-            f"    Side: {side.upper()} | Shares: {shares:.1f} | "
-            f"PnL: {pos.pnl:+.2f} ({pnl_pct:+.0%})\n"
-            f"    Polymarket: {market_price:.3f} | Books: {book_prob:.3f} | "
-            f"Live spread: {live_spread:+.2f} (exit below {EXIT_SPREAD:.2f})"
-        )
-
-        # Spread still open — hold
-        if abs(live_spread) >= EXIT_SPREAD:
-            continue
-
-        if shares < MIN_SHARES_TO_SELL:
-            log(f"    Spread closed but only {shares:.1f} shares (min {MIN_SHARES_TO_SELL}) — cannot sell")
-            continue
-
-        reasoning = (
-            f"Spread closed: Polymarket {market_price:.1%} vs Books {book_prob:.1%} "
-            f"(spread {live_spread:+.1%}, threshold {EXIT_SPREAD:.1%}). Exiting."
-        )
-
-        if DRY_RUN:
-            log(f"    DRY RUN: Would sell {shares:.1f} {side.upper()} — spread closed to {live_spread:+.2f}")
-            exits.append({
-                "market_id": pos.market_id, "side": side,
-                "shares": shares, "live_spread": live_spread, "dry_run": True,
-            })
-            continue
-
-        try:
-            result = client.trade(
-                market_id=pos.market_id,
-                side=side,
-                shares=shares,
-                action="sell",
-                source=TRADE_SOURCE,
-                skill_slug=SKILL_SLUG,
-                reasoning=reasoning,
-            )
-            success = result.success if hasattr(result, "success") else result.get("success")
-            if success:
-                log(f"    SOLD {shares:.1f} {side.upper()} — spread closed to {live_spread:+.2f}")
-            else:
-                error = result.error if hasattr(result, "error") else result.get("error", "unknown")
-                log(f"    SELL FAILED: {error}")
-            exits.append(result)
-        except Exception as e:
-            log(f"    SELL ERROR: {e}")
-            exits.append({"error": str(e)})
-
-    return exits
-
-
 # ── Utilities ───────────────────────────────────────────────────────
 def log(msg):
     print(f"[Sports Edge] {msg}")
 
 
 def main():
-    log(f"Scanning {len(SPORTS)} sports + {len(FUTURES)} futures... "
-        f"(dry_run={DRY_RUN}, min_divergence={MIN_DIVERGENCE:.0%}, exit_spread={EXIT_SPREAD:.0%})")
+    log(f"Scanning {len(SPORTS)} sports + {len(FUTURES)} futures... (dry_run={DRY_RUN}, min_divergence={MIN_DIVERGENCE:.0%})")
 
-    # ── Phase 1: Manage existing positions (spread-based exits) ───
-    exits = manage_positions()
-    exit_dry = [e for e in exits if isinstance(e, dict) and e.get("dry_run")]
-    exit_real = [e for e in exits if not (isinstance(e, dict) and e.get("dry_run"))]
-
-    # ── Phase 2: Scan for new entry opportunities ─────────────────
     all_trades = []
 
     # Game-level h2h scanning
@@ -641,14 +486,13 @@ def main():
     executed = [t for t in all_trades if not (isinstance(t, dict) and t.get("dry_run"))]
     dry = [t for t in all_trades if isinstance(t, dict) and t.get("dry_run")]
 
-    # ── Summary ───────────────────────────────────────────────────
     if DRY_RUN:
-        log(f"Done. Exits: {len(exit_dry)} profitable | New: {len(dry)} opportunities (dry run).")
+        log(f"Done. {len(dry)} opportunities found (dry run).")
     else:
-        log(f"Done. Exits: {len(exit_real)} sold | New: {len(executed)} trades executed.")
+        log(f"Done. {len(executed)} trades executed.")
 
-    if not all_trades and not exits:
-        log("No divergence above threshold and no exits this cycle.")
+    if not all_trades:
+        log("No divergence above threshold this cycle.")
 
 
 if __name__ == "__main__":
