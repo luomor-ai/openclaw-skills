@@ -1,6 +1,6 @@
 # ClawHub Metadata
 
-version: 8.2.0
+version: 8.3.1
 slug: whoop-guru
 name: WHOOP Guru
 description: |
@@ -33,11 +33,13 @@ tags:
 
 requirements:
   python: ">=3.8"
+  bins:
+    - python3
+    - curl
   packages:
     pandas: ">=1.3"
     matplotlib: ">=3.5"
     requests: ">=2.25"
-    chart.js: "*"
 
 features:
   - id: whoop_api
@@ -96,15 +98,46 @@ commands:
   - /chart
     description: 生成健康图表
 
-configuration:
+environment:
+  WHOOP_CLIENT_ID:
+    description: WHOOP OAuth Client ID (required)
+    required: true
+  WHOOP_CLIENT_SECRET:
+    description: WHOOP OAuth Client Secret (required)
+    required: true
+  WHOOP_REFRESH_TOKEN:
+    description: WHOOP refresh token (optional, for env var method)
+    required: false
+  OPENCLAW_WORKSPACE:
+    description: OpenClaw workspace directory
+    required: false
+  WHOOP_DATA_DIR:
+    description: WHOOP data storage directory
+    required: false
+  WHOOP_SKILL_DIR:
+    description: Skill directory for data sync
+    required: false
+
+credentials:
   whoop_oauth:
-    description: WHOOP OAuth credentials
-    used_during: python3 scripts/whoop_auth.py login
+    description: WHOOP OAuth credentials (CLI args, not env vars)
+    cli_args: ["--client-id", "--client-secret"]
+    used_by: scripts/whoop_auth.py login
     stored_at: ~/.clawdbot/whoop-tokens.json
+  whoop_env:
+    description: WHOOP credentials as env vars (alternative method)
+    file: ~/.clawdbot/whoop-credentials.env
+    used_by: lib/whoop-fetcher.sh
+    variables: [WHOOP_CLIENT_ID, WHOOP_CLIENT_SECRET, WHOOP_REFRESH_TOKEN]
   llm_api:
-    description: LLM API key (optional)
-    used_during: Setup command via chat
+    description: LLM API key (via chat command)
+    used_by: lib/llm.py
     stored_at: data/config/llm_config.json
+
+data_flow:
+  - 用户健康数据从WHOOP API获取
+  - 健康数据发送到用户配置的LLM API用于分析
+  - 凭证存储在本地，不上传
 
 data_storage:
   profiles:
@@ -127,13 +160,16 @@ data_storage:
       LLM API密钥存储在 data/config/llm_config.json
       所有凭证文件由OpenClaw管理，不上传外部服务
   privacy: |
-    所有数据存储在本地设备，不上传外部服务器（除WHOOP/LLM官方API）。
-    WHOOP OAuth token仅用于获取用户WHOOP数据。
-    LLM API密钥仅用于生成个性化建议，不作其他用途。
-    用户可随时删除data/目录或重装skill清除所有本地数据。
+    凭证存储：API密钥和Token存储在本地，不上传。
+    数据流向：
+    - 用户数据（恢复/睡眠/训练）从WHOOP API获取
+    - 健康数据发送给LLM API用于生成分析
+    - LLM API密钥仅用于API调用，不作他用
+    用户可随时删除data/目录清除所有本地数据。
 
 installation_notes: |
-    首次使用需要配置WHOOP API凭证：
-    1. 在 developer-dashboard.whoop.com 创建App
-    2. 获取 Client ID 和 Client Secret
-    3. 运行 python3 scripts/whoop_auth.py login 进行OAuth授权
+    安装步骤：
+    1. pip install requests pandas matplotlib
+    2. python3 scripts/whoop_auth.py login --client-id YOUR_ID --client-secret YOUR_SECRET
+    3. 完成 OAuth 授权（浏览器自动打开）
+    4. (可选) 配置 LLM API
