@@ -3,9 +3,15 @@
   "slug": "cet4word300",
   "displayName": "Core Vocabulary for CET-4",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773844371070,
-    "commit": "https://github.com/openclaw/skills/commit/22696125af16f3253ceb50bd1256f8d5c14d233d"
+    "version": "1.0.7",
+    "publishedAt": 1773908499192,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773844371070,
+      "commit": "https://github.com/openclaw/skills/commit/22696125af16f3253ceb50bd1256f8d5c14d233d"
+    }
+  ]
 }
