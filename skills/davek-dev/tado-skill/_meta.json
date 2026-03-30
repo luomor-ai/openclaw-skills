@@ -1,0 +1,11 @@
+{
+  "owner": "davek-dev",
+  "slug": "tado-skill",
+  "displayName": "Openclaw Skill Tado",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1773845778659,
+    "commit": null
+  },
+  "history": []
+}
