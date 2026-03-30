@@ -1,0 +1,11 @@
+{
+  "owner": "silverfoxchina-gif",
+  "slug": "stock-price-check",
+  "displayName": "A股港股美股股价查询",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1773988916456,
+    "commit": null
+  },
+  "history": []
+}
