@@ -1,0 +1,11 @@
+{
+  "owner": "corbin-breton",
+  "slug": "openforge",
+  "displayName": "Openforge",
+  "latest": {
+    "version": "2.2.0",
+    "publishedAt": 1774843050722,
+    "commit": null
+  },
+  "history": []
+}
