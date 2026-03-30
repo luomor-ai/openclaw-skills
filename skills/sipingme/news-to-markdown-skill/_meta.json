@@ -1,13 +1,18 @@
 {
   "owner": "sipingme",
   "slug": "news-to-markdown-skill",
-  "displayName": "News To Markdown Skill",
+  "displayName": "News to Markdown",
   "latest": {
-    "version": "2.3.10",
-    "publishedAt": 1774504633947,
-    "commit": "https://github.com/openclaw/skills/commit/2738b2289e28578009952afcb31190db3f929e91"
+    "version": "2.3.20",
+    "publishedAt": 1774860647264,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.3.10",
+      "publishedAt": 1774504633947,
+      "commit": "https://github.com/openclaw/skills/commit/2738b2289e28578009952afcb31190db3f929e91"
+    },
     {
       "version": "2.2.5",
       "publishedAt": 1774403073643,

@@ -1,12 +1,17 @@
 ---
-name: news-to-markdown
-description: 一键将新闻文章转换为 Markdown，支持双引擎内容提取、智能封面图选择、三层 HTML 抓取策略和多平台专项优化。新增10个平台支持：头条、微信公众号、掘金、简书、CSDN、人人都是产品经理、开源中国、B站专栏、SegmentFault、博客园
-version: 2.3.10
+name: news-to-markdown-skill
+description: 一键将新闻文章转换为 Markdown，支持双引擎内容提取、智能封面图选择、图片下载到本地、三层 HTML 抓取策略和多平台专项优化。新增10个平台支持：头条、微信公众号、掘金、简书、CSDN、人人都是产品经理、开源中国、B站专栏、SegmentFault、博客园
+version: 2.3.19
 author: Ping Si <sipingme@gmail.com>
 type: command
+homepage: https://github.com/sipingme/news-to-markdown-skill
 requires:
   - node: ">=18.0.0"
-  - npm: news-to-markdown@^1.3.10
+  - npm: news-to-markdown@^1.4.18
+  - system:
+      - curl: "可选，用于快速抓取静态页面"
+      - wget: "可选，curl 失败时的备选"
+      - playwright: "可选，用于动态页面渲染（需运行 npx playwright install chromium）"
 tags:
   - news
   - markdown
@@ -23,7 +28,9 @@ repository: https://github.com/sipingme/news-to-markdown-skill
 core-library: https://github.com/sipingme/news-to-markdown
 files:
   - bin/convert-url       # CLI 入口（轻量级包装）
-  - package.json
+  - package.json          # 依赖声明
+  - SKILL.md              # 技能文档
+  - README.md             # 项目说明
 ---
 
 # news-to-markdown Skill
@@ -32,46 +39,78 @@ files:
 
 这是一个专门用于将新闻文章转换为 Markdown 格式的 ClawHub Skill。它结合了智能内容提取和高质量格式转换，能够自动识别新闻正文、过滤噪音内容，并输出格式化的 Markdown 文档。
 
-### 核心特点
+### 核心特点（先看这个）
 
-1. **双引擎内容提取**：结合 Mozilla Readability + news-extractor-node
-   - Readability：完整内容提取，保留图片和多媒体
-   - NewsExtractor：元数据提取（标题、作者、时间）
-   - 智能选择最佳提取结果
-2. **智能封面图选择**：自动提取最佳封面图
-   - 优先使用 og:image / twitter:image meta 标签
-   - 智能降级到第一张有效图片
-   - 完美配合 wechat-md-publisher 等发布工具
-3. **三层抓取策略**：curl → wget → Playwright，确保高成功率
-4. **多平台支持**：新增10个平台专项优化
-   - ✅ 头条
-   - ✅ 微信公众号
-   - ✅ 掘金
-   - ✅ 简书
-   - ✅ CSDN
-   - ✅ 人人都是产品经理
-   - ✅ 开源中国
-   - ✅ B站专栏
-   - ✅ SegmentFault
-   - ✅ 博客园
-5. **图片保护**：解决纯图片段落被过滤的问题
-6. **高质量输出**：基于 `html-to-markdown-node` 的转换引擎
-7. **可扩展架构**：支持自定义平台适配器
+**一眼看懂：这个 Skill 能帮你什么？**
+
+- **提取更准**：双引擎内容提取，正文和元数据兼顾
+- **图片更稳**：支持下载到本地，避免远程图片失效
+- **抓取更稳**：三层抓取策略，动态页面也能处理
+- **平台更全**：内置 10 个主流内容平台专项优化
+- **输出可发布**：Markdown 质量高，支持后续自动化发布
+
+#### 1) 提取更准：双引擎内容提取
+
+- `Readability`：提取完整正文，保留图片和多媒体
+- `news-extractor-node`：提取标题、作者、发布时间等元数据
+- 自动选择最佳结果，减少漏提取和误提取
+
+#### 2) 图片更稳：下载到本地 + 智能封面
+
+- 支持将远程图片下载到本地目录并使用相对路径
+- 避免 URL 签名过期和防盗链导致的图片失效
+- 智能封面图选择：优先 `og:image` / `twitter:image`，失败再降级
+- 完美配合 `wechat-md-publisher` 使用
+
+#### 3) 抓取更稳：三层抓取策略
+
+- `curl` → `wget` → `Playwright` 自动降级
+- 静态页优先快速抓取，动态页自动启用浏览器渲染
+- 兼顾速度与成功率
+
+#### 4) 平台更全：10 平台专项优化
+
+- ✅ 头条、微信公众号、人人都是产品经理
+- ✅ 掘金、简书、CSDN、开源中国
+- ✅ B站专栏、SegmentFault、博客园
+
+#### 5) 输出可发布：质量与扩展性并重
+
+- 基于 `html-to-markdown-node` 的高质量转换引擎
+- 图片保护机制，避免纯图片段落被误过滤
+- 支持自定义平台适配器，便于持续扩展
 
 这是 [news-to-markdown](https://github.com/sipingme/news-to-markdown) 核心库的轻量级 CLI 包装。
 
 ## 🎯 使用场景
 
-### 场景 1：快速保存新闻文章
+### 场景 1：基础转换（推荐：下载图片到本地）⭐
 
 **用户意图**：
-- "帮我保存这篇新闻"
-- "把这个链接的文章转成 Markdown"
-- "下载这篇文章"
+- "把这个头条文章转成 Markdown"
+- "提取这篇文章，图片也要保存"
 
 **AI 调用**：
 ```bash
-convert-url --url "https://example.com/news/article" \
+convert-url --url "https://www.toutiao.com/article/123" \
+            --download-images \
+            --output-dir ./article
+```
+
+**为什么推荐下载图片？**
+- 头条图片 URL 包含签名和过期时间，几小时后会失效
+- 本地图片更可靠，不受网络波动影响
+- 完美配合 wechat-md-publisher 发布到微信公众号
+
+### 场景 2：快速转换（不下载图片）
+
+**用户意图**：
+- "快速看一下这篇文章内容"
+- "只要文字，不需要图片"
+
+**AI 调用**：
+```bash
+convert-url --url "https://www.toutiao.com/article/123" \
             --output "article.md"
 ```
 
@@ -80,7 +119,7 @@ convert-url --url "https://example.com/news/article" \
 - 自动过滤广告和评论
 - 收集所有图片链接
 
-### 场景 2：批量采集新闻
+### 场景 3：批量采集新闻
 
 **用户意图**：
 - "把这些新闻都保存下来"
@@ -94,7 +133,7 @@ for url in "${urls[@]}"; do
 done
 ```
 
-### 场景 3：处理动态网站
+### 场景 4：处理动态网站
 
 **用户意图**：
 - "这个网站需要 JavaScript 才能显示内容"
@@ -105,7 +144,7 @@ done
 - 等待页面完全加载
 - 提取渲染后的内容
 
-### 场景 4：自定义提取
+### 场景 5：自定义提取
 
 **用户意图**：
 - "只要正文，不要其他的"
@@ -130,6 +169,8 @@ convert-url --url "https://example.com/news" \
 |------|------|------|------|------|
 | `--url` | string | ✅ | 新闻文章的 URL | `https://example.com/news` |
 | `--output` | string | ❌ | 输出文件路径 | `article.md` |
+| `--download-images` | flag | ❌ | 下载图片到本地 ⭐ NEW | - |
+| `--output-dir` | string | ❌ | 输出目录（用于图片下载） | `./output` |
 | `--selector` | string | ❌ | CSS 选择器，指定提取区域 | `article.content` |
 | `--noise` | string | ❌ | 要移除的元素（逗号分隔） | `.ad,.sidebar,.comments` |
 | `--no-metadata` | flag | ❌ | 不包含元数据（标题、作者、时间） | - |
@@ -286,6 +327,13 @@ npx playwright install chromium
 - 文本密度算法对大多数新闻网站准确率高
 - 对于特殊布局，可能需要自定义选择器
 - 建议检查输出结果
+
+### 5. 版权与合规
+
+- 对于有明确版权限制、付费墙、转载限制或平台禁止抓取的文章，需要特别处理
+- 默认仅用于个人学习、内容归档和授权范围内的二次整理，不建议直接公开分发原文
+- 在发布到公众号、博客或第三方平台前，建议先确认来源站点的版权声明与转载政策
+- 如需对外发布，建议保留来源链接、作者信息，并仅摘录必要内容
 
 ## 🎨 AI 使用指南
 
@@ -451,9 +499,9 @@ npm update playwright
 
 ```bash
 # 测试主流新闻网站
-bash scripts/convert.sh --url "https://news.sina.com.cn/..."
-bash scripts/convert.sh --url "https://news.163.com/..."
-bash scripts/convert.sh --url "https://tech.qq.com/..."
+convert-url --url "https://news.sina.com.cn/..." --verbose
+convert-url --url "https://news.163.com/..." --verbose
+convert-url --url "https://tech.qq.com/..." --verbose
 ```
 
 ### 日志
@@ -470,10 +518,83 @@ bash scripts/convert.sh --url "https://tech.qq.com/..."
 
 ---
 
-**版本**: 2.3.10  
-**最后更新**: 2026-03-26
+**版本**: 2.3.19  
+**最后更新**: 2026-03-30
 
 ## 📝 更新日志
+
+### v2.3.18 (2026-03-30)
+
+#### 修复
+
+- ✅ 修复版本号不一致问题（package.json, _meta.json, SKILL.md 统一）
+- ✅ 添加运行时依赖声明（curl/wget/Playwright）
+- ✅ 添加 homepage 元数据
+- ✅ 完善 files 列表声明
+
+### v2.3.17 (2026-03-30)
+
+#### 新增
+
+- ✅ 添加 `--download-images` 参数支持
+- ✅ 添加 `--output-dir` 参数支持
+
+### v2.3.16 (2026-03-29)
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.4.18
+  - 同步核心库最新发布
+
+### v2.3.15 (2026-03-29)
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.4.16
+  - 补齐 `1.` / `1)` / `（1）` 编号标题独占段落规则
+  - 正文中重复出现的封面图改为本地路径替换
+
+### v2.3.14 (2026-03-28)
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.4.15
+  - 微信 section 边界预处理，减少样式块合并
+  - 编号标题与分节标题换行规则优化
+  - 代码块与粗体粘连文本修复
+
+### v2.3.13 (2026-03-28)
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.4.12
+  - 默认下载测试图片（`test-url`）
+  - 微信文末二维码图片过滤优化
+  - 避免下载已被后处理移除的图片
+
+### v2.3.12 (2026-03-28)
+
+#### 微信公众号图片优化
+
+- ✅ **修复懒加载图片处理**：先用 `data-src` 替换 `src`，再进行过滤，解决纯图片文章无法提取的问题
+- ✅ **添加装饰图过滤**：
+  - 过滤 `__bg_gif` 类装饰性 GIF 背景图
+  - 过滤小尺寸装饰图（≤ 60px）
+- ✅ **修复纯图片文章提取**：当 Readability 和 NewsExtractor 都失败时，从原始 HTML 提取图片构建内容
+- ✅ **优化封面图选择**：跳过装饰性图片，使用正文第一张有效图片
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.4.7
+
+### v2.3.11 (2026-03-26)
+
+#### 依赖更新
+
+- ✅ 升级 `news-to-markdown` 到 v1.3.11
+  - 修复微信公众号空段落问题
+  - 压缩连续空行（3+ 个空行压缩为 2 个）
+  - 防止 wenyan-md 生成过多空 `<p>` 标签
 
 ### v2.3.10 (2026-03-26)
 
