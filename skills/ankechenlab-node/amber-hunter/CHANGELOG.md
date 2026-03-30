@@ -1,4 +1,55 @@
+## [v1.0.0] — 2026-03-30
+
+### Added
+- **VPS / headless Linux 支持** — `core/keychain.py` 新增 `_linux_is_headless()` 检测；无 DISPLAY/WAYLAND_DISPLAY/secret-tool 环境自动降级到 `config.json` 存储凭据，VPS 部署无需 GNOME Keyring
+- **平台感知 `/status`** — 返回 `platform`（macos/linux/windows）和 `headless`（bool）字段，方便客户端检测运行环境
+- **公开 `is_headless()` API** — `core/keychain.py` 导出 `is_headless()`，可供上层模块判断环境
+
+### Changed
+- **正式版本** — amber-hunter 进入 v1.0 里程碑，支持 macOS / Windows / Linux 桌面 / Linux headless(VPS) 全平台
+
+---
+
+## [v0.9.6] — 2026-03-28
+
+### Added
+- **`POST /bind-apikey`** (localhost-only) — dashboard 生成新 API Key 后自动调用，将 `api_key` 写入 `~/.amber-hunter/config.json`，解决 api_key 不一致导致同步超时的问题
+
+### Changed
+- **dashboard sync timeout** — `AbortSignal.timeout` 从 30000ms 提升到 120000ms，支持 30+ 条未同步胶囊的批量同步（约 1.3s/条）
+- **dashboard 401 自动重试** — `checkHunterStatus()`、`triggerSync()`、`loadSyncStatus()` 均加入 token 过期自动刷新 + 重试逻辑
+
+---
+
+## [v0.9.5] — 2026-03-28
+
+### Changed
+- **amber-proactive V4**：完全自包含脚本，LLM提取+写胶囊全部在脚本内完成，cron每15分钟直接触发，无需agent介入，无需heartbeat触发链路修复
+
+### Fixed
+- **heartbeat不触发问题**：Telegram消息不触发Mac app heartbeat，导致V3自动提取从未运行；V4彻底解决
+
 # Changelog
+
+## [v0.9.3] — 2026-03-27
+
+### Fixed
+- Import `CONFIG_PATH` from `core.keychain` in `amber_hunter.py` — `set_master_password_handler` was silently failing on the config.json fallback write due to `NameError` caught by bare `except Exception`
+- Unify all version strings to `0.9.2 → 0.9.3`: `FastAPI(version=...)`, `/status` response, `/` root response, and `main()` startup print were still reporting `0.8.9` / `v0.8.4` while the file header said `v0.9.2`
+- Fix `ensure_config_dir()` in `core/keychain.py` — was calling `Path(".amber-hunter").mkdir(...)` (relative to CWD) instead of `(HOME / ".amber-hunter").mkdir(parents=True, exist_ok=True)`, creating a spurious directory wherever the process was launched from
+- Remove duplicate `_EMBED_MODEL = None` module-level declaration (line 146 was redundant after line 33)
+
+## [v0.9.2] — 2026-03-26
+### Fixed
+- Add `sentence-transformers>=2.2.0` and `numpy>=1.24.0` to requirements.txt — semantic search now works out of the box after install
+- Remove unused `mac-keychain` package from requirements.txt (macOS keychain uses the built-in `security` CLI)
+- install.sh: show download size warning (~90MB) and surface pip errors instead of silently suppressing them
+
+## [v0.9.1] — 2026-03-26
+### Fixed
+- Removed hardcoded personal Telegram session ID; session capture now finds any user's active Telegram session generically
+- Cleaned personal name references from session logic comments
+
 
 All notable changes to amber-hunter are documented here.
 

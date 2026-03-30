@@ -1,7 +1,7 @@
 ---
 name: amber-proactive
-version: 0.1.0
-description: "Amber proactive memory capture skill. Silently watches AI collaboration sessions and automatically writes significant moments to amber storage. Activate when: you want AI to naturally remember important decisions, corrections, preferences, and discoveries without being asked. This skill makes amber truly intelligent — it captures memories proactively, not just on demand."
+version: 3.1.0
+description: "Amber proactive memory capture. Zero-LLM script — pushes session extraction tasks to the queue. Extraction is handled by the agent's models during heartbeat. Supports bilingual triggers (Chinese + English)."
 ---
 
 # Amber-Proactive Skill
@@ -10,102 +10,78 @@ description: "Amber proactive memory capture skill. Silently watches AI collabor
 
 ---
 
-## 核心理念
-
-**琥珀应该是外挂大脑，不是人工打卡机。**
-
-现有的 freeze 需要人主动想起"这条值得存"。真正的记忆层应该在 AI 协作自然发生的过程中，由 AI 自己判断"这条值得记住"，然后静默写入。
-
----
-
 ## 工作原理
 
 ```
-AI 回复
-   ↓
-amber-proactive hook 拦截（agent:response）
-   ↓
-分析：这段对话有什么值得记住的？
-   ↓
-值得记住 → 静默写入 amber（无用户感知）
-   ↓
-下次类似上下文出现 → AI 自动查找琥珀 → 预填相关记忆
+cron（每15分钟）
+  → proactive-check.js V3.1（Zero-LLM）
+    → 检查 session 消息数 ≥ 20 条
+    → 写入待提取队列 pending_extract.jsonl
+agent heartbeat（每 10 分钟）
+    → 读取 pending_extract.jsonl
+    → 调用自身的大模型提取关键事实
+    → 写入胶囊到 amber-hunter
+```
+
+**Zero-LLM**：脚本内部只负责整理对话文本，不调用外部大模型，无需配置 API Key，完全依赖 Agent 自身能力处理信息。
+
+---
+
+## 触发方式
+
+### 自动触发（cron，每15分钟）
+
+阈值：session 消息数 ≥ 20 条。
+
+### 手动触发（agent）
+
+| 中文 | English |
+|------|---------|
+| 保存、记住、冻结、留住 | save, remember, freeze, capture |
+
+手动不受消息数量限制，任意对话量都能触发。
+
+---
+
+## 使用方式
+
+```bash
+# 自动（cron 触发）
+node ~/.openclaw/workspace/skills/amber-proactive/scripts/proactive-check.js
+
+# 手动强制触发
+node ~/.openclaw/workspace/skills/amber-proactive/scripts/proactive-check.js --manual
 ```
 
 ---
 
-## 触发条件（自动判断）
+## 日志
 
-以下情况会自动触发静默记忆：
-
-| 信号类型 | 触发词/场景 | 写入内容 |
-|---------|------------|---------|
-| **用户纠正** | "不对" / "actually" / "错了" / "不是这样" | 用户的正确做法 + 原始错误 |
-| **错误修复** | exec 失败 → 找到正确方法 | 问题 + 解决方案 |
-| **关键决策** | 用户确定了一个方向/方案 | 决策内容 + 理由 |
-| **用户偏好** | "我喜欢..." / "我一般会..." / "不要..." | 偏好内容 |
-| **第一次做到** | 某件事第一次成功完成 | 成果 + 上下文 |
-| **重要发现** | 找到了更好的方法/工具/流程 | 发现内容 + 原方案对比 |
-| **安全/隐私决定** | 用户明确了数据边界 | 边界定义 |
-
----
-
-## 写入格式
-
-每个主动记忆包含：
-- `type`: `correction` | `decision` | `preference` | `discovery` | `error_fix`
-- `trigger`: 触发这段记忆的原始对话片段
-- `content`: 记忆内容（AI 总结）
-- `context`: 相关项目/技术栈
-- `tags`: 自动打标签
-
----
-
-## 静默原则
-
-- **用户零感知**：写入过程完全后台，不打断协作流
-- **无额外提示**：不告诉用户"已存入琥珀"
-- **失败不报错**：写入失败静默跳过，不影响主流程
-
----
-
-## API 调用
-
-通过 amber-hunter 的本地 API 写入：
+```bash
+tail -f ~/.amber-hunter/amber-proactive.log
 ```
-POST http://localhost:18998/capsules
-Authorization: Bearer <api_key>
-```
-
----
-
-## 依赖
-
-- amber-hunter 服务（localhost:18998）必须在运行
-- 读取 `~/.amber-hunter/config.json` 获取 api_key
-- 如果 amber-hunter 未运行，skill 静默跳过
 
 ---
 
 ## 文件结构
 
 ```
-amber-proactive/
-├── SKILL.md              # 本文件
-├── hooks/openclaw/
-│   ├── HOOK.md          # OpenClaw hook 定义
-│   └── handler.ts       # Hook 执行脚本
-└── scripts/
-    └── capture.ts       # 主动捕获逻辑
+amber-hunter/
+└── proactive/
+    ├── README.md
+    └── scripts/
+        └── proactive-check.js   # V3.1 Zero-LLM script
 ```
 
 ---
 
-## 与其他 Skill 的关系
+## 版本历史
 
-- **amber-hunter**（琥珀入口）：提供 `/freeze` 端点，被动捕获
-- **amber-proactive**（主动记忆）：主动判断+写入，主动补充
-- **self-improving-agent**：专注错误记录，amber-proactive 扩展为通用记忆
+- **v3.1.0**：回归架构初衷，脚本移除 LLM 调用 (Zero-LLM)，变为纯队列推送，由 agent 的 heartbeat 流程完成提取和写入。
+- **v0.4.1**：完全自包含，脚本内部完成 LLM 提取+写胶囊，cron 直接触发，不需要 agent (V4)
+- **v0.3.0**：LLM extraction via agent model（实验版）
+- **v0.2.0**：Signal-based capture（已废弃）
+- **v0.1.0**：Initial
 
 ---
 

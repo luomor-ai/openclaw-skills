@@ -1,149 +1,118 @@
 #!/usr/bin/env node
 /**
- * amber-proactive: Proactively scans recent session messages for significant moments
- * and silently writes them to amber memory.
- *
- * Run via: node ~/.openclaw/workspace/skills/amber-proactive/scripts/proactive-check.js
- *
- * Reads from: ~/.openclaw/agents/main/sessions/<latest>.jsonl
- * Writes to: amber via localhost:18998 (local service only — no external network access)
- *
- * SECURITY NOTE: This script is strictly local-only.
- * - File reads are limited to local OpenClaw/Claude session files (~/.openclaw/, ~/Library/...)
- * - ALL network calls go exclusively to localhost:18998 (the amber-hunter local service)
- * - process.env.HOME / os.homedir() used only to construct local filesystem paths
- * - No data is ever sent to any external server or internet endpoint
+ * amber-proactive V4: Fully self-contained extraction
+ * 
+ * 三步全部在脚本内完成，cron 直接触发，不需要 agent 介入。
+ * 
+ * 触发方式：
+ * - 自动: cron 每15分钟运行此脚本 → 检查阈值 → LLM提取 → 写胶囊
+ * - 手动: agent 调用此脚本（任何对话量都触发）
+ * 
+ * 触发阈值：
+ * - 自动模式: session 消息数 ≥ 20 条
+ * - 手动模式: 无限制（任意对话量）
  */
 
 const fs = require('fs');
-const http = require('http');
 const path = require('path');
 const os = require('os');
+const https = require('https');
+const http = require('http');
 
-const AMBER_PORT = 18998;
-// os.homedir() used only to construct local filesystem paths — never transmitted
-// os.homedir() used only to construct local filesystem paths — never transmitted
 const HOME = os.homedir();
-const CONFIG_PATH = path.join(HOME, '.amber-hunter', 'config.json');
 const SESSIONS_DIR = path.join(HOME, '.openclaw', 'agents', 'main', 'sessions');
-
-// Claude Cowork sessions (macOS)
-const CLAUDE_SESSIONS_BASE = process.platform === 'darwin'
-  ? path.join(HOME, 'Library', 'Application Support', 'Claude', 'local-agent-mode-sessions')
-  : null;
+const PENDING_FILE = path.join(HOME, '.amber-hunter', 'pending_extract.jsonl');
+const CONFIG_PATH = path.join(HOME, '.amber-hunter', 'config.json');
 const LOG_PATH = path.join(HOME, '.amber-hunter', 'amber-proactive.log');
 
-// ── Signal Patterns ──────────────────────────────────────────
-const SIGNALS = {
-  correction: [
-    /不对|不是这样|错了|错了啦|no,?\s*that|actually|not quite/i,
-    /that('s| is) (?:not |no )?(?:right|correct)|you('re| are) wrong/i,
-    /let me (?:correct|fix) that|my mistake|i meant/i,
-  ],
-  error_fix: [
-    /错误|失败|exception|traceback|bug|崩溃/i,
-    /找到了|发现.{0,10}(?:方法|方案|原因|解决)/i,
-    /(?:solution|fix|workaround):?\s*(.+)/i,
-  ],
-  decision: [
-    /决定|决定了|decision|choosing|agreed|architecture/i,
-    /(?:tech stack|技术栈|架构)/i,
-  ],
-  preference: [
-    /我喜欢|我一般|我通常|我比较|我不喜欢|我不怎么|我宁愿/i,
-    /(?:usually|prefer|tend|always|never|like to|don't like)/i,
-    /my (?:preferred|preference|prefer|default|usual|style)/i,
-  ],
-  discovery: [
-    /第一次|首次|第一次做|头一次/i,
-    /(?:discovered|found out|learned that|just found)/i,
-    /(?:game.?changer|breakthrough|novel|没想到|居然|竟然)/i,
-  ],
-};
+const AMBER_PORT = 18998;
+const MIN_MESSAGES_THRESHOLD = 20;
 
-// ── Utilities ───────────────────────────────────────────────
+// ── Logging ────────────────────────────────────────────────────────────
+
 function log(msg) {
   const ts = new Date().toISOString().slice(11, 19);
   fs.appendFileSync(LOG_PATH, `[${ts}] ${msg}\n`);
+  console.log(`[${ts}] ${msg}`);
 }
 
-function readConfig() {
-  try { return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8')); }
-  catch { return {}; }
+// ── Config ────────────────────────────────────────────────────────────
+
+function getConfig() {
+  try {
+    return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  } catch { return {}; }
 }
 
-// Recursively find the latest .jsonl (skip audit.jsonl and subagents/)
-function findLatestJsonl(dir, maxDepth) {
-  if (maxDepth === undefined) maxDepth = 8;
-  var best = null, bestMtime = 0;
-  function walk(d, depth) {
-    if (depth > maxDepth) return;
-    var entries;
-    try { entries = fs.readdirSync(d, { withFileTypes: true }); } catch(e) { return; }
-    for (var i = 0; i < entries.length; i++) {
-      var e = entries[i];
-      var full = path.join(d, e.name);
-      if (e.isDirectory()) {
-        if (e.name !== 'subagents') walk(full, depth + 1);
-      } else if (e.name.endsWith('.jsonl') && e.name !== 'audit.jsonl') {
+function getApiKey() {
+  const cfg = getConfig();
+  return cfg.api_key || cfg.apiToken || '';
+}
+
+// ── MiniMax LLM Call ─────────────────────────────────────────────────
+
+function callMinimaxLLM(prompt, apiKey) {
+  return new Promise((resolve, reject) => {
+    const bodyStr = JSON.stringify({
+      model: 'minimax-cn/MiniMax-M2.1-flash',
+      max_tokens: 1024,
+      messages: [{ role: 'user', content: prompt }],
+    });
+
+    const url = new URL('https://api.minimaxi.com/anthropic/v1/messages');
+    const opts = {
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname,
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'anthropic-version': '2023-06-01',
+        'Content-Length': Buffer.byteLength(bodyStr),
+      },
+    };
+
+    const req = https.request(opts, (res) => {
+      let data = '';
+      res.on('data', c => data += c);
+      res.on('end', () => {
         try {
-          var mtime = fs.statSync(full).mtime.getTime();
-          if (mtime > bestMtime) { bestMtime = mtime; best = full; }
-        } catch(e2) {}
-      }
-    }
-  }
-  walk(dir, 0);
-  return best ? { file: best, mtime: bestMtime } : null;
+          const parsed = JSON.parse(data);
+          const items = parsed.content || [];
+          let text = '';
+          for (const item of items) {
+            if (item.type === 'text') { text = item.text; break; }
+          }
+          // 去掉可能的markdown包裹
+          text = text.replace(/^```json\s*/i, '').replace(/```\s*$/i, '').trim();
+          const result = JSON.parse(text);
+          resolve(result.facts || []);
+        } catch (e) {
+          log(`[llm] Parse error: ${e.message}, raw: ${data.slice(0, 100)}`);
+          resolve([]); // 失败不阻断
+        }
+      });
+    });
+    req.on('error', e => { log(`[llm] API error: ${e.message}`); resolve([]); });
+    req.write(bodyStr);
+    req.end();
+  });
 }
+
+// ── Session Reading ────────────────────────────────────────────────────
 
 function getLatestSession() {
-  // OpenClaw
-  var ocResult = null;
   try {
-    var files = fs.readdirSync(SESSIONS_DIR)
-      .filter(function(f) { return f.endsWith('.jsonl'); })
-      .map(function(f) {
-        return { file: path.join(SESSIONS_DIR, f), mtime: fs.statSync(path.join(SESSIONS_DIR, f)).mtime.getTime() };
-      })
-      .sort(function(a, b) { return b.mtime - a.mtime; });
-    if (files[0]) ocResult = files[0];
-  } catch(e) {}
-
-  // Claude Cowork
-  var clResult = null;
-  if (CLAUDE_SESSIONS_BASE) {
-    try {
-      if (fs.existsSync(CLAUDE_SESSIONS_BASE)) clResult = findLatestJsonl(CLAUDE_SESSIONS_BASE);
-    } catch(e) {}
-  }
-
-  if (!ocResult && !clResult) return null;
-  if (!ocResult) return clResult.file;
-  if (!clResult) return ocResult.file;
-  return clResult.mtime > ocResult.mtime ? clResult.file : ocResult.file;
-}
-
-function extractTextFromContent(msg) {
-  if (!msg) return '';
-  // msg can be a dict or a string (Python dict repr)
-  let parsed = msg;
-  if (typeof msg === 'string') {
-    try { parsed = JSON.parse(msg); } catch { return ''; }
-  }
-  if (!parsed || typeof parsed !== 'object') return '';
-
-  const role = parsed.role || '';
-  const parts = parsed.content || [];
-  if (Array.isArray(parts)) {
-    return parts.map(p => {
-      if (typeof p === 'string') return p;
-      if (p && p.type === 'text') return p.text || '';
-      return '';
-    }).join('\n');
-  }
-  if (typeof parts === 'string') return parts;
-  return '';
+    const files = fs.readdirSync(SESSIONS_DIR)
+      .filter(f => f.endsWith('.jsonl'))
+      .map(f => ({
+        name: f,
+        mtime: fs.statSync(path.join(SESSIONS_DIR, f)).mtime.getTime()
+      }))
+      .sort((a, b) => b.mtime - a.mtime);
+    return files[0] ? path.join(SESSIONS_DIR, files[0].name) : null;
+  } catch { return null; }
 }
 
 function extractMessages(sessionPath) {
@@ -151,77 +120,44 @@ function extractMessages(sessionPath) {
     const content = fs.readFileSync(sessionPath, 'utf8');
     const lines = content.split('\n').filter(l => l.trim());
     const messages = [];
-
     for (const line of lines) {
       let d;
-      try { d = JSON.parse(line); }
-      catch { continue; }
-
-      // OpenClaw format: type === 'message'
-      if (d.type === 'message') {
-        const raw = d.message;
-        if (!raw) continue;
-        const text = extractTextFromContent(raw);
-        if (text && text.trim().length > 5) {
-          let role = '';
-          if (typeof raw === 'object' && raw.role) role = raw.role;
-          else if (typeof raw === 'string') {
-            try { const p = JSON.parse(raw); role = p.role || ''; } catch {}
-          }
-          messages.push({ role, text: text.trim() });
-        }
+      try { d = JSON.parse(line); } catch { continue; }
+      if (d.type !== 'message') continue;
+      const raw = d.message;
+      if (!raw || typeof raw !== 'object') continue;
+      const parts = raw.content || [];
+      let text = '';
+      if (Array.isArray(parts)) {
+        text = parts.map(p =>
+          typeof p === 'string' ? p : (p && p.type === 'text' ? p.text : '')
+        ).join('\n');
+      } else if (typeof parts === 'string') {
+        text = parts;
       }
-      // Claude Cowork format: type === 'user' | 'assistant'
-      else if (d.type === 'user' || d.type === 'assistant') {
-        const msg = d.message;
-        let text = '';
-        if (msg && typeof msg === 'object') {
-          const content = msg.content;
-          if (typeof content === 'string') {
-            text = content;
-          } else if (Array.isArray(content)) {
-            text = content
-              .filter(p => p && p.type === 'text')
-              .map(p => p.text || '')
-              .join('\n');
-          }
-        }
-        if (text && text.trim().length > 5) {
-          messages.push({ role: d.type, text: text.trim().slice(0, 500) });
-        }
+      text = text.trim();
+      if (text && text.length > 10) {
+        messages.push({ role: raw.role || '?', text });
       }
     }
     return messages;
-  } catch (e) {
-    return [];
-  }
+  } catch { return []; }
 }
 
-function detectSignals(text) {
-  const results = [];
-  const lower = text.toLowerCase();
-  for (const [type, patterns] of Object.entries(SIGNALS)) {
-    for (const pattern of patterns) {
-      const m = lower.match(pattern);
-      if (m) {
-        const idx = m.index || 0;
-        results.push({
-          type,
-          matched: m[0],
-          snippet: text.slice(Math.max(0, idx - 30), idx + 80).trim(),
-        });
-        break;
-      }
-    }
-  }
-  return results;
+function buildConversationText(messages, maxChars = 8000) {
+  const recent = messages.slice(-50);
+  const text = recent.map(m => `[${m.role}]: ${m.text}`).join('\n');
+  return text.length > maxChars ? text.slice(-maxChars) : text;
 }
 
-function httpPost(apiPath, body, token) {
+// ── Amber API ────────────────────────────────────────────────────────
+
+function writeCapsule(token, memo, content, tags) {
   return new Promise(resolve => {
-    const bodyStr = JSON.stringify(body);
+    const capsule = { memo: memo.slice(0, 60), content, tags };
+    const bodyStr = JSON.stringify(capsule);
     const opts = {
-      hostname: 'localhost', port: AMBER_PORT, path: apiPath, // localhost only — data never leaves your machine // localhost only — no external network
+      hostname: 'localhost', port: AMBER_PORT, path: '/capsules',
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${token}`,
@@ -239,44 +175,81 @@ function httpPost(apiPath, body, token) {
   });
 }
 
-// ── Main ─────────────────────────────────────────────────────
+// ── Main ─────────────────────────────────────────────────────────────
+
 async function main() {
-  const cfg = readConfig();
-  const token = cfg.api_key || cfg.apiToken;
-  if (!token) {
-    log('No api_key, skipping');
+  const isManual = process.argv.includes('--manual');
+  const apiKey = getApiKey();
+
+  if (!apiKey) {
+    log('[main] No API key found in config, skipping');
     return;
   }
 
   const sessionPath = getLatestSession();
   if (!sessionPath) {
-    log('No session file found');
+    log('[main] No session file found');
     return;
   }
 
+  const sessionId = path.basename(sessionPath, '.jsonl');
   const messages = extractMessages(sessionPath);
-  if (messages.length === 0) {
-    log('No messages in session');
+
+  log(`[main] Session ${sessionId}: ${messages.length} messages`);
+
+  // 检查阈值
+  if (!isManual && messages.length < MIN_MESSAGES_THRESHOLD) {
+    log(`[main] Skipping: ${messages.length} messages (need ≥ ${MIN_MESSAGES_THRESHOLD} for auto)`);
     return;
   }
 
-  // Get last N user+assistant messages
-  const recent = messages.slice(-20);
-  const combined = recent.map(m => `[${m.role}]: ${m.text}`).join('\n');
+  // 去重：当前 session 已在 pending_extract.jsonl 且消息数未增加则跳过
+  if (fs.existsSync(PENDING_FILE)) {
+    const lines = fs.readFileSync(PENDING_FILE, 'utf8').split('\n').filter(l => l.trim());
+    for (const line of lines) {
+      try {
+        const item = JSON.parse(line);
+        if (item.session_id === sessionId && item.message_count === messages.length) {
+          log(`[main] Session ${sessionId} already queued with same message count, skipping`);
+          return;
+        }
+      } catch {}
+    }
+  }
 
-  const signals = detectSignals(combined);
-  if (signals.length === 0) return;
+  const conversation = buildConversationText(messages);
 
-  const types = [...new Set(signals.map(s => s.type))];
-  const capsule = {
-    memo: `[Proactive] ${types.join(' + ')}: ${signals[0].matched.slice(0, 60)}`,
-    content: signals.map(s => s.snippet).join('\n---\n').slice(0, 800),
-    tags: types.join(','),
-    session_id: path.basename(sessionPath, '.jsonl'),
-  };
+  // 构建提取 prompt
+  const prompt = `从以下对话中提取关键事实。只返回纯JSON，不要markdown，不要思考过程。
 
-  const ok = await httpPost('/capsules', capsule, token);
-  log(`proactive-check: ${ok ? 'captured' : 'failed'} ${types.join('+')} (${messages.length} msgs scanned)`);
+对话：
+${conversation}
+
+输出格式：
+{"facts": [{"fact": "具体描述这个事实", "worth": true}]}`;
+
+  log(`[llm] Calling MiniMax API...`);
+  const facts = await callMinimaxLLM(prompt, apiKey);
+
+  if (!facts || facts.length === 0) {
+    log('[llm] No facts extracted, skipping');
+    return;
+  }
+
+  const worthIt = facts.filter(f => f.worth);
+  log(`[llm] Extracted ${facts.length} facts, ${worthIt.length} worth saving`);
+
+  const token = getApiKey();
+  let written = 0;
+
+  for (const { fact, worth } of facts) {
+    if (!worth) continue;
+    const ok = await writeCapsule(token, fact, fact, 'auto-extract');
+    if (ok) written++;
+    log(`[capsule] ${ok ? '✅' : '❌'} ${fact.slice(0, 50)}`);
+  }
+
+  log(`[done] Wrote ${written}/${worthIt.length} capsules from ${messages.length} messages`);
 }
 
-main().catch(e => log('Error: ' + e.message));
+main().catch(e => log('[error] ' + e.message));

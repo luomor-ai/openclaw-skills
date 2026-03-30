@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Amber-Hunter v0.9.0
+Amber-Hunter v0.9.6
 Huper琥珀本地感知引擎
 
 兼容 huper v1.0.0（DID 身份层）
@@ -15,7 +15,8 @@ from core.crypto import derive_key, encrypt_content, decrypt_content, generate_s
 from core.keychain import (
     get_master_password, set_master_password,
     get_api_token, get_huper_url,
-    ensure_config_dir,
+    ensure_config_dir, CONFIG_PATH,
+    get_os, is_headless,
 )
 from core.db import init_db, insert_capsule, get_capsule, list_capsules, mark_synced, get_unsynced_capsules, get_config, set_config
 from core.session import get_current_session_key, build_session_summary, get_recent_files
@@ -143,8 +144,6 @@ def _get_topics_from_config() -> list[dict]:
     return DEFAULT_TOPICS
 
 
-_EMBED_MODEL = None
-
 
 def _get_embed_model():
     """懒加载向量模型（all-MiniLM-L6-v2）."""
@@ -254,7 +253,7 @@ HOME = Path.home()
 ensure_config_dir()
 
 # ── FastAPI App ────────────────────────────────────────
-app = FastAPI(title="Amber Hunter", version="0.8.9")
+app = FastAPI(title="Amber Hunter", version="0.9.6")
 
 # CORS：仅允许 huper.org（生产）和 localhost（开发）
 # 使用 Starlette CORS middleware（更稳定）
@@ -401,6 +400,7 @@ def list_capsules_handler(authorization: str = Header(None), request: Request = 
             {
                 "id": c["id"],
                 "memo": c["memo"],
+                "content": c.get("content") or "",
                 "tags": c["tags"],
                 "session_id": c["session_id"],
                 "window_title": c["window_title"],
@@ -756,7 +756,7 @@ def sync_to_cloud(request: Request, authorization: str = Header(None)):
                 "session_id":    capsule.get("session_id"),
             }
 
-            with httpx.Client(timeout=15.0) as client:
+            with httpx.Client(timeout=15.0, trust_env=False) as client:
                 resp = client.post(
                     f"{huper_url}/capsules",
                     json=payload,
@@ -812,6 +812,27 @@ def set_config_handler(cfg_in: ConfigIn, request: Request, authorization: str = 
 
 # ── master_password 设置（Dashboard 用）────────────────
 from pydantic import BaseModel
+class BindApiKeyIn(BaseModel):
+    api_key: str
+
+@app.post("/bind-apikey")
+def bind_apikey_handler(payload: BindApiKeyIn, request: Request):
+    """更新 Huper 云端 API Key（仅限本机请求）"""
+    client = request.client
+    if client and client.host not in ("127.0.0.1", "::1", "localhost"):
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        import json as _json
+        cfg = {}
+        if CONFIG_PATH.exists():
+            cfg = _json.loads(CONFIG_PATH.read_text())
+        cfg["api_key"] = payload.api_key
+        CONFIG_PATH.parent.mkdir(exist_ok=True)
+        CONFIG_PATH.write_text(_json.dumps(cfg, indent=2))
+        return JSONResponse({"ok": True}, headers=add_cors_headers(request))
+    except Exception as e:
+        return JSONResponse({"ok": False, "error": str(e)}, status_code=500, headers=add_cors_headers(request))
+
 class MasterPasswordIn(BaseModel):
     password: str
 
@@ -857,7 +878,9 @@ def get_status(request: Request):
     h = add_cors_headers(request)
     return JSONResponse({
         "running": True,
-        "version": "0.8.9",
+        "version": "1.0.0",
+        "platform": get_os(),
+        "headless": is_headless(),
         "session_key": session_key,
         "has_master_password": bool(master_pw),
         "has_api_token": bool(api_token),
@@ -868,12 +891,12 @@ def get_status(request: Request):
 @app.get("/")
 def root(request: Request):
     h = add_cors_headers(request)
-    return JSONResponse({"service": "amber-hunter", "version": "0.8.9", "docs": "/docs"}, headers=h)
+    return JSONResponse({"service": "amber-hunter", "version": "1.0.0", "docs": "/docs"}, headers=h)
 
 # ── 启动 ───────────────────────────────────────────────
 def main():
     init_db()
-    print("🌙 Amber-Hunter v0.8.4 启动")
+    print("🌙 Amber-Hunter v1.0.0 启动")
     print(f"   Session目录: {HOME / '.openclaw' / 'agents'}")
     print(f"   Workspace:   {HOME / '.openclaw' / 'workspace'}")
     print(f"   数据库:      {HOME / '.amber-hunter' / 'hunter.db'}")

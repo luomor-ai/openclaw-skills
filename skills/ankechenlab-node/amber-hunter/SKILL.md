@@ -1,6 +1,6 @@
 # Amber-Hunter Skill
 > Local memory engine for Huper琥珀
-> Version: 0.9.0 | 2026-03-26
+> Version: 0.9.6 | 2026-03-28
 
 ---
 
@@ -31,7 +31,7 @@ Amber-Hunter is the **capture layer** of Huper琥珀 — free, open-source, and 
 
 ---
 
-## API Endpoints (v0.9.0)
+## API Endpoints (v0.9.6)
 
 | Endpoint | Method | Auth | Description |
 |----------|--------|------|-------------|
@@ -50,6 +50,7 @@ Amber-Hunter is the **capture layer** of Huper琥珀 — free, open-source, and 
 | `/sync` | GET | Bearer or ?token= | Cloud sync (requires account) |
 | `/config` | GET/POST | Bearer or ?token= | Read/set config (incl. auto_sync) |
 | `/master-password` | POST | localhost | Set master_password |
+| `/bind-apikey` | POST | localhost | Update Huper cloud API key in config.json |
 
 ---
 
@@ -170,8 +171,14 @@ sudo pacman -S libsecret
 ---
 
 ## Version History
+- **v0.9.6** (2026-03-28): Add `/bind-apikey` endpoint (localhost-only) — dashboard can now auto-push newly generated Huper API key to amber-hunter config.json; dashboard retry-on-401 token refresh logic; sync AbortSignal timeout raised to 120s.
+- **v0.9.5** (2026-03-28): amber-proactive V4 — fully self-contained cron script, LLM extraction + capsule write all in-script; no heartbeat dependency; cron every 15 min.
+- **v1.0.0** (2026-03-28): amber-proactive V3.1 — Zero-LLM script; extraction task is queued to pending_extract.jsonl and executed by Agent heartbeat.
+- **v0.9.3** (2026-03-27): Fix CONFIG_PATH import, version strings unified, ensure_config_dir abs path fix, remove duplicate _EMBED_MODEL declaration
+- **v0.9.2** (2026-03-26): Fix semantic search — add sentence-transformers + numpy to requirements; remove unused mac-keychain
+- **v0.9.1** (2026-03-26): Remove hardcoded personal Telegram session ID; session capture now generic for any user
 
-- **v0.8.9** (2026-03-26): Session capture targets Anke Telegram session; system message filtering; OpenClaw queue/exec cleanup; `get_current_session_key()` Telegram priority over Claude Cowork
+- **v0.8.9** (2026-03-26): Session capture prioritizes active Telegram session; system message filtering; OpenClaw queue/exec cleanup; `get_current_session_key()` Telegram priority over Claude Cowork
 - **v0.8.9** (2026-03-23): Topic classification system (16 topics + vector fine-tuning + sensitive keyword override), `/classify` endpoint for amber-proactive
 - **v0.8.8** (2026-03-23): Memory layer refactor — paragraph-level summarization (20-message window), preference extraction (24 signal keywords), `preferences` field in freeze
 - **v0.8.7** (2026-03-22): Removed VPS warning, English-only SKILL.md, localhost-only security annotations
