@@ -1,17 +1,7 @@
 ---
 name: garmin-connect-health
-description: |
-  Fetch comprehensive health & fitness data from Garmin Connect for your AI agent.
-  40+ metrics: sleep, HRV, stress, body battery, SpO2, VO2 Max, training status, race predictions, activities, and more.
-
-  Use this skill when:
-  (1) User asks about steps, distance, calories, floors
-  (2) User asks about sleep quality, sleep score, deep/REM sleep
-  (3) User asks about HRV, heart rate, resting heart rate
-  (4) User asks about body battery, stress, SpO2, respiration
-  (5) User asks about training status, training load, overtraining
-  (6) User asks about VO2 max, fitness age, race predictions
-  (7) User mentions "Garmin", "health data", "workout", "fitness"
+version: 1.0.8
+description: Fetch health and fitness data from Garmin Connect -- 40+ metrics including sleep, HRV, stress, body battery, SpO2, VO2 Max, training status, and activities. Stores data locally as JSON.
 ---
 
 # Garmin Connect Health Data Skill
@@ -48,32 +38,42 @@ pip install garminconnect
 
 ### 2. Set credentials (choose one method)
 
-**Option A — Environment variables:**
+**Option A -- Environment variables:**
 ```bash
 export GARMIN_EMAIL="you@example.com"
 export GARMIN_PASSWORD="yourpassword"
 ```
 
-**Option B — CLI args:**
+**Option B -- CLI args:**
 ```bash
 python3 garmin_health.py --email you@example.com --password yourpassword
 ```
 
-**Option C — macOS Keychain:**
+**Option C -- macOS Keychain:**
 ```bash
 security add-generic-password -a "you@example.com" -s "garmin_connect" -w "yourpassword"
 ```
 
-**Option D — Credentials file:**
+**Option D -- Credentials file:**
 ```bash
 echo -e "email=you@example.com\npassword=yourpassword" > ~/.garmin_credentials
 chmod 600 ~/.garmin_credentials
 ```
 
-### 3. First run
+### 3. Set region (China accounts only)
+
+If your Garmin account was registered in China, add this to your shell profile (`~/.zshrc` / `~/.bashrc`) **once**:
+
+```bash
+export GARMIN_IS_CN=true
+```
+
+This tells the skill to use `connect.garmin.com.cn` instead of the global endpoint -- more reliable for mainland China IPs and prevents 429 rate-limit errors. Skip this step if you have a global Garmin account.
+
+### 4. First run
 First login may require MFA verification. You'll be prompted to enter a code sent to your email.
 
-### 4. Use with OpenClaw
+### 5. Use with OpenClaw
 Ask your AI agent:
 - "Show my health data"
 - "How did I sleep last night?"
@@ -92,23 +92,35 @@ python3 garmin_health.py --date 2026-03-16
 # Show latest cached data
 python3 garmin_health.py --show
 
+# Use Garmin Connect CN endpoint (Chinese accounts / mainland China IP)
+python3 garmin_health.py --cn
+
 # With credentials
 python3 garmin_health.py --email you@example.com --password pass
 ```
 
 ## Data Storage
 
-- `~/.garmin_health/YYYY-MM-DD.json` — Daily snapshots
-- `~/.garmin_health/latest.json` — Most recent fetch
-- `~/.garminconnect/` — OAuth token cache
+- `~/.garmin_health/YYYY-MM-DD.json` -- Daily snapshots
+- `~/.garmin_health/latest.json` -- Most recent fetch
+- `~/.garminconnect/` -- OAuth token cache
 
 Override with env vars:
-- `GARMIN_DATA_DIR` — Change data directory
-- `GARMIN_TOKENSTORE` — Change token directory
+- `GARMIN_DATA_DIR` -- Change data directory
+- `GARMIN_TOKENSTORE` -- Change token cache directory
+- `GARMIN_IS_CN=true` -- Use Garmin Connect CN endpoint (set once in shell profile)
 
 ## Supported Languages
 
 All labels and output in English. JSON field names are English by design.
+
+## Security & Privacy
+
+- **Your credentials only** -- this skill authenticates with Garmin Connect using your own account credentials. No credentials are shared with or stored by this skill.
+- **Local storage only** -- all fetched health data is saved as JSON files on your own machine. No data is sent to any third party.
+- **Token caching** -- after first login, an OAuth token is cached locally (`~/.garminconnect/`). Subsequent runs reuse this token and do not re-send your password.
+- **Recommended auth** -- use macOS Keychain or environment variables rather than `--password` CLI flag to avoid password exposure in shell history.
+- **Official API only** -- all requests go directly to `connect.garmin.com` (or `connect.garmin.com.cn` for CN accounts). No proxies or intermediaries.
 
 ## Requirements
 

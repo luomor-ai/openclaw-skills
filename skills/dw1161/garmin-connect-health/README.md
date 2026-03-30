@@ -1,4 +1,4 @@
-# garmin-connect-health — OpenClaw Skill 🏃‍♂️
+# garmin-connect-health -- OpenClaw Skill
 
 <div align="right">
   <a href="README.zh.md"><img src="https://img.shields.io/badge/语言-中文-red?style=for-the-badge&logo=googletranslate&logoColor=white" alt="中文"></a>
@@ -10,11 +10,24 @@ A comprehensive Garmin Connect skill for [OpenClaw](https://github.com/openclaw/
 
 ## Features
 
-- **40+ health metrics** — sleep, HRV, stress, body battery, SpO2, VO2 Max, training status, race predictions, and more
-- **Structured JSON output** — machine-readable, easy to extend
-- **Multiple auth methods** — env vars, CLI args, macOS Keychain, or credentials file
-- **Auto-caches daily data** — fast queries without repeated API calls
-- **Cross-platform** — macOS, Linux, Windows
+- **40+ health metrics** -- sleep, HRV, stress, body battery, SpO2, VO2 Max, training status, race predictions, and more
+- **Structured JSON output** -- machine-readable, easy to extend
+- **Multiple auth methods** -- env vars, CLI args, macOS Keychain, or credentials file
+- **Auto-caches daily data** -- fast queries without repeated API calls
+- **Cross-platform** -- macOS, Linux, Windows
+
+## Screenshots
+
+> AI-powered health analysis powered by this skill -- real data, real insights 💪
+
+<div align="center">
+  <img src="docs/screenshot-1.jpg" width="380" alt="Garmin health data overview -- steps, sleep, HRV, body battery, SpO2">
+  &nbsp;&nbsp;
+  <img src="docs/screenshot-2.jpg" width="380" alt="Detailed training analysis and recovery recommendations">
+</div>
+
+*Left: Full health snapshot including sleep, heart rate, body battery, blood oxygen, and HRV.*
+*Right: Training review with aerobic/anaerobic effect breakdown and personalized recovery advice.*
 
 ## Quick Start
 
@@ -92,6 +105,40 @@ Your first login may trigger MFA. You'll be prompted to enter the verification c
 
 See full schema in [SKILL.md](SKILL.md).
 
+## Region: Global vs China (CN)
+
+By default the skill connects to the **global** Garmin Connect (`connect.garmin.com`).  
+If your Garmin account was registered in China, or you are running from a mainland China IP, switch to the **CN endpoint** (`connect.garmin.com.cn`) for better reliability:
+
+### One-time setup (recommended)
+
+Add to your shell profile (`~/.zshrc`, `~/.bashrc`, etc.) so it applies to every run:
+
+```bash
+export GARMIN_IS_CN=true
+```
+
+Then reload your shell:
+
+```bash
+source ~/.zshrc   # or ~/.bashrc
+```
+
+That's it -- you never need to pass a flag again.
+
+### Per-run flag (ad-hoc)
+
+```bash
+python3 garmin_health.py --cn
+```
+
+### For OpenClaw skill users
+
+The skill reads `GARMIN_IS_CN` automatically. Set it once in your shell profile (above) and all future skill invocations -- including those triggered by your AI agent -- will use the CN endpoint without any extra configuration.
+
+> **Not sure which endpoint to use?**  
+> If you registered your Garmin account on the Chinese Garmin website or app, use CN. If you registered on garmin.com (international), use the default (no flag needed).
+
 ## Credential Priority
 
 1. `--email` / `--password` CLI arguments
@@ -115,7 +162,7 @@ A: No. Data is fetched locally and stored as JSON files on your machine.
 
 ## Acknowledgments
 
-- [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) — excellent Garmin API wrapper
+- [python-garminconnect](https://github.com/cyberjunky/python-garminconnect) -- excellent Garmin API wrapper
 
 ## License
 
