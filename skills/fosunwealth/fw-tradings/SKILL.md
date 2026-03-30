@@ -20,11 +20,11 @@ requires:
 
 ---
 
-## 子技能一览
+## 技能一览
 
 ### 1. fosun-sdk-setup — SDK 初始化与凭证管理
 
-**路径**: `fosun-sdk-setup/SKILL.md`
+**路径**: `fosun-sdk-setup/fosun-sdk-setup.md`
 
 **用途**: 在专用虚拟环境中安装、校验并修复 Fosun OpenAPI SDK（`fsopenapi`），统一处理 `fosun.env` 凭证、开通状态和可直接复用的客户端运行环境。
 
@@ -42,19 +42,19 @@ requires:
 
 ### 2. fosun-trading — 通用基础配置
 
-**路径**: `fosun-trading/SKILL.md`
+**路径**: `fosun-trading/fosun-trading.md`
 
 **用途**: 定义所有交易脚本共享的环境约束、市场规则、订单类型、交易限制和推荐工作流。所有脚本（`code/` 目录）和文档（`doc/` 目录）均位于此 skill 目录下。
 
 **涵盖内容**: 前置条件、环境约束、自动初始化行为、强制前置检查、支持的市场与订单类型、下单工作流、AI 交易限制、常见错误处理。
 
-**适用场景**: 需要了解通用规则、市场定义或交易限制时。具体操作请参考下方三个子 skill。
+**适用场景**: 需要了解通用规则、市场定义或交易限制时。具体操作请参考下方三个 skill。
 
 ---
 
 ### 3. fosun-market-data — 行情查询
 
-**路径**: `fosun-market-data/SKILL.md`
+**路径**: `fosun-market-data.md`
 
 **用途**: 通过命令行脚本查询股票行情、期权行情和行情推送订阅。
 
@@ -73,7 +73,7 @@ requires:
 
 ### 4. fosun-account — 账户查询
 
-**路径**: `fosun-account/SKILL.md`
+**路径**: `fosun-account.md`
 
 **用途**: 通过命令行脚本查询买卖信息、资金/持仓和资金流水。
 
@@ -91,7 +91,7 @@ requires:
 
 ### 5. fosun-orders — 下单与订单查询
 
-**路径**: `fosun-orders/SKILL.md`
+**路径**: `fosun-orders.md`
 
 **用途**: 通过命令行脚本完成下单和订单查询操作。
 
@@ -112,7 +112,7 @@ requires:
 
 ### 6. fosun-order-modify — 撤单与改单
 
-**路径**: `fosun-order-modify/SKILL.md`
+**路径**: `fosun-order-modify.md`
 
 **用途**: 通过命令行脚本完成撤单和改单操作，包含严格的改单决策规则。
 
@@ -127,7 +127,7 @@ requires:
 
 ---
 
-## ⛔ 数据准确性强制规则（所有子 skill 必须遵守）
+## ⛔ 数据准确性强制规则（所有 skill 必须遵守）
 
 > **这是最高优先级规则，违反此规则等同于向用户提供错误的金融信息。**
 
