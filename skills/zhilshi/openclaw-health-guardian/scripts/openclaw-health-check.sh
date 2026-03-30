@@ -3,28 +3,39 @@
 # OpenClaw Health Check & Auto-Fix Script
 # This script checks OpenClaw status and automatically fixes any issues found
 
-# Set PATH for launchd daemon - include nvm path
-export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/pg/.nvm/versions/node/v22.22.0/bin"
+# Set PATH for launchd daemon - include common paths
+export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin:$HOME/.nvm/versions/node/*/bin"
 
-# Find openclaw command - try multiple paths
+# Load nvm if available (supports multiple nvm installations)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh" 2>/dev/null
+
+# Find openclaw command - prefer which for portability
 OPENCLAW_BIN=""
-for path in "/opt/homebrew/bin/openclaw" "/Users/pg/.nvm/versions/node/v22.22.0/bin/openclaw" "/usr/local/bin/openclaw"; do
-    if [ -x "$path" ]; then
-        OPENCLAW_BIN="$path"
+for path in "openclaw" "/opt/homebrew/bin/openclaw" "/usr/local/bin/openclaw" "$HOME/.local/bin/openclaw"; do
+    if [ -x "$(which "$path" 2>/dev/null)" ]; then
+        OPENCLAW_BIN="$(which "$path" 2>/dev/null)"
         break
     fi
 done
 
-# If still not found, try which
+# Fallback: try direct path check if which failed
 if [ -z "$OPENCLAW_BIN" ]; then
-    OPENCLAW_BIN=$(which openclaw 2>/dev/null)
+    for path in "/opt/homebrew/bin/openclaw" "/usr/local/bin/openclaw" "$HOME/.local/bin/openclaw"; do
+        if [ -x "$path" ]; then
+            OPENCLAW_BIN="$path"
+            break
+        fi
+    done
 fi
 
-LOG_FILE="/Users/pg/.openclaw/logs/health-check.log"
+# Use HOME variable for all paths - portable across users
+OPENCLAW_HOME="${OPENCLAW_HOME:-$HOME/.openclaw}"
+LOG_FILE="$OPENCLAW_HOME/logs/health-check.log"
 TIMESTAMP=$(date "+%Y-%m-%d %H:%M:%S")
 
 # State directory for cooldown and rate limiting
-STATE_DIR="/Users/pg/.openclaw/state"
+STATE_DIR="$OPENCLAW_HOME/state"
 LAST_RESTART_FILE="$STATE_DIR/last_restart"
 RESTART_COUNT_FILE="$STATE_DIR/restart_count"
 HOUR_MARKER="$STATE_DIR/hour_marker"

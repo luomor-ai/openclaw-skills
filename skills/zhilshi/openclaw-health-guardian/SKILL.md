@@ -1,6 +1,24 @@
 ---
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "🛠️",
+        "requires": { "bins": ["node"] }
+      },
+  }
+---
 name: openclaw-health-guardian
 description: Deploy OpenClaw health monitoring with auto-restart, cooldown (180s), and rate limiting (5/hour). Use when: (1) setting up OpenClaw health checks, (2) auto-restarting failed Gateway, (3) monitoring OpenClaw status, (4) deploying health daemon on macOS.
+---
+metadata:
+  {
+    "openclaw":
+      {
+        "emoji": "🛠️",
+        "requires": { "bins": ["node"] }
+      },
+  }
 ---
 
 # OpenClaw Health Guardian

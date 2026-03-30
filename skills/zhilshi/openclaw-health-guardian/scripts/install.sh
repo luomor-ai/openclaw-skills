@@ -56,7 +56,8 @@ log_info "配置 LaunchAgent 服务..."
 LAUNCH_AGENT_DIR="$USER_HOME/Library/LaunchAgents"
 mkdir -p "$LAUNCH_AGENT_DIR"
 
-cat > "$LAUNCH_AGENT_DIR/com.openclaw.healthcheck.plist" << 'EOF'
+# 使用变量直接注入，避免硬编码
+cat > "$LAUNCH_AGENT_DIR/com.openclaw.healthcheck.plist" << EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -65,16 +66,16 @@ cat > "$LAUNCH_AGENT_DIR/com.openclaw.healthcheck.plist" << 'EOF'
     <string>com.openclaw.healthcheck</string>
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/pg/.openclaw/scripts/openclaw-health-check.sh</string>
+        <string>$USER_HOME/.openclaw/scripts/openclaw-health-check.sh</string>
     </array>
     <key>StartInterval</key>
     <integer>300</integer>
     <key>RunAtLoad</key>
     <true/>
     <key>StandardOutPath</key>
-    <string>/Users/pg/.openclaw/logs/health-check-daemon.log</string>
+    <string>$USER_HOME/.openclaw/logs/health-check-daemon.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/pg/.openclaw/logs/health-check-daemon-error.log</string>
+    <string>$USER_HOME/.openclaw/logs/health-check-daemon-error.log</string>
     <key>KeepAlive</key>
     <dict>
         <key>Crashed</key>
@@ -89,9 +90,6 @@ cat > "$LAUNCH_AGENT_DIR/com.openclaw.healthcheck.plist" << 'EOF'
 </dict>
 </plist>
 EOF
-
-# 替换用户目录路径
-sed -i '' "s|/Users/pg|$USER_HOME|g" "$LAUNCH_AGENT_DIR/com.openclaw.healthcheck.plist"
 
 # 4. 加载并启动服务
 log_info "加载健康检查服务..."
