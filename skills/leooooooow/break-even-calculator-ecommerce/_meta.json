@@ -3,11 +3,16 @@
   "slug": "break-even-calculator-ecommerce",
   "displayName": "Break Even Calculator Ecommerce",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1773840126421,
-    "commit": "https://github.com/openclaw/skills/commit/9b078b2de6f439a100ab0a88fddac6e6afecae3c"
+    "version": "1.0.2",
+    "publishedAt": 1774513965057,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1773840126421,
+      "commit": "https://github.com/openclaw/skills/commit/9b078b2de6f439a100ab0a88fddac6e6afecae3c"
+    },
     {
       "version": "1.0.0",
       "publishedAt": 1773643829338,
