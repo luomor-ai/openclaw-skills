@@ -1,84 +1,98 @@
-# Whatsonchain
+# whatsonchain
 
-**API Key Management & BSV Blockchain Tools**
+**Slug:** `whatsonchain`  
+**Version:** 1.0.0
 
-## Overview
+## Description
 
-Whatsonchain provides API tools for exploring the BSV blockchain, including transaction lookup, block information, and network status checks.
+Access WhatsOnChain API for BSV/BTC blockchain data via REST calls. Manual key setup only, no automation.
 
-## Installation
+## Features
 
-```bash
-clawhub install whatsonchain
-```
+- BSV mainnet and testnet data
+- BTC explorer data
+- Network info (difficulty, blocks, chainwork)
+- Mempool statistics
+- Block headers and stats
+- Transaction details
+- Address activity
+- Inscriptions listing
 
-## ⚠️ IMPORTANT - MANUAL CONFIGURATION REQUIRED
+## Security
 
-**After installation, you must run the onboard script to configure your API key:**
+- **Manual only** - No automation or credential extraction
+- **No passwords** - API keys only (`mainnet_xx`)
+- **No ~/.bashrc** - Use `~/.whatsonchain.conf`
 
-```bash
-cd /home/$USER/.openclaw/workspace/skills/whatsonchain
-bash scripts/onboard.sh
-```
+## API Endpoints
 
-Or from anywhere:
-
-```bash
-bash /home/$USER/.openclaw/workspace/skills/whatsonchain/scripts/onboard.sh
-```
-
-## Usage
-
-After running the onboard script, use in OpenClaw:
-
-```
-/tools
-```
-
-## API Key Storage
-
-- **File:** `~/.clawhub/.env`
-- **Permissions:** 600 (secure)
-- **Environment Variable:** `WATSONCHAIN_API_KEY`
-- **Optional:** Added to `~/.bashrc`
+| Endpoint | Description | Example |
+|----------|-------------|---------|
+| `/chain/info` | Network info | `bsv/main/chain/info` |
+| `/mempool/info` | Mempool stats | `bsv/main/mempool/info` |
+| `/block/headers` | Last 10 block headers | `bsv/main/block/headers` |
+| `/block/height/{height}/stats` | Block stats | `bsv/main/block/height/942402/stats` |
+| `/transactions/{txid}` | Transaction details | `bsv/main/transactions/{txid}` |
+| `/addresses/{addr}/info` | Address activity | `bsv/main/addresses/{addr}/info` |
+| `/inscriptions` | Inscription listing | `bsv/main/inscriptions` |
 
 ## Authentication
 
-Three authentication methods available:
+- **Free tier:** 3 requests/second (no API key required)
+- **Premium:** Teranode platform API key
+- **Header:** `Authorization: mainnet_yourapikey`
 
-1. **Email + Password**
-   - Automatic extraction from clawhub
-   - Manual fallback
-   - Platform login automation
+**Credentials Note:**
+- The API key (`WO_API_KEY`) is optional for free-tier usage
+- Export the key for premium features: `export WO_API_KEY="mainnet_yourapikey"`
+- Store in `~/.whatsonchain.conf` if preferred
+- No OAuth credentials or passwords are required
+- Keys are plain text and stored locally
+- Free tier allows 3 requests/second without any key
+- Premium tier increases rate limits via API key
 
-2. **OAuth GitHub**
-   - Automatic authentication
-   - No password needed
+## Setup
 
-3. **OAuth Google**
-   - Automatic authentication
-   - No password needed
+1. Create account: https://platform.teranode.group
+2. Get API key: https://platform.teranode.group/api-keys
+3. Create project: https://platform.teranode.group/projects
+4. Move API key to project (optional)
+5. Export API key for premium usage (optional):
+   ```bash
+   export WO_API_KEY="mainnet_yourapikey"
+   ```
 
-## Rate Limits
+## Usage
 
-- **Free:** 3 requests/second
-- **Premium:** 10, 20, or 40 requests/second
+```bash
+# Network info (free tier - no key required)
+curl -s "https://api.whatsonchain.com/v1/bsv/main/chain/info"
 
-## Platform URLs
+# Mempool (free tier)
+curl -s "https://api.whatsonchain.com/v1/bsv/main/mempool/info"
 
-- Register: `https://platform.teranode.group/register`
-- Login: `https://platform.teranode.group/login`
-- Projects: `https://platform.teranode.group/projects`
-- API Keys: `https://platform.teranode.group/api-keys`
+# Block stats (free tier)
+curl -s "https://api.whatsonchain.com/v1/bsv/main/block/height/942402/stats"
 
-## BSV API
+# Transaction (free tier)
+curl -s "https://api.whatsonchain.com/v1/bsv/main/transactions/{txid}"
 
-Mainnet: `https://api.whatsonchain.com/v1/mainnetInfo`
+# With API key (premium - optional)
+curl -s -H "Authorization: mainnet_yourapikey" \
+  "https://api.whatsonchain.com/v1/bsv/main/chain/info"
+```
 
-## Author
+## Documentation
 
-ChicoCifrado
+- [WhatsOnChain API](https://docs.whatsonchain.com/)
+- [BSV Blockchain](https://docs.bsvblockchain.org/)
+- [BRC Standards](https://bsv.brc.dev/)
+- [Teranode Platform](https://platform.teranode.group/)
 
-## License
+## Changelog
 
-MIT
+### v1.0.0
+- Initial release with all API endpoints
+- Manual key setup only, no automation
+- Free tier (3 req/s) and premium tiers supported
+- Credentials properly documented as optional
