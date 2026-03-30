@@ -59,15 +59,15 @@ from constants import (
 def calculate_check_interval(wall_time: str) -> int:
     """
     根据作业预计时长自动计算检查间隔
-    
+
     规则：
     - 短作业（< 1小时）：60秒
     - 中作业（1-24小时）：300秒（5分钟）
     - 长作业（> 24小时）：600秒（10分钟）
-    
+
     Args:
         wall_time: 运行时长，格式为 "HH:MM:SS"
-        
+
     Returns:
         建议的检查间隔（秒）
     """
@@ -87,7 +87,7 @@ def calculate_check_interval(wall_time: str) -> int:
         else:
             # 默认返回中作业间隔
             return 300
-        
+
         # 根据总小时数确定间隔
         if total_hours < 1:
             # 短作业：< 1小时
@@ -98,7 +98,7 @@ def calculate_check_interval(wall_time: str) -> int:
         else:
             # 长作业：> 24小时
             return 600
-            
+
     except (ValueError, TypeError):
         # 解析失败时返回默认间隔
         return 180
@@ -629,11 +629,11 @@ class FileManager:
 
     def list_files(self, path: Optional[str] = None, limit: int = 100) -> Optional[Dict[str, Any]]:
         """查询文件列表
-        
+
         Args:
             path: 目录路径，默认为家目录
             limit: 返回文件数量限制
-            
+
         Returns:
             文件列表信息，包含 total 和 fileList
         """
@@ -656,11 +656,11 @@ class FileManager:
 
     def create_folder(self, path: str, create_parents: bool = True) -> bool:
         """创建文件夹
-        
+
         Args:
             path: 文件夹路径
             create_parents: 是否自动创建父目录
-            
+
         Returns:
             是否创建成功
         """
@@ -683,10 +683,10 @@ class FileManager:
 
     def create_file(self, file_path: str) -> bool:
         """创建空文件
-        
+
         Args:
             file_path: 文件绝对路径
-            
+
         Returns:
             是否创建成功
         """
@@ -709,12 +709,12 @@ class FileManager:
 
     def upload_file(self, local_path: str, remote_path: str, cover: str = "cover") -> bool:
         """上传文件
-        
+
         Args:
             local_path: 本地文件路径
             remote_path: 远程目标路径
             cover: 覆盖策略，默认"cover"表示覆盖
-            
+
         Returns:
             是否上传成功
         """
@@ -739,11 +739,11 @@ class FileManager:
 
     def download_file(self, remote_path: str, local_path: str) -> bool:
         """下载文件
-        
+
         Args:
             remote_path: 远程文件路径
             local_path: 本地保存路径
-            
+
         Returns:
             是否下载成功
         """
@@ -774,11 +774,11 @@ class FileManager:
 
     def delete_file(self, path: str, recursive: bool = False) -> bool:
         """删除文件或文件夹
-        
+
         Args:
             path: 文件或文件夹路径
             recursive: 是否递归删除（删除目录时需要）
-            
+
         Returns:
             是否删除成功
         """
@@ -801,10 +801,10 @@ class FileManager:
 
     def check_exists(self, path: str) -> bool:
         """检查文件或目录是否存在
-        
+
         Args:
             path: 文件或目录路径
-            
+
         Returns:
             是否存在
         """
@@ -827,10 +827,10 @@ class FileManager:
 
     def get_file_info(self, path: str) -> Optional[Dict[str, Any]]:
         """获取文件详细信息
-        
+
         Args:
             path: 文件路径
-            
+
         Returns:
             文件信息字典，或 None（不存在时）
         """
@@ -1420,10 +1420,10 @@ class SCNetClient:
 
     def switch_cluster(self, cluster_name_hint: str) -> bool:
         """切换到指定计算中心
-        
+
         Args:
             cluster_name_hint: 计算中心名称提示（如"西安"、"昆山"等）
-        
+
         Returns:
             bool: 是否切换成功
         """
@@ -1453,7 +1453,7 @@ class SCNetClient:
         # 调用获取授权区域接口
         print(f"🔄 正在切换到 {target_name}...")
         center_info = get_center_info(target_token)
-        
+
         if not center_info or center_info.get("code") != "0":
             print(f"❌ 获取授权区域信息失败")
             return False
@@ -1462,14 +1462,14 @@ class SCNetClient:
         data = center_info.get("data", {})
         url_fields = ['hpcUrls', 'aiUrls', 'efileUrls']
         filtered_data = {}
-        
+
         for field in url_fields:
             if field in data:
                 filtered_data[field] = [
                     item for item in data[field]
                     if item.get("enable") == "true"
                 ]
-        
+
         if 'clusterUserInfo' in data:
             filtered_data['clusterUserInfo'] = data['clusterUserInfo']
 
@@ -1484,10 +1484,10 @@ class SCNetClient:
 
         # 保存缓存
         _save_cache(self._cache)
-        
+
         # 更新内部缓存
         self._center_info_cache[target_name] = center_info
-        
+
         print(f"✅ 已切换到 {target_name}")
         return True
 
@@ -1499,14 +1499,14 @@ class SCNetClient:
                 name = token_info.get("clusterName", "")
                 self._tokens_cache[name] = token_info.get("token", "")
                 self._cluster_id_cache[name] = token_info.get("clusterId", "")
-            
+
             # 从缓存加载默认cluster
             self._load_cache_from_file()
-            
+
             # 初始化NotebookManager和ContainerManager（使用默认token和aiUrl）
             default_token = self.get_default_token()
             default_cluster = self.get_default_cluster_name()
-            
+
             if default_token and default_cluster:
                 ai_url = self._get_ai_url(default_cluster)
                 efile_url = self.get_efile_url(default_cluster)
@@ -1559,7 +1559,7 @@ class SCNetClient:
 
     def get_token(self, cluster_name: str) -> Optional[str]:
         """获取指定计算中心的token
-        
+
         如果 cluster_name 为空或None，返回默认计算中心的token
         """
         if not cluster_name:
@@ -1573,20 +1573,20 @@ class SCNetClient:
 
     def _get_center_info(self, cluster_name: str) -> Optional[Dict[str, Any]]:
         """获取计算中心信息
-        
+
         优先从缓存读取，如果没有则调用接口
         """
         # 如果 cluster_name 为空，使用默认计算中心
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         if not cluster_name:
             return None
-            
+
         # 先检查内存缓存
         if cluster_name in self._center_info_cache:
             return self._center_info_cache[cluster_name]
-        
+
         # 尝试从文件缓存读取
         self._load_cache_from_file()
         if self._cache and "clusters" in self._cache:
@@ -1606,7 +1606,7 @@ class SCNetClient:
                         }
                         self._center_info_cache[cluster_name] = center_info
                         return center_info
-        
+
         # 缓存中没有，调用接口获取
         token = self.get_token(cluster_name)
         if not token:
@@ -1618,19 +1618,19 @@ class SCNetClient:
 
     def get_hpc_url(self, cluster_name: str = None) -> Optional[str]:
         """获取hpcUrl（作业服务）
-        
+
         如果 cluster_name 为空，使用默认计算中心
         """
         # 如果 cluster_name 为空，使用默认计算中心名称
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         if not cluster_name:
             return None
-            
+
         if cluster_name in self._hpc_url_cache:
             return self._hpc_url_cache[cluster_name]
-        
+
         # 优先从缓存文件读取
         self._load_cache_from_file()
         if self._cache and "clusters" in self._cache:
@@ -1641,7 +1641,7 @@ class SCNetClient:
                             url = url_info.get("url")
                             self._hpc_url_cache[cluster_name] = url
                             return url
-        
+
         # 缓存中没有，调用接口获取
         info = self._get_center_info(cluster_name)
         url = get_hpc_url(info) if info else None
@@ -1651,19 +1651,19 @@ class SCNetClient:
 
     def get_efile_url(self, cluster_name: str = None) -> Optional[str]:
         """获取efileUrl（文件服务）
-        
+
         如果 cluster_name 为空，使用默认计算中心
         """
         # 如果 cluster_name 为空，使用默认计算中心名称
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         if not cluster_name:
             return None
-            
+
         if cluster_name in self._efile_url_cache:
             return self._efile_url_cache[cluster_name]
-        
+
         # 优先从缓存文件读取
         self._load_cache_from_file()
         if self._cache and "clusters" in self._cache:
@@ -1674,7 +1674,7 @@ class SCNetClient:
                             url = url_info.get("url")
                             self._efile_url_cache[cluster_name] = url
                             return url
-        
+
         # 缓存中没有，调用接口获取
         info = self._get_center_info(cluster_name)
         url = get_efile_url(info) if info else None
@@ -1684,19 +1684,19 @@ class SCNetClient:
 
     def get_home_path(self, cluster_name: str = None) -> Optional[str]:
         """获取家目录
-        
+
         如果 cluster_name 为空，使用默认计算中心
         """
         # 如果 cluster_name 为空，使用默认计算中心名称
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         if not cluster_name:
             return None
-            
+
         if cluster_name in self._home_path_cache:
             return self._home_path_cache[cluster_name]
-        
+
         # 优先从缓存文件读取
         self._load_cache_from_file()
         if self._cache and "clusters" in self._cache:
@@ -1706,7 +1706,7 @@ class SCNetClient:
                     if home_path:
                         self._home_path_cache[cluster_name] = home_path
                         return home_path
-        
+
         # 缓存中没有，调用接口获取
         info = self._get_center_info(cluster_name)
         path = get_home_path(info) if info else None
@@ -1716,16 +1716,16 @@ class SCNetClient:
 
     def _get_ai_url(self, cluster_name: str = None) -> Optional[str]:
         """获取AI服务URL（用于Notebook）
-        
+
         如果 cluster_name 为空，使用默认计算中心
         """
         # 如果 cluster_name 为空，使用默认计算中心名称
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         if not cluster_name:
             return None
-        
+
         # 优先从缓存文件读取
         self._load_cache_from_file()
         if self._cache and "clusters" in self._cache:
@@ -1734,7 +1734,7 @@ class SCNetClient:
                     for url_info in cluster["aiUrls"]:
                         if url_info.get("enable") == "true":
                             return url_info.get("url")
-        
+
         # 缓存中没有，调用接口获取
         info = self._get_center_info(cluster_name)
         if not info or info.get("code") != "0":
@@ -1792,13 +1792,13 @@ class SCNetClient:
 
     def get_user_queues(self, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """获取用户可访问队列
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
@@ -1812,64 +1812,92 @@ class SCNetClient:
                    enable_monitor: bool = True, enable_feishu: bool = True) -> Optional[Dict[str, Any]]:
         """
         提交作业（默认带监控和通知）
-        
+
         如果 enable_monitor=True，会自动启动监控并发送通知。
         如果 enable_feishu=True，会发送飞书通知。
-        
+
         Args:
             job_config: 作业配置字典
             cluster_name: 计算中心名称，默认使用当前默认计算中心
             enable_monitor: 是否启用监控（默认True）
             enable_feishu: 是否启用飞书通知（默认True，需enable_monitor=True）
-            
+
         Returns:
             提交结果字典，包含 job_id
             如果 enable_monitor=True，返回包含监控信息的字典
         """
-        # 如果启用监控，使用 submit_job_and_monitor
+        # 如果启用监控，使用 submit_job_and_monitor（默认独立进程模式，立即返回）
         if enable_monitor:
-            return self.submit_job_and_monitor(
+            result = self.submit_job_and_monitor(
                 job_config=job_config,
                 cluster_name=cluster_name,
-                enable_feishu=enable_feishu
+                enable_feishu=enable_feishu,
+                use_daemon=False  # 默认使用独立进程，立即返回
             )
-        
+
+            if result and result.get('success'):
+                job_id = result.get('job_id')
+                wall_time = result.get('wall_time', '01:00:00')
+                log_file = result.get('log_file')
+
+                print(f"\n{'='*60}")
+                print(f"  ✅ 作业提交成功")
+                print(f"{'='*60}")
+                print(f"  📋 作业ID:     {job_id}")
+                print(f"  📝 作业名称:   {job_config.get('job_name', '未命名')}")
+                print(f"  💻 运行命令:   {job_config.get('cmd', 'N/A')}")
+                print(f"  🖥️  计算中心:   {cluster_name or self.get_default_cluster_name()}")
+                print(f"  📊 节点/核心:  {job_config.get('nnodes', '1')}节点 / {job_config.get('ppn', '1')}核心")
+                print(f"  ⏱️  最大时长:   {wall_time}")
+                print(f"{'='*60}")
+                print(f"  📱 通知方式:")
+                if enable_feishu:
+                    print(f"     • 飞书通知: 已启用（作业结束后自动推送）")
+                else:
+                    print(f"     • 飞书通知: 未启用")
+                print(f"{'='*60}")
+                print(f"  📄 监控日志:   {log_file}")
+                print(f"  💡 提示: 后台独立进程正在监控作业状态")
+                print(f"{'='*60}")
+
+            return result
+
         # 不启用监控，直接提交
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
         if not hpc_url or not token or not scheduler_id:
             logger.log_error(f"提交作业失败: 计算中心 {cluster_name} 配置不完整")
             return None
-        
+
         logger.log_info(f"提交作业到 {cluster_name}: {job_config.get('job_name', '未命名')}")
         result = submit_job(hpc_url, token, scheduler_id, job_config)
-        
+
         # 即使不启用监控，也打印基本信息
         if result and result.get('code') == '0':
             job_id = result.get('data')
             print(f"✅ 作业提交成功! 作业ID: {job_id}")
             print(f"   如需监控，请使用: submit_job_and_monitor()")
-        
+
         return result
 
     def submit_job_and_monitor(self, job_config: Dict[str, Any], cluster_name: str = None,
                                 check_interval: int = 180, enable_feishu: bool = True,
-                                use_daemon: bool = True) -> Optional[Dict[str, Any]]:
+                                use_daemon: bool = False) -> Optional[Dict[str, Any]]:
         """
         提交作业并自动启动监控
-        
+
         作业提交成功后，自动获取 job_id 并启动监控。
-        
+
         检查间隔自动计算规则（当用户未指定 check_interval 时）：
         - 短作业（wall_time < 1小时）：60秒
         - 中作业（1小时 ≤ wall_time ≤ 24小时）：300秒（5分钟）
         - 长作业（wall_time > 24小时）：600秒（10分钟）
-        
+
         Args:
             job_config: 作业配置字典
                 - job_name: 作业名称
@@ -1883,11 +1911,11 @@ class SCNetClient:
             cluster_name: 计算中心名称，默认为当前默认计算中心
             check_interval: 监控检查间隔（秒），默认180秒，未指定时会根据 wall_time 自动计算
             enable_feishu: 是否启用飞书通知，默认True
-            use_daemon: 是否使用守护线程模式（默认True，会话内实时监控；False使用独立进程）
-            
+            use_daemon: 是否使用守护线程模式（默认False，独立进程后台监控；True为阻塞模式）
+
         Returns:
             提交结果字典，包含 job_id 和监控状态
-            
+
         Example:
             # 自动计算检查间隔（根据 wall_time）
             job_config = {
@@ -1900,7 +1928,7 @@ class SCNetClient:
                 'work_dir': '/public/home/ac1npa3sf2/job_example/'
             }
             result = client.submit_job_and_monitor(job_config)
-            
+
             # 手动指定检查间隔
             job_config = {
                 'job_name': 'my_job',
@@ -1911,13 +1939,13 @@ class SCNetClient:
             result = client.submit_job_and_monitor(job_config)
         """
         from job_monitor import JobMonitor, default_status_callback, default_completed_callback
-        
+
         logger = get_logger()
 
         # 1. 提交作业（注意：必须设置 enable_monitor=False 避免递归调用）
         logger.log_info(f"提交作业并监控到: {job_config.get('job_name', '未命名')}")
         submit_result = self.submit_job(job_config, cluster_name, enable_monitor=False)
-        
+
         if not submit_result or submit_result.get('code') != '0':
             logger.log_error(f"提交作业失败: {submit_result}")
             return {
@@ -1925,7 +1953,7 @@ class SCNetClient:
                 'error': '提交作业失败',
                 'submit_result': submit_result
             }
-        
+
         job_id = submit_result.get('data')
         if not job_id:
             logger.log_error("提交作业成功但未返回 job_id")
@@ -1934,7 +1962,7 @@ class SCNetClient:
                 'error': '未获取到作业ID',
                 'submit_result': submit_result
             }
-        
+
         # 2. 确定监控间隔
         # 优先级：job_config 中的 check_interval > 根据 wall_time 自动计算 > 参数默认值
         user_interval = job_config.get('check_interval')
@@ -1965,10 +1993,10 @@ class SCNetClient:
             else:
                 job_type = "中作业"
             logger.log_info(f"未指定检查间隔，根据 wall_time={wall_time} 自动设置为 {check_interval}秒（{job_type}）")
-        
+
         # 3. 启动监控
         logger.log_info(f"作业 {job_id} 提交成功，启动监控（间隔: {check_interval}秒）")
-        
+
         try:
             if use_daemon:
                 # 方式1：使用守护线程（主程序退出后监控停止）
@@ -2003,21 +2031,21 @@ class SCNetClient:
                     'submit_result': submit_result
                 }
             else:
-                # 方式2：启动独立进程（推荐，主程序退出后继续监控）
+                # 方式2：启动独立进程（后台监控，主程序立即返回）
                 import subprocess
                 import os
-                
+
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 service_script = os.path.join(script_dir, 'job_monitor_service.py')
-                
+
                 # 日志文件路径
                 log_file = os.path.expanduser(f"~/.scnet-monitor-{job_id}.log")
-                
-                # 启动独立进程
-                cmd = ['python3', service_script, '--job-id', str(job_id), '--interval', str(check_interval)]
+
+                # 启动独立进程（使用 -u 禁用缓冲）
+                cmd = ['python3', '-u', service_script, '--job-id', str(job_id), '--interval', str(check_interval)]
                 if enable_feishu:
                     cmd.append('--enable-feishu')
-                
+
                 with open(log_file, 'w') as log:
                     process = subprocess.Popen(
                         cmd,
@@ -2025,9 +2053,12 @@ class SCNetClient:
                         stderr=subprocess.STDOUT,
                         start_new_session=True  # 脱离父进程会话
                     )
-                
+
                 logger.log_info(f"监控进程已启动: PID={process.pid}, 日志={log_file}")
-                
+
+                # 计算预计完成时间
+                wall_time = job_config.get('wall_time', '01:00:00')
+
                 return {
                     'success': True,
                     'job_id': job_id,
@@ -2036,9 +2067,10 @@ class SCNetClient:
                     'monitor_mode': 'independent_process',
                     'process_pid': process.pid,
                     'log_file': log_file,
+                    'wall_time': wall_time,
                     'submit_result': submit_result
                 }
-                
+
         except Exception as e:
             logger.log_error(f"启动监控失败: {e}")
             return {
@@ -2049,15 +2081,34 @@ class SCNetClient:
                 'error': f'监控启动失败: {str(e)}'
             }
 
+    def check_job_notification(self, job_id: str, print_output: bool = True) -> Optional[Dict[str, Any]]:
+        """检查作业是否有完成的通知（已弃用，仅保留飞书通知）
+        
+        注意：此方法已弃用，当前版本仅支持飞书通知。
+        如需会话内实时通知，请使用 use_daemon=True 模式提交作业。
+        
+        Args:
+            job_id: 作业ID
+            print_output: 是否打印输出
+            
+        Returns:
+            None（当前版本不支持会话通知）
+        """
+        if print_output:
+            print(f"💡 当前版本仅支持飞书通知")
+            print(f"💡 如需会话内实时通知，请使用:")
+            print(f"   client.submit_job_and_monitor(job_config, use_daemon=True)")
+        return None
+
     def delete_job(self, job_id: str, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """删除作业
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
@@ -2069,13 +2120,13 @@ class SCNetClient:
 
     def get_job_detail(self, job_id: str, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """查询作业详情
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
@@ -2086,13 +2137,13 @@ class SCNetClient:
 
     def get_running_jobs(self, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """查询实时作业
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
@@ -2103,31 +2154,31 @@ class SCNetClient:
 
     def get_history_jobs(self, days: int = 7, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """查询历史作业
-        
+
         Args:
             days: 查询天数范围（默认7天）
             cluster_name: 计算中心名称，为空则使用当前默认计算中心
-        
+
         Returns:
             历史作业列表
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         hpc_url = self.get_hpc_url(cluster_name)
         token = self.get_token(cluster_name)
         scheduler_id = self.get_scheduler_id(cluster_name)
-        
+
         if not hpc_url or not token or not scheduler_id:
             logger.log_error(f"查询历史作业失败: 计算中心 {cluster_name} 配置不完整")
             return None
-        
+
         end_time = datetime.now()
         start_time = end_time - timedelta(days=days)
         start_str = start_time.strftime("%Y-%m-%d %H:%M:%S")
         end_str = end_time.strftime("%Y-%m-%d %H:%M:%S")
-        
+
         logger.log_info(f"查询计算中心 {cluster_name} {days} 天内的历史作业")
         return query_history_jobs(hpc_url, token, scheduler_id, start_str, end_str)
 
@@ -2135,13 +2186,13 @@ class SCNetClient:
 
     def list_dir(self, path: Optional[str] = None, cluster_name: str = None) -> Optional[Dict[str, Any]]:
         """列出目录
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2152,13 +2203,13 @@ class SCNetClient:
 
     def mkdir(self, path: str, create_parents: bool = True, cluster_name: str = None) -> bool:
         """创建目录
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2169,13 +2220,13 @@ class SCNetClient:
 
     def touch(self, file_path: str, cluster_name: str = None) -> bool:
         """创建空文件
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2186,13 +2237,13 @@ class SCNetClient:
 
     def upload(self, local_path: str, remote_path: str, cluster_name: str = None) -> bool:
         """上传文件
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2203,13 +2254,13 @@ class SCNetClient:
 
     def download(self, remote_path: str, local_path: str, cluster_name: str = None) -> bool:
         """下载文件
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2220,13 +2271,13 @@ class SCNetClient:
 
     def remove(self, path: str, recursive: bool = False, cluster_name: str = None) -> bool:
         """删除文件/目录
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         logger = get_logger()
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2237,12 +2288,12 @@ class SCNetClient:
 
     def exists(self, path: str, cluster_name: str = None) -> bool:
         """检查文件是否存在
-        
+
         如果 cluster_name 为空，使用当前默认计算中心
         """
         if not cluster_name:
             cluster_name = self.get_default_cluster_name()
-        
+
         efile_url = self.get_efile_url(cluster_name)
         token = self.get_token(cluster_name)
         if not efile_url or not token:
@@ -2316,7 +2367,7 @@ class IntentParser:
     @classmethod
     def parse_job_id(cls, text: str) -> Optional[str]:
         """从文本中解析8位数字作业号
-        
+
         匹配格式:
         - 纯8位数字: 24254669
         - 带前缀: 作业号24254669, job_id 24254669, job id 24254669
@@ -2334,7 +2385,7 @@ class IntentParser:
             match = re.search(pattern, text)
             if match:
                 return match.group(1)
-        
+
         # 然后匹配独立的8位数字（但排除时间、日期等常见格式）
         # 要求数字前后是边界或非数字字符
         standalone_pattern = r'(?:^|\s|\D)(\d{8})(?:\s|\D|$)'
@@ -2597,7 +2648,7 @@ class JobSubmitWizard:
             auto_confirm: 是否自动确认（不询问用户）
             enable_monitor: 是否启用作业监控（默认True，自动发送状态通知）
             enable_feishu: 是否启用飞书通知（默认True）
-        
+
         返回:
             如果 enable_monitor=False: 作业ID 或 None
             如果 enable_monitor=True: 包含 job_id 和监控状态的字典
@@ -2607,7 +2658,7 @@ class JobSubmitWizard:
             # 展示完整的作业配置
             preview = self.preview_job_config(config)
             print("\n" + preview)
-            
+
             # 检查队列是否已设置，如果没有或不确定是否有效，列出可用队列
             queue = config.get('queue', '')
             if not queue:
@@ -2654,13 +2705,13 @@ class JobSubmitWizard:
                             print(f"  {i}. {queue_name} {status_icon}")
                         print("-" * 40)
                     print("\n是否继续提交? (队列不可用可能导致提交失败)")
-            
+
             # 请求用户确认
             print("\n⚠️  请确认以上作业配置是否正确")
             print("   输入 'yes' 或 'y' 确认提交")
             print("   输入 'no' 或 'n' 取消提交")
             print("   或直接按 Enter 取消")
-            
+
             try:
                 user_input = input("\n确认提交? [y/N]: ").strip().lower()
                 if user_input not in ['yes', 'y', '是']:
@@ -2669,10 +2720,10 @@ class JobSubmitWizard:
             except (KeyboardInterrupt, EOFError):
                 print("\n❌ 已取消提交")
                 return None
-        
+
         # 执行提交
         print(f"\n🚀 正在提交作业到 {self.cluster_name}...")
-        
+
         if enable_monitor:
             # 使用带监控的提交
             result = self.client.submit_job_and_monitor(
@@ -2692,7 +2743,7 @@ class JobSubmitWizard:
                 return None
         else:
             # 普通提交
-            result = self.client.submit_job(config, self.cluster_name, 
+            result = self.client.submit_job(config, self.cluster_name,
                                            enable_monitor=False)
             if result and result.get("code") == "0":
                 job_id = result.get("data")
