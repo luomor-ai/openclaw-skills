@@ -1,147 +1,116 @@
-# 🏆 InStreet 五子棋 AI 技能
+---
+name: instreet-gomoku
+description: InStreet五子棋AI。在InStreet桌游室进行五子棋对局时，自动计算最佳落子并提交。支持威胁检测，优先防守对手的活三/冲四。
+---
 
-> *让AI在棋盘上学会思考*
+# InStreet 五子棋 AI Skill v6.1
 
-[![PyPI version](https://img.shields.io/pypi/v/instreet-gomoku)]()
-[![License](https://img.shields.io/pypi/l/instreet-gomoku)]()
+在 InStreet 桌游室进行五子棋对局时，使用 AI 自动计算最佳落子。
+
+**v6.1 更新 (2026-03-19):**
+- ✅ 修复 KataGomo GTP 通信问题
+- ✅ 成功在实战中调用 KataGomo AI 落子
+- ✅ 修复坐标解析和输出解析
+
+## 触发方式
+
+当用户说：
+- "下五子棋"
+- "帮我下棋" 
+- "InStreet 五子棋"
+- 执行五子棋对局
 
 ---
 
-## 🎯 简介
+## v6.1 使用方法
 
-你的AI Agent需要一个**会思考**的五子棋大脑吗？
+### 快速开始
 
-这个技能能让你的Agent在InStreet桌游室里**自主作战**——不是随机落子，而是真正**计算最优解**。
+```bash
+# 方式1: 创建房间并自动对弈
+cd ~/.openclaw/workspace/skills/instreet-gomoku
+python gomoku_bot.py create
 
-### ⚡ 核心能力
+# 方式2: 自动匹配
+python gomoku_bot.py auto
+```
 
-| 能力 | 说明 |
+### 手动落子（测试用）
+
+```python
+import sys
+sys.path.insert(0, '~/.openclaw/workspace/skills/instreet-gomoku')
+from katagomo_simple import KataGomo
+
+# 棋盘字符串（从 InStreet API 获取）
+board_str = """   A B C D E F G H I J K L M N O
+ 6 . . . . . . . O . . . . . . .
+ 7 . . . . . . X . X O . . . . .
+ 8 . . . . . X . X O X . . . . .
+ 9 . . . . . X O O O . . . . . ."""
+
+# 获取 AI 着法
+x, y, position, reason = KataGomo.get_best_move(board_str, "black")
+print(f"推荐: {position}")  # 输出: K8
+```
+
+---
+
+## 核心组件
+
+| 文件 | 说明 |
 |------|------|
-| 🧠 智能估值 | 识别活四、冲四、活三等关键棋型 |
-| 🔍 深度搜索 | 极小极大算法 + Alpha-Beta剪枝 |
-| ⚡ 极速落子 | 只搜有价值的点，毫秒级响应 |
-| 🎯 必胜策略 | 第一手天元，稳扎稳打 |
+| `katagomo_simple.py` | KataGomo AI 桥接（修复版 v6.1） |
+| `instreet_gomoku.py` | 本地 AI 备用 |
+| `gomoku_bot.py` | 自动对弈机器人脚本 |
 
 ---
 
-## 🏅 棋型估值体系
+## API 说明
 
-```
-┌─────────────────────────────────────────────┐
-│  活四 (10000)  ──→ 看到就下，必胜 ✨       │
-│  冲四 (1000)   ──→ 差一步成五 🎯          │
-│  活三 (500)    ──→ 最强进攻型 💪          │
-│  眠三 (100)    ──→ 铺垫冲四用 🧱          │
-│  活二 (50)     ──→ 基础连接 🔗            │
-└─────────────────────────────────────────────┘
-```
+### KataGomo.get_best_move(board_str, my_color)
 
----
+**参数：**
+- `board_str`: 棋盘字符串（InStreet 格式）
+- `my_color`: `'black'` 或 `'white'`
 
-## 🚀 快速开始
+**返回：**
+- `(x, y, position, reason)` - 坐标和理由
 
+**示例：**
 ```python
-from instreet_gomoku import get_best_move
+from katagomo_simple import KataGomo
 
-# 棋盘：0=空, 1=黑棋, 2=白棋
-board = [
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
-    # ... 15x15 棋盘
-]
+board = """   A B C D E F G H I J K L M N O
+ 8 . . . . . . . X . . . . . . ."""
 
-# AI选择最佳落子（你是黑棋）
-x, y = get_best_move(board, player=1, depth=4)
-print(f"AI建议落子: ({x}, {y})")  # 例如: (7, 8)
+x, y, pos, reason = KataGomo.get_best_move(board, "black")
+# pos = 'K8', reason = 'KataGomo AI 深度计算'
 ```
 
 ---
 
-## 🔧 InStreet 对战集成
+## 注意事项
 
-```python
-import requests
-from instreet_gomoku import GomokuAI
-
-API_KEY = "your_instreet_api_key"
-ROOM_ID = "game_room_id"
-
-# 获取棋盘
-r = requests.get(f"https://instreet.coze.site/api/v1/games/rooms/{ROOM_ID}",
-                 headers={"Authorization": f"Bearer {API_KEY}"})
-board = r.json()["data"]["game_state"]["board"]
-
-# AI计算最优落子
-ai = GomokuAI(board_size=15)
-ai.board = board
-x, y = ai.ai_move(depth=4)
-
-# 落子
-requests.post(f"https://instreet.coze.site/api/v1/games/rooms/{ROOM_ID}/move",
-             json={"x": x, "y": y},
-             headers={"Authorization": f"Bearer {API_KEY}"})
-```
+1. **KataGomo 需要 GPU**：首次调用需要加载模型（约30秒），后续会缓存
+2. **超时设置**：120秒超时，建议在调用前检查是否轮到自己
+3. **坐标格式**：使用 InStreet 格式，如 H8, K8, J10
+4. **API Key**：已配置在代码中 `sk_inst_adfe55c5fe69ca780201cb466bebbbce`
 
 ---
 
-## 🧠 算法原理
+## 更新日志
 
-### 1. 估值函数
+### v6.1 (2026-03-19)
+- 修复 KataGomo GTP 命令解析
+- 修复输出格式识别（正则匹配 `^[A-O]\d{1,2}$`）
+- 添加 CREATE_NO_WINDOW 标志（Windows 兼容）
+- 实战测试成功：K8 落子
 
-遍历**4个方向**（横、竖、左斜、右斜），取每个方向**5格窗口**分析棋型：
+### v6.0 (2026-03-19)
+- 新增自动对弈机器人 gomoku_bot.py
+- 实现完整 Game Loop
 
-```python
-# 伪代码
-for 方向 in [横, 竖, 左斜, 右斜]:
-    取窗口 = 前后5格
-    判断窗口是什么棋型
-    累加分数
-```
-
-### 2. 极小极大搜索
-
-```
-        AI (MAX)
-       /   \
-   玩家    AI
-   (MIN)   (MAX)
-    ↓       ↓
-  估值    估值...
-```
-
-- **Alpha-Beta剪枝**：大幅减少搜索量
-- **只搜有价值的点**：只搜已有棋子周围2格内
-- **深度4层**：平衡速度与智能
-
-### 3. 第一手策略
-
-```python
-if 棋盘为空:
-    return 天元(7, 7)  # 中心点
-```
-
----
-
-## 📊 效果对比
-
-| 对手 | 结果 | 评价 |
-|------|------|------|
-| 新手AI | 🏆 胜 | 碾压 |
-| 中级AI | 🏆 胜 | 策略压制 |
-| 高级AI | ⚖️ 看局面 | 伯仲之间 |
-
----
-
-## 🤝 贡献
-
-欢迎提交PR！一起打造最强的开源五子棋AI。
-
----
-
-## 📝 License
-
-MIT License
-
----
-
-*让每一颗棋子都有它的使命* ♟️
+### v5.0
+- 集成 KataGomo AI
+- 添加四三检测、VCT/VCF
