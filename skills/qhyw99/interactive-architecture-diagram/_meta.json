@@ -3,11 +3,16 @@
   "slug": "interactive-architecture-diagram",
   "displayName": "Interactive Architecture Diagram",
   "latest": {
-    "version": "0.1.8",
-    "publishedAt": 1774409502979,
-    "commit": "https://github.com/openclaw/skills/commit/750a6468ceadd34b6c451faa60e6568248d3e980"
+    "version": "0.1.14",
+    "publishedAt": 1774864379705,
+    "commit": null
   },
   "history": [
+    {
+      "version": "0.1.8",
+      "publishedAt": 1774409502979,
+      "commit": "https://github.com/openclaw/skills/commit/750a6468ceadd34b6c451faa60e6568248d3e980"
+    },
     {
       "version": "0.1.0",
       "publishedAt": 1773832944944,

@@ -99,6 +99,7 @@ metadata: { "openclaw": { "emoji": "🧠", "requires": { "bins": ["node"] }, "pr
 ## 执行优先级规则
 
 - 默认只走“请求编排为文件后，基于文件生成”这一种执行形式
+- **特殊场景（导入已有文件）**：当用户在输入中明确提供了现成的绘图文件（如 `.cw`）并要求导入或绘图时，**禁止**重新生成结构化意图文件或调用 `generate_contextweave.cjs`，也**禁止**仅以文本形式输出命令，必须直接使用工具调用 `node scripts/import_contextweave_code.cjs --path "<绝对文件路径>"` 进行导入。
 - 禁止只给语义分析或方案文本而不发起脚本调用
 - 若脚本失败，先按错误策略重试；仅在重试后仍失败时，输出失败原因与下一步操作建议
 - 路径应使用可移植定位：优先基于 Skill 根目录执行 `scripts/...`，避免依赖宿主固定绝对路径
@@ -113,9 +114,16 @@ metadata: { "openclaw": { "emoji": "🧠", "requires": { "bins": ["node"] }, "pr
 4. 基于文件生成：`node scripts/generate_contextweave.cjs --input_file "<绝对文件路径>"`
 5. 结果校验：检查结构是否仍满足“论证性、关系显式、同构可读”
 
+## 附加文件链接（Link属性）
+
+当用户要求在图中节点关联本地文件路径（即添加 `link` 属性）时，必须采用**两步法**以保证生成质量：
+1. **第一步（结构生成）**：先忽略链接要求，仅根据语义和结构化要求生成核心图结构（使用 `generate_contextweave.cjs`）。
+2. **第二步（属性注入）**：在用户确认生成的结构满足预期后，发起第二次编辑调用（使用 `edit_contextweave.cjs`），明确指示“请为图中的某某节点添加对应的 `link: <绝对文件路径>` 属性”。这种做法可利用后端的精确路由，将链接修改任务交由更适合处理结构化属性的工具完成。
+
 ## 意图到命令模板
 
 - 请求编排：将结构化意图组织为文件后，向后端发起调用 - 基于文件生成：`node scripts/generate_contextweave.cjs --input_file "<绝对文件路径>"`
+- 导入已有文件：当用户提供 `.cw` 等现成文件时，直接调用：`node scripts/import_contextweave_code.cjs --path "<绝对文件路径>"`
 
 ## 参数约束与回填规则
 
@@ -148,14 +156,18 @@ metadata: { "openclaw": { "emoji": "🧠", "requires": { "bins": ["node"] }, "pr
 
 - 默认落盘目录：`当前工作区目录下的 .cw_skill/requests`
 - 文件名规范：`request_<timestamp>.md`
-- 文件最小结构：`# Request` 段写自然语言目标；
+- 文件最小结构：包含 `# Request` 段（描述意图）和 `# CW` 段（携带初始 CW 代码）
 - 完整执行顺序：生成结构化内容 → 写文件 → 校验路径绝对性与文件存在 → 执行脚本 → 解析 JSON → 输出回填
 - 成功输出至少包含：`script`、`input_file`、`status`、`session_id`、关键产物字段，且 `input_file` 必须是实际存在路径
 - 失败输出至少包含：`script`、`input_file`、`status:error`、`error.code`、`error.message`
+- **默认代码落盘行为**：在执行 `generate_contextweave.cjs` 和 `edit_contextweave.cjs` 成功后，脚本会自动将后端返回的最新 `cw_code` 保存为当前执行路径下的 `<session_id>.cw` 文件，省去了用户手动导出的繁琐步骤，且避免了多个会话间的文件覆盖冲突。
 
 ## 脚本能力映射
 
 - `scripts/generate_contextweave.cjs`：用于基于 `input_file` 执行生成；输出包含可复用的 `session_id`
+- `scripts/edit_contextweave.cjs`：用于基于 `session_id` 提交修改意图
+- `scripts/import_contextweave_code.cjs`：用于导入现有的 `.cw` 设计文件，使用 `--path "<文件路径>"` 传入
+- `scripts/export_contextweave_code.cjs`：**必须使用此脚本**来响应用户“导出/找回/恢复某个 session_id 的 CW 代码”的请求。**严禁**直接在对话中以文本生成的方式输出代码。命令格式：`node scripts/export_contextweave_code.cjs --session_id "<session_id>"`
 - `scripts/cw_client.cjs`：用于统一后端请求与响应适配；承载鉴权、错误归一和返回结构解析
 
 ## 错误策略
