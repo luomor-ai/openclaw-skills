@@ -1,29 +1,29 @@
 ---
-name: legalgo-trade-search
-description: Search LegalGo trade intelligence data through the OpenClaw-compatible LegalGo API. Use when Codex or OpenClaw needs importer lookup, exhibition lead search, or purchase requirement search with a user-created `trade_search` API key.
+name: uniprofit-trade-search
+description: Search UniProfit trade intelligence data through the OpenClaw-compatible UniProfit API. Use when Codex or OpenClaw needs importer lookup, exhibition lead search, or purchase requirement search with a user-created `trade_search` API key.
 metadata:
   openclaw:
     emoji: 🔍
     requires:
-      env: ["LEGALGO_API_BASE_URL", "LEGALGO_TRADE_SEARCH_KEY"]
+      env: ["UNIPROFIT_API_BASE_URL", "UNIPROFIT_TRADE_SEARCH_KEY"]
       bins: ["python"]
 ---
 
-# LegalGo Trade Search
+# UniProfit Trade Search
 
-Use this skill to query LegalGo trade data from the OpenClaw runtime.
+Use this skill to query UniProfit trade data from the OpenClaw runtime.
 
 ## Quick Start
 
 Required environment variables:
 
-- `LEGALGO_API_BASE_URL`
-- `LEGALGO_TRADE_SEARCH_KEY`
+- `UNIPROFIT_API_BASE_URL`
+- `UNIPROFIT_TRADE_SEARCH_KEY`
 
 Credential format:
 
 ```http
-X-LegalGo-Key: {LEGALGO_TRADE_SEARCH_KEY}
+X-UniProfit-Key: {UNIPROFIT_TRADE_SEARCH_KEY}
 ```
 
 Read only what you need:
@@ -38,12 +38,12 @@ For runtime execution, follow this protocol exactly.
 
 Use only these runtime endpoints:
 
-- `GET {LEGALGO_API_BASE_URL}/openclaw/credential/me`
-- `POST {LEGALGO_API_BASE_URL}/openclaw/search/query`
+- `GET {UNIPROFIT_API_BASE_URL}/openclaw/credential/me`
+- `POST {UNIPROFIT_API_BASE_URL}/openclaw/search/query`
 
 Execution checklist:
 
-- send authentication with `X-LegalGo-Key`
+- send authentication with `X-UniProfit-Key`
 - send search requests as `POST`
 - send search requests with a JSON body
 - keep `source`, `filters`, `page`, and `page_size` in the request body
@@ -64,13 +64,13 @@ Run `scripts/check_credential.py` if the credential may be missing or invalid.
 - the user wants overseas buyer or importer leads
 - the user wants exhibition lead records
 - the user wants procurement or sourcing requirement records
-- the user wants structured trade search against LegalGo-owned datasets
+- the user wants structured trade search against UniProfit-owned datasets
 
 Do not use this skill for:
 
 - sending emails
 - generating email drafts
-- general web research outside LegalGo data
+- general web research outside UniProfit data
 
 ## Planning Rules
 
@@ -139,7 +139,7 @@ For product-style requests:
    - confidence
    - missing critical field, if any
 3. If one critical field is missing and the plan is weak, ask one short question.
-4. Otherwise run `scripts/search_trade.py`, or make the same protocol call to `POST /openclaw/search/query` with `X-LegalGo-Key` and a JSON body.
+4. Otherwise run `scripts/search_trade.py`, or make the same protocol call to `POST /openclaw/search/query` with `X-UniProfit-Key` and a JSON body.
 5. If the first query returns no result, allow one fallback retry using the same source with a closer language match for that source.
 6. Summarize the search source, filters, current window size, whether more results may exist, and the best leads.
 7. If there are still no results, suggest one narrower or broader retry based on the same plan.

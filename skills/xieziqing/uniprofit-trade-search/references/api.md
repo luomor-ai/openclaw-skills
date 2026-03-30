@@ -2,9 +2,9 @@
 
 ## Environment
 
-- `LEGALGO_API_BASE_URL`
+- `UNIPROFIT_API_BASE_URL`
   - Example: `https://your-domain`
-- `LEGALGO_TRADE_SEARCH_KEY`
+- `UNIPROFIT_TRADE_SEARCH_KEY`
   - User-created `trade_search` OpenClaw API key
 
 Important:
@@ -13,7 +13,7 @@ Important:
 - Every runtime request must include:
 
 ```http
-X-LegalGo-Key: {LEGALGO_TRADE_SEARCH_KEY}
+X-UniProfit-Key: {UNIPROFIT_TRADE_SEARCH_KEY}
 ```
 
 Protocol:
@@ -25,8 +25,8 @@ Protocol:
 ## Credential Check
 
 ```http
-GET {LEGALGO_API_BASE_URL}/openclaw/credential/me
-X-LegalGo-Key: {LEGALGO_TRADE_SEARCH_KEY}
+GET {UNIPROFIT_API_BASE_URL}/openclaw/credential/me
+X-UniProfit-Key: {UNIPROFIT_TRADE_SEARCH_KEY}
 ```
 
 Expected:
@@ -34,13 +34,13 @@ Expected:
 - `skill_code = trade_search`
 - `configured = true`
 
-If this request returns `401` with a message like `Invalid OpenClaw credential`, first check whether the caller actually sent `X-LegalGo-Key`. Do not conclude that the endpoint needs platform login auth.
+If this request returns `401` with a message like `Invalid OpenClaw credential`, first check whether the caller actually sent `X-UniProfit-Key`. Do not conclude that the endpoint needs platform login auth.
 
 ## Search Request
 
 ```http
-POST {LEGALGO_API_BASE_URL}/openclaw/search/query
-X-LegalGo-Key: {LEGALGO_TRADE_SEARCH_KEY}
+POST {UNIPROFIT_API_BASE_URL}/openclaw/search/query
+X-UniProfit-Key: {UNIPROFIT_TRADE_SEARCH_KEY}
 Content-Type: application/json
 ```
 

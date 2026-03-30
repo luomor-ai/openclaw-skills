@@ -10,8 +10,8 @@ Meaning:
 
 Action:
 
-- tell the user the LegalGo trade search key is invalid or missing
-- suggest checking `LEGALGO_TRADE_SEARCH_KEY`
+- tell the user the UniProfit trade search key is invalid or missing
+- suggest checking `UNIPROFIT_TRADE_SEARCH_KEY`
 
 ## 403 Wrong skill or no quota
 

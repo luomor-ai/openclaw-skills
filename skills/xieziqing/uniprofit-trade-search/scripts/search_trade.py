@@ -27,8 +27,8 @@ def main() -> int:
     if not isinstance(filters, dict):
         raise SystemExit("--filters must be a JSON object")
 
-    base_url = _require_env("LEGALGO_API_BASE_URL").rstrip("/")
-    api_key = _require_env("LEGALGO_TRADE_SEARCH_KEY")
+    base_url = _require_env("UNIPROFIT_API_BASE_URL").rstrip("/")
+    api_key = _require_env("UNIPROFIT_TRADE_SEARCH_KEY")
 
     body = json.dumps(
         {
@@ -45,7 +45,7 @@ def main() -> int:
         data=body,
         headers={
             "Content-Type": "application/json",
-            "X-LegalGo-Key": api_key,
+            "X-UniProfit-Key": api_key,
         },
         method="POST",
     )

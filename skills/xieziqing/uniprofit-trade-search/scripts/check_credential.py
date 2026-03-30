@@ -7,7 +7,7 @@ import urllib.request
 
 
 EXPECTED_SKILL = "trade_search"
-KEY_ENV = "LEGALGO_TRADE_SEARCH_KEY"
+KEY_ENV = "UNIPROFIT_TRADE_SEARCH_KEY"
 
 
 def _require_env(name: str) -> str:
@@ -20,12 +20,12 @@ def _require_env(name: str) -> str:
 def main() -> int:
     argparse.ArgumentParser().parse_args()
 
-    base_url = _require_env("LEGALGO_API_BASE_URL").rstrip("/")
+    base_url = _require_env("UNIPROFIT_API_BASE_URL").rstrip("/")
     api_key = _require_env(KEY_ENV)
 
     req = urllib.request.Request(
         f"{base_url}/openclaw/credential/me",
-        headers={"X-LegalGo-Key": api_key},
+        headers={"X-UniProfit-Key": api_key},
         method="GET",
     )
     try:
