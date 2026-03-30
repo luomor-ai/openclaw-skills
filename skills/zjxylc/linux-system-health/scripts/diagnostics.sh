@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
 # linux-system-health diagnostic commands
-# All commands are READ-ONLY. Run as root with: export LANG=C
+# Run as root with: export LANG=C
 # Each section is independent — run sections relevant to the reported symptoms.
+#
+# DATA ACCESS SCOPE — this script reads the following system areas:
+#   Filesystem config : /etc/os-release, /etc/resolv.conf, /etc/security/limits.conf,
+#                       /etc/default/locale, /etc/locale.conf, /etc/systemd/journald.conf
+#   Kernel interfaces : /proc/meminfo, /proc/stat, /proc/loadavg, /proc/sys/fs/*,
+#                       /proc/sys/kernel/*, /proc/sys/net/*, /sys/kernel/mm/*
+#   Kernel ring buffer: dmesg (may contain process names and OOM details)
+#   Systemd journal   : journalctl (kernel messages only, via -k flag)
+#   Log directory     : /var/log/ (size enumeration only, does NOT read log content)
+#   Process table     : ps, ss -p (exposes PID, command names, socket owners)
+#   User home dirs    : /root/.cache/ms-playwright, /home/*/.cache/ms-playwright
+#                       (Section 16 only — searches for Chromium binaries)
+#   Network probes    : DNS resolution tests (nslookup/dig/getent to github.com),
+#                       nameserver TCP/53 reachability, Chrome headless launch test
+#
+# WRITE OPERATIONS:
+#   Section 12 only — creates and immediately removes /tmp/.oc_write_test
+#   to verify filesystem writability. No other writes are performed.
 
 ###############################################
 # Section 1: System Environment Baseline

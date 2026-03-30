@@ -1,7 +1,7 @@
 ---
 name: linux-system-health
 description: Diagnose Linux OS-level issues — slow server, OOM kills, disk full, high CPU/load, DNS failures, connection timeouts, port exhaustion, too many open files, zombie processes, browser automation failures, locale problems, and kernel misconfigurations.
-version: 1.2.0
+version: 1.3.0
 tags:
   - linux
   - diagnostics
@@ -16,9 +16,33 @@ metadata:
       - linux
     requires:
       bins:
+        # Core — used across multiple sections, must be present
         - bash
-        - ss
-        - free
+        - ps          # procps
+        - ss          # iproute2
+        - ip          # iproute2
+        - free        # procps
+        - df          # coreutils
+        - sysctl      # procps
+        - dmesg       # util-linux
+        - mount       # util-linux
+        - journalctl  # systemd
+        - systemctl   # systemd
+      optional_bins:
+        # Section-specific — script handles absence via 2>/dev/null or fallback chains
+        - iptables    # Sec 13 firewall
+        - nft         # Sec 13 nftables
+        - ufw         # Sec 13 ufw
+        - nslookup    # Sec 8  DNS (fallback: dig → getent)
+        - dig         # Sec 8  DNS (fallback option)
+        - timedatectl # Sec 9  time sync
+        - chronyc     # Sec 9  chrony NTP
+        - ntpstat     # Sec 9  ntpd status
+        - hwclock     # Sec 9  hardware clock
+        - ldconfig    # Sec 16 browser deps
+        - ldd         # Sec 16 binary link check
+        - locale      # Sec 17 locale info
+        - localectl   # Sec 17 locale config
     emoji: "\U0001F5A5"
     homepage: https://github.com/ecsgo-helper/openclaw-system-health
 ---
@@ -44,9 +68,23 @@ Use the judgment rules below to systematically diagnose OS-level root causes.
 2. Then run the sections relevant to the user's reported symptoms
 3. If the root cause is unclear, run all sections in order for a comprehensive check
 
-> **Commands**: Run the corresponding section in [scripts/diagnostics.sh](scripts/diagnostics.sh). All commands are read-only — no writes, restarts, or deletes. Run as root with `export LANG=C`.
+> **Commands**: Run the corresponding section in [scripts/diagnostics.sh](scripts/diagnostics.sh). Run as root with `export LANG=C`.
 >
 > **Issue Registry**: See [reference.md](reference.md) for severity level definitions and the complete issue name table.
+
+**Data access scope** — this skill collects OS-level diagnostic data. Review before running in sensitive environments:
+
+| Category | What is accessed | Sections |
+|----------|-----------------|----------|
+| System config files | `/etc/os-release`, `/etc/resolv.conf`, `/etc/security/limits.conf`, `/etc/default/locale`, `/etc/locale.conf`, `/etc/systemd/journald.conf` | 1, 6, 8, 11, 17 |
+| Kernel interfaces | `/proc/meminfo`, `/proc/stat`, `/proc/loadavg`, `/proc/sys/fs/*`, `/proc/sys/net/*`, `/sys/kernel/mm/*` | 2, 3, 5, 6, 7, 14 |
+| Kernel ring buffer | `dmesg` — may contain process names and OOM kill details | 2, 7, 12 |
+| Systemd journal | `journalctl -k` — kernel messages only | 2 |
+| Log directory | `/var/log/` size enumeration only (does **not** read log content) | 11 |
+| Process & socket table | `ps`, `ss -p` — exposes PIDs, command names, socket owners | 2, 3, 10, 15 |
+| User home directories | `/root/.cache/ms-playwright`, `/home/*/.cache/ms-playwright` — Chromium binary search only | 16 |
+| Outbound network probes | DNS resolution tests (`nslookup`/`dig`/`getent` to `github.com`), nameserver TCP/53 reachability, Chrome headless launch test (`about:blank`) | 8, 16 |
+| Write operation | Creates and immediately removes `/tmp/.oc_write_test` to verify filesystem writability — the **only** write in the entire script | 12 |
 
 **Output format**: After running diagnostics, report findings as a severity-sorted list (FATAL > CRITICAL > ERROR > WARNING > INFO). For each issue found, include:
 - Issue name (e.g., `OpenClaw.Memory.SystemMemoryCritical`)
