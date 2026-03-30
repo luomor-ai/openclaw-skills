@@ -9,6 +9,23 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 ### Planned
 - **Memory Section Split**: MEMORY.md → `memory/sections/*.md` via `scripts/migrate_memory.py`. Selective loading, reduced context bloat.
 
+## [0.6.7] - 2026-03-30
+
+### Security
+- **CLAWD_DIR hard requirement:** `nightly-review.md` now validates `CLAWD_DIR` is set before any file operations and aborts with a clear error if missing — eliminates silent fallback to cwd causing unintended reads/writes/commits in unknown directories
+- **Removed `${CLAWD_DIR:-.}` fallback pattern** from all three git commit calls — replaced with strict `${CLAWD_DIR}` (no cwd fallback)
+- **Trend script workspace fix:** `trend_detection.py` invocation now passes `${CLAWD_DIR}` instead of `$(pwd)` for consistent workspace resolution
+
+## [0.6.6] - 2026-03-30
+
+### Security
+- **Shell injection hardening:** Git commit messages in `prompts/nightly-review.md` are now static strings instead of AI-generated dynamic content, eliminating potential shell injection via indirect prompt injection from markdown notes.
+
+## [0.6.6] - 2026-03-30
+
+### Fixed
+- Version bump (previous version already published)
+
 ## [0.6.5] - 2026-03-30
 
 ### Added
@@ -22,6 +39,11 @@ Format based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Attribution (for planned features)
 Architecture inspired by [ByteRover](https://github.com/openclaw/openclaw/pull/50848)'s Context Engine approach — hierarchical memory tree, after-turn learning, contradiction detection. Lucid adapts these as a zero-dependency skill.
+
+## [0.6.6] - 2026-03-30
+
+### Fixed
+- Version bump (previous version already published)
 
 ## [0.6.5] - 2026-03-30
 
