@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/rasimme/stitch-design/blob/master/LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License"></a>
-  <a href="https://github.com/rasimme/stitch-design/blob/master/CHANGELOG.md"><img src="https://img.shields.io/badge/version-v1.1.0-blue.svg" alt="Version"></a>
+  <a href="https://github.com/rasimme/stitch-design/blob/master/CHANGELOG.md"><img src="https://img.shields.io/badge/version-v1.2.3-blue.svg" alt="Version"></a>
   <a href="https://clawhub.com"><img src="https://img.shields.io/badge/ClawHub-skill-purple.svg" alt="ClawHub"></a>
 </p>
 
@@ -32,7 +32,9 @@ Your AI agent generates, iterates, and exports UI designs through Google Stitch 
 >
 > → Agent shapes the prompt → Stitch generates → hi-res screenshot delivered → "make it warmer" → done.
 
-**New in v1.1.0:** Screen names let you track designs across sessions. An append-only event log records every operation with full lineage. Hi-res image delivery works out of the box.
+**New in v1.2.3:** safer design-system registry loading, plus the v1.2.0 workflow upgrades: device inheritance, robust screenshot URL refresh, and delta-based recovery for connection drops.
+
+**Runtime scope:** requires only `STITCH_API_KEY`, talks only to Google Stitch endpoints needed for generation/screenshot delivery, and stores local artifacts in `runs/`, `state/`, and `latest-screen.json`.
 
 ---
 
@@ -49,6 +51,8 @@ Your AI agent generates, iterates, and exports UI designs through Google Stitch 
 - **Auto-Export** — Every operation saves HTML + PNG locally
 - **Prompt Shaping** — Built-in [prompt guide](references/prompt-guide.md) ensures the agent enriches your brief
 - **Recovery** — Handles Stitch API connection drops (1-5 min operations) automatically with delta-based recovery
+- **Design System Injection** — Append `design-systems/<name>.md` to any prompt via `--design-system <name>`
+- **Device Inheritance** — Edit and variants automatically inherit the source screen's device type
 
 ---
 
@@ -78,22 +82,11 @@ cd stitch-design/scripts && npm install
 
 ### Configure
 
-Add your API key to OpenClaw config (`~/.openclaw/openclaw.json`):
+Set the API key in your OpenClaw skill env settings or export it in the shell used to run the CLI:
 
-```json5
-{
-  skills: {
-    entries: {
-      "stitch-design": {
-        enabled: true,
-        env: { STITCH_API_KEY: "your-key-here" }
-      }
-    }
-  }
-}
+```bash
+export STITCH_API_KEY="your-key-here"
 ```
-
-Or set it as an environment variable: `export STITCH_API_KEY=your-key-here`
 
 ---
 
@@ -146,7 +139,8 @@ Or set it as an environment variable: `export STITCH_API_KEY=your-key-here`
 
 | Flag | Values | Default |
 |---|---|---|
-| `--device` | `desktop`, `mobile`, `tablet`, `agnostic` | SDK default (desktop) |
+| `--device` | `desktop`, `mobile`, `tablet`, `agnostic` | `desktop` for generate; inherited for edit/variants |
+| `--design-system` | design system name/slug | — (loads `design-systems/<name>.md`) |
 | `--model` | `pro` (Gemini 3.1 Pro), `flash` (Gemini 3.0 Flash) | SDK default (pro) |
 | `--count` | `1`–`5` | `3` |
 | `--range` | `refine`, `explore`, `reimagine` | `explore` |
@@ -289,8 +283,10 @@ stitch-design/
 ├── scripts/
 │   ├── stitch.mjs           # CLI — all commands
 │   ├── artifacts.mjs        # Run directory & artifact management
-│   ├── download.mjs         # HTTP download utilities
+│   ├── download.mjs         # HTTP download & screenshot URL validation
+│   ├── design-system.mjs    # Design system registry + safe loader
 │   ├── names.mjs            # Alias registry (per-project)
+├── design-systems/          # Allowlisted local design system markdown files
 │   ├── events.mjs           # Append-only event log
 │   └── package.json         # @google/stitch-sdk dependency
 ├── references/
@@ -329,7 +325,7 @@ stitch-design/
 - **Long operations** — Generation takes 1-5 minutes; connection drops handled automatically
 - **Content hallucination** — Stitch may add unrequested UI elements; always review
 - **Theming drift** — Brand colors can shift between sessions; describe all design tokens inline
-- **No design system API** — Design systems are Web UI only; include colors/typography in every prompt
+- **No design system API link** — The SDK can create design systems but can't link them to generate/edit calls yet; use `--design-system <name>` with a markdown file stored under `design-systems/` as workaround
 - **Thumbnail resolution** — Local `screen.png` is a thumbnail (~168px); use `show` + URL suffix for hi-res
 
 ---

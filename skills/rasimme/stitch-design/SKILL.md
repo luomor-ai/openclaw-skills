@@ -1,6 +1,6 @@
 ---
 name: stitch-design
-description: AI-powered UI design with Google Stitch — generate screens from text, edit with natural language, explore variants, and track design evolution. Features screen aliases (human-readable names instead of hex IDs), append-only event log with full lineage tracking, hi-res screenshot delivery via Google CDN, and automatic connection-drop recovery. Supports multi-concept workflows (name concepts, compare side by side, trace history). Requires STITCH_API_KEY.
+description: Official Google Stitch SDK wrapper for OpenClaw. Requires only STITCH_API_KEY. Generate UI screens from text, apply targeted edits, branch variants, export HTML/images, and track design lineage with screen aliases plus append-only event history. Stores local artifacts under the skill folder and talks only to Google Stitch endpoints needed for generation and screenshot delivery.
 metadata: {"openclaw": {"requires": {"anyBins": ["node", "node18", "node20", "node22"], "env": ["STITCH_API_KEY"]}, "primaryEnv": "STITCH_API_KEY", "homepage": "https://github.com/rasimme/stitch-design"}}
 ---
 
@@ -12,11 +12,14 @@ AI-powered UI design with Google Stitch — generate, iterate, export.
 
 **Required:** Node.js 18+ and `STITCH_API_KEY` env var.
 Get a key at: https://stitch.withgoogle.com → Profile → API Keys
+Configure the key in your OpenClaw skill env settings or in the shell used to run the CLI.
 
 ```bash
 # Install dependencies (one-time, from skill root)
 cd scripts && npm install
 ```
+
+Install scope: this installs the Node dependency declared in `scripts/package.json` (`@google/stitch-sdk`) plus its npm transitive dependencies.
 
 **Troubleshooting:**
 - `STITCH_API_KEY not set` → ensure the env var is configured in OpenClaw skill settings or shell
@@ -24,6 +27,14 @@ cd scripts && npm install
 - `Corrupt names.json` → run `node scripts/stitch.mjs rebuild --project <id>` to reconstruct from event log
 
 ## Usage
+
+## Runtime Scope
+
+- Network: Google Stitch API and Google-hosted screenshot URLs returned by Stitch
+- Credentials: `STITCH_API_KEY` only
+- Local writes: `runs/`, `state/`, `latest-screen.json`
+- No extra services, daemons, browser automation, or unrelated credentials required
+
 
 The CLI is at `scripts/stitch.mjs`. All output is JSON on stdout.
 
@@ -143,6 +154,76 @@ node scripts/stitch.mjs html <screen-id>
 # or just screenshot:
 node scripts/stitch.mjs image <screen-id>
 ```
+
+---
+
+## Multi-Screen Consistency
+
+### Rule: Always start with a Hub Screen
+
+Related screens of a concept need a shared hub screen as their visual basis. Generate is generative — layout, colors, spacing, and typography are all invented from scratch. Edit takes the source screen as the visual basis and changes only what you describe — navigation, typography, and color palette stay consistent.
+
+**generate vs edit — the key difference:**
+- `generate` = brand-new screen. Everything is up for grabs.
+- `edit` = visual continuation of the source screen. Only the described delta changes.
+
+### Recommended Workflow
+
+1. Generate the hub screen → review it carefully
+2. All further screens of the same concept → `edit` from the hub, not fresh `generate`
+3. Max 1-2 changes per edit prompt — Stitch regenerates generatively, not surgically. Too many changes = unpredictable results
+4. Even elements you did NOT mention can change in an edit. Fewer changes = more stable output.
+
+**Core Rule:** For multi-screen concepts, always define a hub screen first, then derive further screens via edit — never fresh generate.
+
+### Reduce to Core (Concept Phase)
+
+During the concept phase, 3-4 consistent core screens are enough. Full screen coverage only after the concept is approved. Stitch excels at rapid exploration, not exhaustive elaboration.
+
+---
+
+## Screen Review Loop
+
+A systematic loop for deciding when to keep editing in Stitch vs. when to note something for post-export fixing.
+
+### 4-Step Loop
+
+**Step 1 — Run generate or edit**
+
+**Step 2 — Analyze the screenshot** (vision model)
+
+Check against this list:
+- Layout structure — sections in right order, correct hierarchy
+- Colors — matches design system / brief
+- Content — no hallucinated labels, avatars, or copy that doesn't belong
+- Navigation — correct tabs, back buttons, menu items
+- Design System Compliance — spacing, typography, component patterns
+
+**Step 3 — Categorize issues**
+
+| Category | Examples |
+|---|---|
+| **Stitch-fixable** | Missing section, wrong layout order, major color error, wrong navigation structure |
+| **Post-Export Fix** | Exact pixel spacing, icon details, typography fine-tuning, persistent content hallucinations (avatars, labels) |
+
+**Step 4 — Decide**
+
+- Fix in Stitch → write a focused edit prompt (max 1-2 changes), go back to Step 1
+- Post-export fix → note it, move on to next screen
+
+### Decision Tree
+
+- **Stitch didn't fix it after 2 edits** → note as post-export fix, move on
+- **Detail work** (shadows, exact radii, pixel spacing) → directly note as post-export fix, don't waste edit budget
+- **Structural issue** (section missing, navigation wrong) → Stitch edit
+
+The user decides which external tool to use for post-export fixes — Figma, Framer, code, or any other tool. Do not prescribe a tool.
+
+---
+
+## Planning — Feature Coverage
+
+Before generating anything, create a feature matrix: which features appear on which screen. Only start generating once the coverage is clear. This way every subsequent generate/edit call is a deliberate execution step, not a discovery — no surprises, no forgotten features. Keep this matrix short; a simple table or bullet list per screen is enough. Three focused screens you've thought through are worth more than ten screens you discover issues with during generation.
 
 ---
 
@@ -306,9 +387,10 @@ The skill uses a 3-layer local state model. The Stitch API is always the source 
 5. **Visual feedback (MANDATORY)** — After every generate/edit/variants, display the hi-res screenshot inline via `show <alias|screenId>` → `MEDIA:<screenshotUrl>`. See "Image Delivery" section.
 6. **Iteration > perfection** — Follow the Anchor → Inject → Tune → Fix loop. Define what must NOT change in every edit prompt.
 7. **One prompt = one thing** — Never combine multiple components or screens in one prompt.
-8. **Default values:** `--device` and `--model` use SDK defaults when omitted (typically desktop + Gemini Pro). Explicit: `--count 3`, `--range explore`.
+8. **Default values:** `generate` defaults to `--device desktop`. `--model` uses SDK default (pro). Explicit: `--count 3`, `--range explore`. `edit` and `variants` inherit device from the source screen.
 9. **State awareness** — Before asking the user for screen or project IDs, ALWAYS read `latest-screen.json` first. If it has a recent entry, use that projectId/screenId. Only ask if no state exists or the user explicitly switches context.
 10. **Figma export** — Manual: open Stitch UI → "Copy to Figma" → paste in Figma. CLI can export HTML which also pastes into Figma
+11. **Hub-first for multi-screen concepts** — For multi-screen concepts, always define a hub screen first, then derive further screens via edit — never fresh generate.
 
 ---
 
@@ -365,11 +447,14 @@ Stitch interprets hand-drawn sketches and wireframes well. The SDK has no image 
 
 ## Flags Reference
 
-| Flag | Values | Default |
-|---|---|---|
-| `--device` | `desktop`, `mobile`, `tablet`, `agnostic` | SDK default (desktop) |
-| `--model` | `pro`, `flash` | SDK default (pro) |
-| `--count` | `1`–`5` | `3` |
-| `--range` | `refine`, `explore`, `reimagine` | `explore` |
-| `--aspects` | `layout`, `color_scheme`, `images`, `text_font`, `text_content` | all |
-| `--project` | project ID | from `latest-screen.json` |
+| Flag | Commands | Values | Default |
+|---|---|---|---|
+| `--device` | `generate`, `edit`, `variants` | `desktop`, `mobile`, `tablet`, `agnostic` | `desktop` for `generate`; inherited from source for `edit`/`variants` |
+| `--model` | `generate`, `edit`, `variants` | `pro`, `flash` | SDK default (pro) |
+| `--count` | `variants` | `1`–`5` | `3` |
+| `--range` | `variants` | `refine`, `explore`, `reimagine` | `explore` |
+| `--aspects` | `variants` | `layout`, `color_scheme`, `images`, `text_font`, `text_content` | all |
+| `--project` | all | project ID | from `latest-screen.json` |
+| `--design-system` | `generate`, `edit`, `variants` | design system name/slug | — |
+
+**Note on `--design-system`:** Stitch supports native Design Systems (`create_design_system`), but the SDK does not yet allow linking them to generate/edit calls. `--design-system` is a workaround that loads `design-systems/<name>.md` from this skill folder and appends that content to your prompt. It does not accept arbitrary file paths. Once the SDK supports `design_system_id` in generate/edit, this flag will become obsolete.
