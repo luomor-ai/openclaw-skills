@@ -21,7 +21,7 @@ from lib.session_index import find_openclaw_sessions_dirs, get_qualifying_sessio
 from lib.dag import parse_jsonl, extract_conversation_chain, count_turns, get_model_from_nodes
 from lib.converter import convert_to_trajectory
 from lib.metadata_stripper import strip_metadata_prefix, is_system_startup_message
-from lib.system_prompt_builder import extract_session_metadata
+from lib.system_prompt_builder import extract_session_metadata, build_system_prompt
 from lib.cache_trace import get_cache_trace_path, build_session_system_prompt_index
 from lib.quality_checker import check_quality, extract_user_messages_for_review
 
@@ -270,12 +270,22 @@ def scan_and_convert(
                 print(f"  Quality skip ({quality_reason}): {session_id}", file=sys.stderr)
                 continue
 
-            # Require real system prompt from cache-trace
+            # Get system prompt: prefer cache-trace, fallback to reconstruction
             real_system_prompt = system_prompt_index.get(session_id)
-            if not real_system_prompt:
-                print(f"  Skipped (no cache-trace system prompt): {session_id}", file=sys.stderr)
-                continue
             session_meta = extract_session_metadata(nodes)
+            if real_system_prompt:
+                system_prompt_source = "cache_trace"
+            else:
+                # Reconstruct from session metadata (fallback)
+                real_system_prompt = build_system_prompt(
+                    tool_names=session_meta.get("tool_names", []),
+                    cwd=session_meta.get("cwd", ""),
+                    model=session_meta.get("model", ""),
+                    thinking_level=session_meta.get("thinking_level", "off"),
+                    timestamp=session_meta.get("timestamp", ""),
+                )
+                system_prompt_source = "reconstructed"
+                print(f"  Reconstructed system prompt (no cache-trace): {session_id}", file=sys.stderr)
 
             # Convert to trajectory
             trajectory = convert_to_trajectory(
@@ -292,21 +302,18 @@ def scan_and_convert(
                 print(f"  Skipped (empty after conversion): {session_id}", file=sys.stderr)
                 continue
 
-            # Add metadata
             model = get_model_from_nodes(nodes) or session_info.get("model", "unknown")
-            trajectory["metadata"] = {
-                "source_session_id": session_id,
-                "source_agent_id": session_info.get("agent_id", ""),
-                "model": model,
-                "domain": "pending",
-                "turns": turns,
-                "converted_at": datetime.now(timezone.utc).isoformat(),
-                "system_prompt_source": "cache_trace",
-                "system_prompt_complete": True,
-            }
 
             # Extract session stats (separate from trajectory)
             stats = _extract_session_stats(nodes, messages)
+            stats["system_prompt_source"] = system_prompt_source
+            stats["model"] = model
+            stats["provider"] = session_meta.get("provider", "unknown")
+            stats["thinking"] = session_meta.get("thinking_level", "off")
+            stats["turns"] = turns
+            # domain and title are set later by agent review (step 3)
+            stats["domain"] = "pending"
+            stats["title"] = None
 
             # Write trajectory file
             output_filename = f"{session_id}.trajectory.json"
@@ -321,6 +328,10 @@ def scan_and_convert(
                 json.dump(stats, f, ensure_ascii=False, indent=2)
 
             # Extract user messages for semantic review
+            review_messages = [
+                msg["content"] for msg in trajectory["messages"]
+                if msg.get("role") == "user" and isinstance(msg.get("content"), str)
+            ]
 
             # Prefix hash for dedup
             prefix_hash = _compute_prefix_hash(messages)
@@ -333,6 +344,7 @@ def scan_and_convert(
                 "output_path": output_path,
                 "message_count": len(trajectory["messages"]),
                 "tool_count": len(trajectory["tools"]),
+                "system_prompt_source": system_prompt_source,
                 "user_messages": review_messages,
                 "_prefix_hash": prefix_hash,
             }
@@ -411,6 +423,7 @@ def main():
             "model": c["model"],
             "message_count": c["message_count"],
             "tool_count": c["tool_count"],
+            "system_prompt_source": c["system_prompt_source"],
         })
     print(json.dumps(summary, ensure_ascii=False, indent=2))
 

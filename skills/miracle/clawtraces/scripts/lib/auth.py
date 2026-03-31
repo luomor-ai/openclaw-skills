@@ -172,7 +172,7 @@ def verify_code(server_url: str, phone: str, code: str) -> dict:
         phone = _normalize_phone(phone)
     except ValueError as e:
         return {"error": str(e)}
-    return _api_call(server_url, "/auth/verify", {"phone": phone, "code": code})
+    return _api_call(server_url, "/auth/verify", {"phone": phone, "code": code, "source": "skill"})
 
 
 def check_key_valid(server_url: str, key: str) -> bool:

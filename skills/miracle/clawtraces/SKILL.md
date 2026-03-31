@@ -154,18 +154,20 @@ python3 /{{baseDir}}/scripts/scan_and_convert.py --output-dir /{{baseDir}}/outpu
 对每个候选输出：
 - **质量**：PASS 或 FAIL + 简短理由（不超过 20 字）
 - **领域**：13 个 ID 之一（仅 PASS 的需要）
+- **标题**：一句话概括该 session 的核心任务（不超过 30 字，仅 PASS 的需要）。例如「为 React 项目添加用户认证模块」「分析 Q1 销售数据并生成可视化报告」
 
 #### 后续处理
 
-**对于 PASS 的候选**：将领域分类写入 trajectory 文件的 metadata：
+**对于 PASS 的候选**：将领域分类和标题写入 stats 文件（trajectory 文件保持纯净不修改）：
 
 ```bash
 python3 -c "
 import json
-path = '/{{baseDir}}/output/{session_id}.trajectory.json'
-with open(path) as f: t = json.load(f)
-t['metadata']['domain'] = '{domain_id}'
-with open(path, 'w') as f: json.dump(t, f, ensure_ascii=False, indent=2)
+path = '/{{baseDir}}/output/{session_id}.stats.json'
+with open(path) as f: s = json.load(f)
+s['domain'] = '{domain_id}'
+s['title'] = '{title}'
+with open(path, 'w') as f: json.dump(s, f, ensure_ascii=False, indent=2)
 "
 ```
 
@@ -193,11 +195,13 @@ python3 /{{baseDir}}/scripts/reject.py --output-dir /{{baseDir}}/output \
 ```
 找到 N 条可提交的日志：
 
-  1. abc123...  | 8 轮
-  2. def456...  | 12 轮
+  1. 为 React 项目添加用户认证模块  | 软件开发 | 8 轮
+  2. 分析 Q1 销售数据并生成报告    | 数据分析 | 12 轮
 
 是否确认提交这 N 条记录？
 ```
+
+每条展示标题、领域名称和轮次，不再展示 session_id。
 
 **必须等待用户明确确认后才能提交。**
 
@@ -219,7 +223,29 @@ python3 /{{baseDir}}/scripts/submit.py --output-dir /{{baseDir}}/output
 python3 /{{baseDir}}/scripts/query.py [--page N]
 ```
 
-展示已提交的 session 列表（session_id、提交时间），默认每页 100 条。
+展示已提交的 session 列表（标题、领域、轮次、提交时间），默认每页 100 条。
+
+---
+
+### 步骤 6：重新提交（独立操作）
+
+当用户明确要求"重新提交"某条记录时使用。**必须提供 session_id**，不提供则要求用户补充。
+
+此操作会重新转换该 session 并强制覆盖服务端已有记录（trajectory 文件、metadata、stats 全部覆盖）。
+
+#### 流程
+
+1. 确认认证状态（同步骤 1.1）
+2. 用户提供的 session_id 对应的 trajectory 文件必须已存在于 `output/` 目录。如果不存在，需要先重新运行扫描转换（步骤 2）生成该文件，再继续。
+3. 运行重新提交：
+
+```bash
+python3 /{{baseDir}}/scripts/submit.py --resubmit {session_id} --output-dir /{{baseDir}}/output
+```
+
+4. 展示结果（是否覆盖成功、累计提交数）。
+
+**注意**：此步骤仅在用户明确说"重新提交 xxx"时触发，正常的批量提交流程（步骤 2-4）不会使用 force 参数。
 
 ---
 

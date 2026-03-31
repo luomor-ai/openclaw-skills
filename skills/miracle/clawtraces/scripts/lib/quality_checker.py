@@ -6,10 +6,9 @@ These are fast, offline checks run before the agent's semantic quality judgment.
 from .metadata_stripper import strip_metadata_prefix, is_system_startup_message
 
 # Thresholds
-MIN_AVG_USER_MSG_LENGTH = 30  # characters
-MIN_TOOL_CALLS = 1
-MIN_LONG_USER_MESSAGES = 2  # messages > 100 chars
-LONG_MESSAGE_THRESHOLD = 100  # characters
+MIN_AVG_USER_MSG_LENGTH = 20  # characters
+MIN_LONG_USER_MESSAGES = 1  # messages > LONG_MESSAGE_THRESHOLD chars
+LONG_MESSAGE_THRESHOLD = 50  # characters
 
 
 def check_quality(message_nodes: list[dict]) -> tuple[bool, str]:
@@ -23,27 +22,20 @@ def check_quality(message_nodes: list[dict]) -> tuple[bool, str]:
         (passed, reason) — if passed is False, reason explains why.
     """
     user_texts: list[str] = []
-    tool_call_count = 0
 
     for node in message_nodes:
         if node.get("type") == "compaction":
             continue
 
         msg = node.get("message", {})
-        role = msg.get("role")
         content = msg.get("content", [])
 
-        if role == "user":
+        if msg.get("role") == "user":
             for block in content:
                 if isinstance(block, dict) and block.get("type") == "text":
                     text = block.get("text", "")
                     if not is_system_startup_message(text):
                         user_texts.append(strip_metadata_prefix(text))
-
-        elif role == "assistant":
-            for block in content:
-                if isinstance(block, dict) and block.get("type") == "toolCall":
-                    tool_call_count += 1
 
     if not user_texts:
         return False, "no user messages"
@@ -53,11 +45,7 @@ def check_quality(message_nodes: list[dict]) -> tuple[bool, str]:
     if avg_length < MIN_AVG_USER_MSG_LENGTH:
         return False, f"avg user message length {avg_length:.0f} < {MIN_AVG_USER_MSG_LENGTH}"
 
-    # Check 2: at least 1 tool call
-    if tool_call_count < MIN_TOOL_CALLS:
-        return False, f"tool calls {tool_call_count} < {MIN_TOOL_CALLS}"
-
-    # Check 3: at least 2 user messages > 100 chars
+    # Check 2: at least 1 user message > 50 chars
     long_msgs = sum(1 for t in user_texts if len(t) > LONG_MESSAGE_THRESHOLD)
     if long_msgs < MIN_LONG_USER_MESSAGES:
         return False, f"long user messages ({long_msgs}) < {MIN_LONG_USER_MESSAGES}"

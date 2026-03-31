@@ -39,15 +39,32 @@ def save_manifest(output_dir: str, manifest: dict):
 
 def _load_stats(trajectory_path: str) -> str | None:
     """Load the stats JSON file that corresponds to a trajectory file."""
-    stats_path = trajectory_path.replace(".trajectory.json", ".stats.json")
+    # Handle both .trajectory.json and .openai.json paths
+    stats_path = trajectory_path.replace(".trajectory.json", ".stats.json").replace(".openai.json", ".stats.json")
     if os.path.isfile(stats_path):
         with open(stats_path, "r", encoding="utf-8") as f:
             return f.read()
     return None
 
 
-def upload_file(server_url: str, secret_key: str, file_path: str) -> dict:
-    """Upload a single trajectory file to the server, with optional stats."""
+def _resolve_openai_path(trajectory_path: str) -> str:
+    """Resolve .openai.json path from a .trajectory.json path."""
+    return trajectory_path.replace(".trajectory.json", ".openai.json")
+
+
+def upload_file(server_url: str, secret_key: str, file_path: str, force: bool = False) -> dict:
+    """Upload a trajectory file to the server, with optional stats.
+
+    Prefers .openai.json over .trajectory.json if it exists.
+
+    Args:
+        force: If True, overwrite existing submission with same session_id.
+    """
+    # Prefer OpenAI format if available
+    openai_path = _resolve_openai_path(file_path)
+    if os.path.isfile(openai_path):
+        file_path = openai_path
+
     filename = os.path.basename(file_path)
 
     with open(file_path, "rb") as f:
@@ -70,6 +87,14 @@ def upload_file(server_url: str, secret_key: str, file_path: str) -> dict:
             f"Content-Type: application/json\r\n"
             f"\r\n"
             f"{stats_json}\r\n"
+        ).encode("utf-8")
+
+    if force:
+        parts += (
+            f"--{boundary}\r\n"
+            f'Content-Disposition: form-data; name="force"\r\n'
+            f"\r\n"
+            f"true\r\n"
         ).encode("utf-8")
 
     body = parts + f"--{boundary}--\r\n".encode("utf-8")
@@ -192,10 +217,56 @@ def submit_all(output_dir: str, server_url: str, secret_key: str) -> dict:
     }
 
 
+def resubmit_one(session_id: str, output_dir: str, server_url: str, secret_key: str) -> dict:
+    """Force-resubmit a single session by session_id.
+
+    Finds the trajectory file in output_dir, uploads with force=True to overwrite
+    the existing server record.
+
+    Returns dict with status info.
+    """
+    # Find trajectory file matching this session_id
+    target_filename = f"{session_id}.trajectory.json"
+    file_path = os.path.join(output_dir, target_filename)
+
+    if not os.path.isfile(file_path):
+        return {"error": f"trajectory file not found: {target_filename}"}
+
+    print(f"  Re-uploading: {target_filename} (force)...", end=" ", flush=True)
+    result = upload_file(server_url, secret_key, file_path, force=True)
+
+    if result.get("error") == "unauthorized":
+        print("FAILED (unauthorized)")
+        return {"error": "unauthorized"}
+    elif "error" in result:
+        print(f"FAILED ({result['error']})")
+        return result
+    else:
+        updated = result.get("updated", False)
+        print("OK (overwritten)" if updated else "OK (new)")
+
+        # Update manifest
+        manifest = load_manifest(output_dir)
+        submitted = manifest.get("submitted", {})
+        submitted[target_filename] = {
+            "submitted_at": datetime.now(timezone.utc).isoformat(),
+            "server_response": "updated" if updated else "ok",
+        }
+        manifest["submitted"] = submitted
+        save_manifest(output_dir, manifest)
+
+        return {
+            "status": "ok",
+            "updated": updated,
+            "total_count": result.get("total_count", "unknown"),
+        }
+
+
 def main():
     parser = argparse.ArgumentParser(description="Submit trajectory files to collection server")
     parser.add_argument("--output-dir", "-o", default=DEFAULT_OUTPUT_DIR, help="Directory with .trajectory.json files")
     parser.add_argument("--count-only", action="store_true", help="Only query submission count")
+    parser.add_argument("--resubmit", metavar="SESSION_ID", help="Force-resubmit a specific session by ID")
     args = parser.parse_args()
 
     key = get_stored_key()
@@ -211,6 +282,14 @@ def main():
             print(f"Error: {result['error']}", file=sys.stderr)
             sys.exit(1)
         print(f"Total submitted: {result.get('count', 0)}")
+        return
+
+    if args.resubmit:
+        result = resubmit_one(args.resubmit, args.output_dir, server_url, key)
+        if "error" in result:
+            print(f"Error: {result['error']}", file=sys.stderr)
+            sys.exit(1)
+        print(f"Resubmit done. Your total submissions: {result.get('total_count', 'unknown')}")
         return
 
     result = submit_all(args.output_dir, server_url, key)

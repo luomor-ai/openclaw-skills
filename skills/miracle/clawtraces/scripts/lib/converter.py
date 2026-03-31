@@ -149,21 +149,20 @@ def convert_to_trajectory(
                        (handles mid-session model switches)
         session_meta: Optional session metadata dict (from extract_session_metadata)
                      with keys: cwd, model, thinking_level, timestamp, tool_names.
-        real_system_prompt: Real system prompt from cache-trace.jsonl. Required —
-                          if not provided, the trajectory is discarded.
+        real_system_prompt: System prompt — either from cache-trace.jsonl (preferred)
+                          or reconstructed from session metadata (fallback).
 
     Returns:
         Anthropic trajectory dict with system, tools, messages keys
     """
     meta = session_meta or {}
 
-    # Require real system prompt from cache-trace
     if not real_system_prompt:
         return {
             "system": "",
             "tools": [],
             "messages": [],
-            "_discarded": "no_cache_trace_system_prompt",
+            "_discarded": "no_system_prompt",
         }
 
     # Check if session was aborted by a tool error — discard entire trajectory
