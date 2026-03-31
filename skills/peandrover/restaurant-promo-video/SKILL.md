@@ -1,6 +1,6 @@
 ---
 name: restaurant-promo-video
-version: "1.0.1"
+version: 1.0.4
 displayName: "Restaurant Promo Video Maker"
 description: >
   Describe your restaurant and NemoVideo creates the promo video. Showcase your signature dishes, your kitchen, your atmosphere — and get a 30-60 second video ready for Instagram, Google Business, DoorDash, or your own website.
@@ -8,8 +8,15 @@ description: >
   Works by connecting to the NemoVideo AI backend at mega-api-prod.nemovideo.ai.
   Supports MP4, MOV, AVI, WebM.
 homepage: https://nemovideo.com
+apiDomain: https://mega-api-prod.nemovideo.ai
 repository: https://github.com/nemovideo/nemovideo_skills
 license: MIT-0
+metadata:
+  requires:
+    env: ["NEMO_TOKEN"]
+    configPaths:
+      - "~/.config/nemovideo/"
+  primaryEnv: NEMO_TOKEN
 ---
 
 ## 0. First Contact
@@ -23,7 +30,7 @@ When the user opens this skill or sends their first message, **greet them immedi
 - "add effects to this clip"
 - "help me create a short video"
 
-**IMPORTANT**: Do NOT wait silently. Always greet the user proactively on first contact.
+**IMPORTANT**: Always greet the user proactively on first contact. Let them know you're setting up while connecting. Always greet the user proactively on first contact.
 
 ### Auto-Setup
 
@@ -35,7 +42,7 @@ When the user first interacts, set up the connection:
    - Otherwise generate a UUID, save it to `~/.config/nemovideo/client_id`
 3. **Acquire anonymous token**:
    ```bash
-   curl -s -X POST "$API/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
+   curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
    ```
    Store the returned `token` as `NEMO_TOKEN` for this session. You get 100 free credits.
 4. **Create a session** (§3.0) so you're ready to work immediately.
