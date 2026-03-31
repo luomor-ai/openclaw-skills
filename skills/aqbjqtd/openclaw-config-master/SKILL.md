@@ -1,125 +1,91 @@
 ---
 name: openclaw-config-master
-description: Edit and validate OpenClaw Gateway config (openclaw.json / JSON5). Use when adding/changing config keys (gateway.*, agents.*, models.*, channels.*, tools.*, skills.*, plugins.*, $include) or diagnosing openclaw doctor/config validation errors, to avoid schema mismatches that prevent the Gateway from starting or weaken security policies.
+description: Edit and validate OpenClaw Gateway config (openclaw.json / JSON5). Use when adding/changing config keys (gateway.*, agents.defaults.*, agents.list.*, channels.*, models.*, auth.*, tools.*, skills.*, plugins.*, $include) or diagnosing openclaw doctor/config validation errors, to avoid schema mismatches that prevent the Gateway from starting or weaken security policies.
 ---
 
 # OpenClaw Config
 
-## Overview
+## 一句话
 
-Safely edit `~/.openclaw/openclaw.json` (or the path set by `OPENCLAW_CONFIG_PATH`) using a schema-first workflow. Validate before and after changes to avoid invalid keys/types that can break startup or change security behavior.
+用 schema-first 工作流安全编辑 OpenClaw 配置文件，验证先行，避免无效 key 导致 Gateway 无法启动或安全策略被破坏。
 
-## Workflow (Safe Edit)
+---
 
-1. **Identify the active config path**
+## 核心要点（5条）
 
-- Precedence: `OPENCLAW_CONFIG_PATH` > `OPENCLAW_STATE_DIR/openclaw.json` > `~/.openclaw/openclaw.json`
-- The config file is **JSON5** (comments + trailing commas allowed).
+1. **Schema 先行** — 不猜 key，从 running Gateway 或源码获取权威 schema
+2. **最小修改面** — 优先用 `openclaw config set/get/unset`，不用直接编辑文件
+3. **验证不可跳** — 每次改完后必须跑 `openclaw doctor`
+4. **严格模式** — 大多数对象是 `.strict()`，未知 key 会导致 Gateway 拒绝启动
+5. **不轻易用 --fix** — `openclaw doctor --fix/--yes` 会写文件，需用户明确同意
 
-2. **Get an authoritative schema (do not guess keys)**
+---
 
-- If the Gateway is running: use `openclaw gateway call config.schema --params '{}'` to fetch a JSON Schema matching the running version.
-- Otherwise: use `openclaw/openclaw` source-of-truth, primarily:
-  - `src/config/zod-schema.ts` (`OpenClawSchema` root keys like `gateway`/`skills`/`plugins`)
-  - `src/config/zod-schema.*.ts` (submodules: channels/providers/models/agents/tools)
-  - `docs/gateway/configuration.md` (repo docs + examples)
+## 详细内容
 
-3. **Apply changes with the smallest safe surface**
+### 工作流程（Safe Edit）
 
-- Prefer small edits: `openclaw config get|set|unset` (dot path or bracket notation).
-- If the Gateway is online and you want "write + validate + restart" in one step: use RPC `config.patch` (merge patch) or `config.apply` (replaces the entire config; use carefully).
-- For complex setups, split config with `$include` (see below).
+**1. 定位配置文件**
+- 优先级：`OPENCLAW_CONFIG_PATH` > `OPENCLAW_STATE_DIR/openclaw.json` > `~/.openclaw/openclaw.json`
+- 配置文件是 **JSON5**（支持注释和尾逗号）
 
-4. **Validate strictly**
+**2. 获取权威 schema**
+- Gateway 运行中：`openclaw gateway call config.schema --params '{}'`
+- Gateway 未运行：参考 OpenClaw 源码
+  - `src/config/zod-schema.ts`（根 key：`gateway`/`skills`/`plugins`）
+  - `src/config/zod-schema.*.ts`（子模块：channels/providers/models/agents/tools）
+  - `docs/gateway/configuration.md`
 
-- Run `openclaw doctor`, then fix issues using the reported `path` + `message`.
-- Do not run `openclaw doctor --fix/--yes` without explicit user consent (it writes to config/state files).
+**3. 应用变更**
+- 最小修改：使用 `openclaw config get|set|unset`
+- Gateway 在线时可一步完成"写入+验证+重启"：RPC `config.patch` 或 `config.apply`
+- 复杂配置可用 `$include` 分割
 
-### 复杂配置操作流程
+**4. 严格验证**
+- 运行 `openclaw doctor`，按报告的 `path` + `message` 修复
+- **禁止自行运行 `--fix/--yes`**，除非用户明确同意
 
-对于复杂的配置变更（如添加新模型提供者、配置新频道等），遵循以下增强流程：
+---
 
-1. **前置检查**
-   - 确认所有必需的凭证和参数
-   - 验证目标平台/服务的可用性
-   - 备份当前配置文件
-   - 停止运行中的 Gateway
+### Guardrails（避免 Schema 错误）
 
-2. **详细配置**
-   - 参考 `references/complex-operations.md` 获取完整步骤
-   - 使用最小安全表面进行修改
-   - 遵循渐进式修改原则（一次修改一个部分）
+- **大多数对象是 strict** (`.strict()`)：未知 key 导致 Gateway 拒绝启动
+- `channels` 是 `.passthrough()`：扩展 channels（matrix/zalo/nostr 等）可添加自定义 key
+- `env` 是 `.catchall(z.string())`：可直接放字符串环境变量，也可用 `env.vars`
+- **密钥处理**：优先用环境变量文件，避免将 token/API key 写入 `openclaw.json`
 
-3. **验证和测试**
-   - 运行 `openclaw doctor` 验证配置
-   - 逐步测试新功能
-   - 监控日志输出
-   - 准备回滚方案
+---
 
-4. **文档记录**
-   - 记录配置变更
-   - 更新相关文档
-   - 保存配置版本信息
+### $include（模块化配置）
 
-### 版本升级流程
+`$include` 在 schema 验证前解析，支持将配置分割到多个 JSON5 文件：
 
-升级 OpenClaw 配置到新版本时：
+- 支持 `"$include": "./base.json5"` 或数组
+- 相对路径相对于当前配置文件目录
+- 深度合并规则：
+  - 对象：递归合并
+  - 数组：**拼接**（不替换）
+  - 原始值：后者覆盖前者
+- 若 `$include` 与同级 key 共存，**同级 key 覆盖 include 的值**
+- 限制：最大深度 10；循环 include 被检测并拒绝
 
-1. **升级前准备**
-   - 参阅 `references/version-migration.md`
-   - 创建完整备份
-   - 检查版本兼容性矩阵
-   - 查看破坏性变更列表
+---
 
-2. **执行迁移**
-   - 使用迁移脚本（如可用）
-   - 更新配置字段
-   - 处理废弃字段
-   - 验证配置完整性
+### 常用配方（Common Recipes）
 
-3. **验证和回滚**
-   - 运行完整测试套件
-   - 监控系统行为
-   - 准备快速回滚方案
-
-## Guardrails (Avoid Schema Bugs)
-
-- **Most objects are strict** (`.strict()`): unknown keys usually fail validation and the Gateway will refuse to start.
-- `channels` is `.passthrough()`: extension channels (matrix/zalo/nostr, etc.) can add custom keys, but most provider configs remain strict.
-- `env` is `.catchall(z.string())`: you can put string env vars directly under `env`, and you can also use `env.vars`.
-- **Secrets**: prefer environment variables/credential files. Avoid committing long-lived tokens/API keys into `openclaw.json`.
-
-## $include (Modular Config)
-
-`$include` is resolved before schema validation and lets you split config across JSON5 files:
-
-- Supports `"$include": "./base.json5"` or `"$include": ["./a.json5", "./b.json5"]`
-- Relative paths are resolved against the directory of the current config file.
-- Deep-merge rules (per implementation):
-  - objects: merge recursively
-  - arrays: **concatenate** (not replace)
-  - primitives: later value wins
-- If sibling keys exist alongside `$include`, sibling keys override included values.
-- Limits: max depth 10; circular includes are detected and rejected.
-
-## Common Recipes (Examples)
-
-1. Set default workspace
-
+**设置默认 workspace**
 ```bash
 openclaw config set agents.defaults.workspace '"~/.openclaw/workspace"' --json
 openclaw doctor
 ```
 
-2. Change Gateway port
-
+**修改 Gateway 端口**
 ```bash
 openclaw config set gateway.port 18789 --json
 openclaw doctor
 ```
 
-3. Split config (example)
-
+**分割配置文件**
 ```json5
 // ~/.openclaw/openclaw.json
 {
@@ -127,113 +93,94 @@ openclaw doctor
 }
 ```
 
-4. Telegram open DMs (must explicitly allow senders)
-
-> Schema constraint: when `dmPolicy="open"`, `allowFrom` must include `"*"`.
-
+**Telegram 开放 DMs（需显式允许发送者）**
 ```bash
 openclaw config set channels.telegram.dmPolicy '"open"' --json
 openclaw config set channels.telegram.allowFrom '["*"]' --json
 openclaw doctor
 ```
 
-5. Discord token (config or env fallback)
-
+**Discord Token**
 ```bash
-# Option A: write to config
+# 方式 A：写入配置
 openclaw config set channels.discord.token '"YOUR_DISCORD_BOT_TOKEN"' --json
 
-# Option B: env var fallback (still recommend a channels.discord section exists)
+# 方式 B：环境变量回退
 # export DISCORD_BOT_TOKEN="..."
 
 openclaw doctor
 ```
 
-6. Enable web_search (Brave / Perplexity)
-
+**启用 web_search**
 ```bash
 openclaw config set tools.web.search.enabled true --json
 openclaw config set tools.web.search.provider '"brave"' --json
-
-# Recommended: provide the key via env var (or write tools.web.search.apiKey)
+# 建议通过环境变量提供 key
 # export BRAVE_API_KEY="..."
 
 openclaw doctor
 ```
 
-## 快速链接
+---
 
-### 复杂配置操作
+### 复杂配置操作流程
 
-当需要执行复杂配置时，参考以下详细指南：
+复杂配置变更（添加新模型提供者、配置新频道等）遵循增强流程：
 
-- **添加新的模型提供者** → `references/complex-operations.md#1-添加新的模型提供者`
-  - 认证配置、环境变量设置、模型注册
-  
-- **配置新的频道** → `references/complex-operations.md#2-配置新的频道`
-  - Telegram、Discord、Slack 完整配置示例
-  
-- **修改 Agent 工具配置** → `references/complex-operations.md#3-修改-agent-工具配置`
-  - 工具权限、预设配置、允许/拒绝列表
-  
-- **调整诊断和日志设置** → `references/complex-operations.md#4-调整诊断和日志设置`
-  - 日志级别、OpenTelemetry、会话维护
+1. **前置检查** — 确认凭证/参数、验证平台可用性、备份配置、停止 Gateway
+2. **详细配置** — 参考 `references/complex-operations.md`，遵循渐进式修改原则
+3. **验证测试** — `openclaw doctor` 验证 + 逐步测试 + 准备回滚
+4. **文档记录** — 记录变更、更新文档、保存版本信息
 
-### 故障诊断
+---
 
-遇到配置问题时：
+### 版本升级流程
 
-1. **快速诊断** → 运行 `openclaw doctor`
-2. **常见错误模式** → 参考各操作指南中的"常见错误"表格
-3. **配置验证** → 使用 `scripts/openclaw-config-check.sh`
-4. **日志分析** → 检查 `~/.openclaw/logs/openclaw.log`
+1. **升级前准备** — 参阅 `references/version-migration.md`、创建备份、检查兼容性矩阵、查看破坏性变更
+2. **执行迁移** — 使用迁移脚本、更新字段、处理废弃字段、验证完整性
+3. **验证回滚** — 运行测试套件、监控行为、准备快速回滚
 
-### 版本升级
+---
 
-升级到新版本时：
+### 快速链接
 
-- **完整迁移指南** → `references/version-migration.md`
-  - 升级前准备、兼容性矩阵、字段变更追踪
-  - 迁移步骤、验证方法、回滚方案
-  - 实用脚本（版本比较、自动迁移、健康检查）
+**Channel 配置**
+- Telegram 配置 → `references/channels-config.md#telegram`
+- Feishu 配置 → `references/channels-config.md#feishu飞书`
+- Discord 配置 → `references/channels-config.md#discord`
+- Slack 配置 → `references/channels-config.md#slack`
+- WhatsApp 配置 → `references/channels-config.md#whatsapp`
+- Signal 配置 → `references/channels-config.md#signal`
+- iMessage 配置 → `references/channels-config.md#imessage-macos`
+- Channel 通用字段 → `references/channels-config.md#通用-channel-字段`
 
-- **快速检查清单**：
-  - [ ] 备份当前配置
-  - [ ] 查看版本兼容性
-  - [ ] 阅读破坏性变更
-  - [ ] 准备回滚方案
-  - [ ] 在测试环境验证
+**复杂配置操作**
+- 添加新模型提供者 → `references/complex-operations.md#1-添加新的模型提供者`
+- 配置新频道 → `references/channels-config.md`
+- 修改 Agent 工具 → `references/complex-operations.md#3-修改-agent-工具配置`
+- 诊断和日志 → `references/complex-operations.md#4-调整诊断和日志设置`
 
-### 工具和脚本
+**故障诊断**
+- `openclaw doctor` — 快速诊断
+- `scripts/openclaw-config-check.sh` — 配置验证
+- `~/.openclaw/logs/openclaw.log` — 日志分析
 
-- **配置检查** → `scripts/openclaw-config-check.sh`
-- **版本比较** → `references/version-migration.md#实用脚本`
-- **健康检查** → `references/version-migration.md#健康检查脚本`
+**版本升级**
+- `references/version-migration.md` — 完整迁移指南
+- 快速检查清单：备份 → 兼容性 → 破坏性变更 → 回滚方案 → 测试验证
 
-## Resources
+---
 
-Load these when you need a field index or source locations:
+### 参考资源
 
-### 快速参考
+**快速参考**
+- `references/openclaw-config-fields.md` — 根 key 索引 + 字段来源（`agents.list`、安全字段、`models.providers`、`auth.profiles` 等完整覆盖）
+- `references/channels-config.md` — 所有 Channel（Telegram/Feishu/Discord/Slack/WhatsApp/Signal/iMessage）完整配置字段
+- `references/schema-sources.md` — schema 定位和约束说明
 
-- `references/openclaw-config-fields.md` (root key index + key field lists with sources)
-- `references/schema-sources.md` (how to locate schema + constraints in openclaw repo)
+**深度指南**
+- `references/complex-operations.md` — 复杂配置操作完整指南
+- `references/version-migration.md` — 版本迁移和升级指南
 
-### 深度指南
-
-- `references/complex-operations.md` (复杂配置操作完整指南)
-  - 添加新的模型提供者
-  - 配置新的频道（Telegram/Discord/Slack）
-  - 修改 Agent 工具配置
-  - 调整诊断和日志设置
-- `references/version-migration.md` (版本迁移和升级指南)
-  - 升级前准备和检查清单
-  - 版本兼容性矩阵
-  - 字段变更追踪方法
-  - 迁移步骤和验证流程
-  - 破坏性变更处理
-  - 回滚方案和实用脚本
-
-### 工具脚本
-
-- `scripts/openclaw-config-check.sh` (print config path + run doctor)
+**工具脚本**
+- `scripts/openclaw-config-check.sh` — 打印配置路径 + 执行 doctor

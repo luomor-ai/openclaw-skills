@@ -6,10 +6,10 @@
 
 - [升级前准备](#升级前准备)
 - [版本兼容性矩阵](#版本兼容性矩阵)
-- [字段变更追踪](#字段变更追踪)
+- [v1.0.0 → 2026.3.28 关键变更](#v100--2026328-关键变更)
 - [迁移步骤](#迁移步骤)
-- [验证与测试](#验证与测试)
 - [破坏性变更](#破坏性变更)
+- [验证与测试](#验证与测试)
 - [回滚方案](#回滚方案)
 - [实用脚本](#实用脚本)
 
@@ -69,64 +69,168 @@ EOF
 | 1.0.x | 2.0.x | ⚠️ 需要迁移 | 是 | 中 |
 | 1.x | 3.0.x | ❌ 破坏性变更 | 是 | 高 |
 | 2.x | 3.0.x | ⚠️ 需要迁移 | 是 | 中 |
+| **1.0.x** | **2026.3.28** | **⚠️ 需要迁移** | **是** | **高** |
 
 ---
 
-## 字段变更追踪
+## v1.0.0 → 2026.3.28 关键变更
 
-### 变更类型分类
+> **参考来源**：`openclaw/openclaw@v2026.3.28`（schema 生成于 2026-03-22）
+> 
+> **背景**：原 skill 编写时参考的是 `openclaw/openclaw@875324e`（2026-02-07），之间相隔约 7 周，OpenClaw 有大量新增功能和 schema 变更。
 
-1. **新增字段**（Add）：向后兼容，可选使用
-2. **重命名字段**（Rename）：需要映射旧字段到新字段
-3. **删除字段**（Remove）：需要清理旧字段引用
-4. **类型变更**（Type Change）：需要数据转换
-5. **结构调整**（Structure Change）：需要重构配置
+### 1. `agents.defaults` — 从 2 个字段扩展到 40+ 个
 
-### 追踪方法
-
-#### 方法1：使用 Git 历史
-
-```bash
-# 查看特定文件的历史变更
-git log --oneline --follow -- _meta.json
-
-# 查看两个版本间的差异
-git diff v1.0.0 v2.0.0 -- _meta.json
-
-# 查看字段级别的变更
-git diff -U0 v1.0.0 v2.0.0 -- _meta.json | grep '^[+-]'
+**旧版（v1.0.0）** 仅记录：
+```json
+"agents": {
+  "defaults": {
+    "model": "provider/model",
+    "models": { ... }
+  }
+}
 ```
 
-#### 方法2：使用比较脚本
+**新版（2026.3.28）** 包含 40+ 字段：
 
-```bash
-#!/bin/bash
-# compare-versions.sh - 比较两个版本的配置差异
+| 字段类别 | 新增/变更字段 |
+|---------|-------------|
+| 模型 | `model`、`imageModel`、`imageGenerationModel`、`pdfModel`、`pdfMaxBytesMb`、`pdfMaxPages`、`models` |
+| 工作区 | `workspace`、`repoRoot`、`skipBootstrap`、`bootstrapMaxChars`、`bootstrapTotalMaxChars`、`bootstrapPromptTruncationWarning` |
+| 上下文 | `contextTokens`、`contextPruning`、`cliBackends`、`memorySearch`、`userTimezone`、`timeFormat`、`envelopeTimezone`、`envelopeTimestamp`、`envelopeElapsed` |
+| 代理行为 | `thinkingDefault`、`verboseDefault`、`elevatedDefault`、`blockStreamingDefault`、`blockStreamingBreak`、`blockStreamingChunk`、`blockStreamingCoalesce` |
+| 计时/交互 | `humanDelay`、`timeoutSeconds`、`typingIntervalSeconds`、`typingMode`、`heartbeat`、`maxConcurrent` |
+| 媒体 | `mediaMaxMb`、`imageMaxDimensionPx` |
+| 子代理/沙箱 | **`subagents`**（`maxConcurrent`、`maxChildrenPerAgent`）、**`sandbox`** |
+| 压缩 | **`compaction`**（`mode: "safeguard" \| "aggressive"`） |
+| 嵌入式 PI | `embeddedPi` |
 
-OLD_VERSION=$1
-NEW_VERSION=$2
+**迁移建议**：检查现有配置中 `agents.defaults` 是否只使用了 `model`/`models`。如果使用了 v1.0.0 的简化配置，建议逐步补充新字段以利用新功能。
 
-echo "=== 版本 $OLD_VERSION → $NEW_VERSION 变更报告 ==="
-echo ""
+### 2. `tools.web.search` — 整体结构重构（破坏性变更）
 
-# 比较 _meta.json
-echo "### _meta.json 变更:"
-diff -u ".clawhub/backup_$OLD_VERSION/_meta.json" "_meta.json" || true
-
-echo ""
-echo "### 目录结构变更:"
-echo "旧版本文件:"
-find ".clawhub/backup_$OLD_VERSION" -type f | sort
-echo ""
-echo "新版本文件:"
-find .clawhub -type f | sort
+**旧版结构（v1.0.0，已失效）**：
+```json
+"web": {
+  "enabled": true,
+  "allowUserUrls": true,
+  "allowedDomains": ["github.com", "gitlab.com"]
+}
 ```
 
-使用示例：
-```bash
-chmod +x compare-versions.sh
-./compare-versions.sh "20240101_120000" "20240201_120000"
+**新版结构（2026.3.28）** — 改为 Provider-Specific 架构：
+
+```json
+"tools": {
+  "web": {
+    "search": {
+      "enabled": true,
+      "provider": "brave",
+      "maxResults": 10,
+      "timeoutSeconds": 30,
+      "cacheTtlMinutes": 60,
+      "apiKey": "your-key",
+
+      "brave": { "apiKey": "...", "baseUrl": "...", "model": "...", "mode": "default" },
+      "firecrawl": { "apiKey": "...", "baseUrl": "...", "model": "..." },
+      "gemini": { "apiKey": "...", "baseUrl": "...", "model": "..." },
+      "grok": { "apiKey": "...", "baseUrl": "...", "model": "...", "inlineCitations": true },
+      "kimi": { "apiKey": "...", "baseUrl": "...", "model": "..." },
+      "perplexity": { "apiKey": "...", "baseUrl": "...", "model": "..." }
+    }
+  }
+}
 ```
+
+**主要变化**：
+- `web` 移到 `tools.web` 下
+- `allowUserUrls` 和 `allowedDomains` 被移除，改为每个 provider 的独立配置
+- 新增 Provider：`firecrawl`、`gemini`、`grok`、`kimi`、`perplexity`
+- 新增 `x_search`（X/Twitter 搜索）和 `fetch`（页面抓取）子模块
+
+### 3. 新增顶级配置根键
+
+以下根键在 v1.0.0 中不存在：
+
+| 新键 | 说明 |
+|-----|------|
+| **`acp`** | ACP 运行时配置（调度、后端、流转设置等） |
+| **`mcp`** | MCP（Model Context Protocol）服务器配置 |
+| **`cli`** | CLI 特定配置 |
+| **`secrets`** | 密钥管理（providers、resolution、defaults） |
+
+### 4. `approvals` — 新系统（exec/plugin 模式）
+
+```json
+"approvals": {
+  "exec": {
+    "enabled": true,
+    "mode": "session",
+    "agentFilter": ["agent-id", ...],
+    "sessionFilter": ["session-pattern", ...],
+    "targets": [{ "channel": "telegram", "accountId": "123", "threadId": "456" }]
+  },
+  "plugin": {
+    "enabled": true,
+    "mode": "session",
+    "agentFilter": [...],
+    "sessionFilter": [...],
+    "targets": [...]
+  }
+}
+```
+
+- `mode` 可选：`"session"` | `"targets"` | `"both"`
+- `targets` 支持按 `channel`、`to`、`accountId`、`threadId` 细粒度控制
+
+### 5. `bindings` — 从对象变为路由对象数组
+
+**旧版（v1.0.0）**：
+```json
+"bindings": {
+  "channel-name": { ... }
+}
+```
+
+**新版（2026.3.28）**：
+```json
+"bindings": [
+  {
+    "type": "route",
+    "agentId": "agent-id",
+    "comment": "optional note",
+    "match": { "channel": "telegram", "accountId": "123456", "peer": "user@domain" }
+  }
+]
+```
+
+### 6. `hooks` — 扩展了大量新字段
+
+新增字段：`defaultSessionKey`、`allowRequestSessionKey`、`allowedSessionKeyPrefixes`、`allowedAgentIds`、`maxBodyBytes`、`presets`、`transformsDir`、`mappings`
+
+### 7. `tools.profile` — 新增 `"messaging"` 值
+
+有效值：`"minimal"` | `"coding"` | `"messaging"` | `"full"`
+
+### 8. `tools.exec` — 新增多个字段
+
+新增：`host`（`"sandbox"` | `"gateway"` | `"node"`）、`safeBins`、`strictInlineEval`、`safeBinProfiles`、`backgroundMs`、`timeoutSec`、`cleanupMs`、`notifyOnExit`、`applyPatch`
+
+### 9. `gateway` — 新增多个子系统
+
+| 子系统 | 新增内容 |
+|-------|---------|
+| `gateway.http` | 全新子系统：`endpoints.chatCompletions`、`endpoints.responses`、`securityHeaders` |
+| `gateway.push` | APNS relay 配置 |
+| `gateway.allowRealIpFallback` | 新布尔字段 |
+| `gateway.channelHealthCheckMinutes` | 健康检查间隔 |
+| `gateway.controlUi.dangerouslyAllowHostHeaderOriginFallback` | 新字段 |
+| `gateway.reload.deferralTimeoutMs` | 热重载延迟超时 |
+| `gateway.remote` 新增 | `tlsFingerprint`、`sshTarget`、`sshIdentity` |
+
+### 10. `memory.qmd` — 扩展子结构
+
+新增：`mcporter`（MCP Porter 配置）、`limits`、`sessions`、`update`、`scope`、`searchMode`、`includeDefaultMemory`
 
 ---
 
@@ -141,7 +245,7 @@ chmod +x compare-versions.sh
 ls -lh .clawhub/backup_*/
 
 # 2. 创建工作分支（如果使用 Git）
-git checkout -b migrate-to-v2.0
+git checkout -b migrate-to-v2026.3.28
 
 # 3. 记录当前状态
 echo "迁移前状态:" > migration-log.txt
@@ -177,11 +281,11 @@ EOF
 
 ```bash
 # 根据目标版本执行相应的迁移脚本
-# 示例：迁移到 2.0 版本
-./scripts/migrate-to-v2.0.sh
+# 示例：迁移到 2026.3.28 版本
+./scripts/migrate-to-2026.3.28.sh
 
 # 或使用 Python 脚本
-python3 scripts/migrate-to-v2.0.py
+python3 scripts/migrate-to-2026.3.28.py
 ```
 
 #### Step 4: 验证结果
@@ -195,6 +299,83 @@ done
 # 验证配置完整性
 ./scripts/validate-config.sh
 ```
+
+---
+
+## 破坏性变更
+
+### ⚠️ v1.0.0 → 2026.3.28 主要破坏性变更
+
+#### 1. `tools.web.search` 结构完全重构
+
+**旧格式在 2026.3.28 中不再有效。**
+
+| 旧字段 | 状态 | 替代方案 |
+|-------|------|---------|
+| `web.enabled` | ❌ 移除 | 使用 `tools.web.search.enabled` |
+| `web.allowUserUrls` | ❌ 移除 | 每个 Provider 独立配置 |
+| `web.allowedDomains` | ❌ 移除 | Provider 配置中管理 |
+
+**迁移步骤**：
+1. 将原 `web` 配置迁移到 `tools.web.search`
+2. 选择 Provider（`brave`/`firecrawl`/`gemini`/`grok`/`kimi`/`perplexity`）
+3. 将 API Key 移到对应 Provider 的 `apiKey` 字段或顶层 `apiKey`
+
+#### 2. `bindings` 从对象变为数组
+
+旧配置 `bindings.{channel}` 需要转换为 `bindings[{ type: "route", match: {...} }]` 格式。
+
+#### 3. `agents.defaults` 字段大幅扩展
+
+旧配置只有 `model`/`models`，新版有 40+ 字段。向后兼容，但仍建议补全缺失字段。
+
+### v1.0 → v2.0 其他变更（参考）
+
+1. **字段重命名**
+   ```json
+   // 旧版本
+   {
+     "agentName": "my-agent",
+     "agentType": "general"
+   }
+
+   // 新版本
+   {
+     "name": "my-agent",
+     "type": "general-purpose"
+   }
+   ```
+
+2. **结构调整**
+   ```json
+   // 旧版本
+   {
+     "config": {
+       "timeout": 30,
+       "retries": 3
+     }
+   }
+
+   // 新版本
+   {
+     "execution": {
+       "timeout": 30,
+       "retryPolicy": {
+         "maxAttempts": 3
+       }
+     }
+   }
+   ```
+
+3. **废弃字段**
+   - `legacyField` → 已移除
+   - `deprecatedOption` → 使用 `newOption` 替代
+
+### v2.0 → v3.0 主要变更（示例）
+
+1. **新架构引入**
+2. **配置文件位置变更**
+3. **环境变量命名规范更新**
 
 ---
 
@@ -249,58 +430,6 @@ echo "   ✅ 验证完成"
 - [ ] 日志输出无异常
 - [ ] 性能无明显下降
 - [ ] 向后兼容性测试通过
-
----
-
-## 破坏性变更
-
-### v1.0 → v2.0 主要变更
-
-1. **字段重命名**
-   ```json
-   // 旧版本
-   {
-     "agentName": "my-agent",
-     "agentType": "general"
-   }
-
-   // 新版本
-   {
-     "name": "my-agent",
-     "type": "general-purpose"
-   }
-   ```
-
-2. **结构调整**
-   ```json
-   // 旧版本
-   {
-     "config": {
-       "timeout": 30,
-       "retries": 3
-     }
-   }
-
-   // 新版本
-   {
-     "execution": {
-       "timeout": 30,
-       "retryPolicy": {
-         "maxAttempts": 3
-       }
-     }
-   }
-   ```
-
-3. **废弃字段**
-   - `legacyField` → 已移除
-   - `deprecatedOption` → 使用 `newOption` 替代
-
-### v2.0 → v3.0 主要变更（示例）
-
-1. **新架构引入**
-2. **配置文件位置变更**
-3. **环境变量命名规范更新**
 
 ---
 
@@ -461,8 +590,8 @@ if __name__ == '__main__':
 set -e  # 遇到错误立即退出
 
 # 配置
-SOURCE_VERSION="1.0"
-TARGET_VERSION="2.0"
+SOURCE_VERSION="1.0.0"
+TARGET_VERSION="2026.3.28"
 BACKUP_DIR=".clawhub/backup_$(date +%Y%m%d_%H%M%S)"
 
 echo "=== OpenClaw 配置迁移工具 ==="
@@ -498,8 +627,8 @@ with open(meta_path, 'r', encoding='utf-8') as f:
     data = json.load(f)
 
 # 执行迁移转换
-# data['version'] = '2.0'
-# data['schemaVersion'] = '2.0'
+# data['version'] = '2026.3.28'
+# data['schemaVersion'] = '2026.3.28'
 
 # 保存配置
 with open(meta_path, 'w', encoding='utf-8') as f:
@@ -717,5 +846,6 @@ chmod 755 .clawhub
 
 ---
 
-**最后更新**: 2026-03-27
+**最后更新**: 2026-03-31
 **维护者**: OpenClaw 配置团队
+**参考版本**: `openclaw/openclaw@v2026.3.28`
