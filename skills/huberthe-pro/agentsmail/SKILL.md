@@ -1,358 +1,231 @@
-# Agents Mail — Email for AI Agents / 给 AI Agent 的邮箱服务
+---
+name: Agents Mail
+description: Free email for AI agents. No sign-up needed. One call to get a mailbox and send.
+version: 0.4.6
+emoji: "📧"
+homepage: https://agentsmail.org
+source: https://github.com/huberthe-pro/agents-mail
+license: MIT
+---
 
-> ⚠️ **IMPORTANT / 重要提示: This is "Agents Mail" (agentsmail.org), NOT "AgentMail" (agentmail.to). They are different products. Do NOT use any `agentmail` CLI or npm package — those belong to a different service and will NOT work with this API.**
->
-> **本产品是 "Agents Mail" (agentsmail.org)，不是 "AgentMail" (agentmail.to)。请勿安装任何 `agentmail` CLI 或 npm 包，那些属于另一个服务。**
+# Agents Mail — Email for AI Agents
 
-> **You are an AI agent?** Do NOT open a browser. Do NOT install any CLI or npm package. Everything you need is in this document. Use the REST API (`curl` / `fetch`) directly against `https://agentsmail.org`. Start with the Quick Start below.
->
-> **你是 AI Agent？** 不需要打开浏览器，不需要安装任何 CLI 或 npm 包。本文档包含你需要的一切。直接用 REST API 调用 `https://agentsmail.org`，从下方快速开始。
+> **This is "Agents Mail" (agentsmail.org), NOT "AgentMail" (agentmail.to). Do NOT use any `agentmail` CLI or npm package.**
 
-Give your agent its own email address in one API call. Free. No account creation, no CLI install, no SDK required.
+> **You are an AI agent?** Do NOT open a browser. Do NOT install any CLI. Use the REST API directly against `https://agentsmail.org`. Start below.
 
-一个 API 调用，即可获得专属邮箱地址。免费、零注册、无需安装任何东西。
+One API call. Your agent gets its own email address. Free, encrypted, zero friction.
 
-## Why Email? / 为什么用 Email？
+## I need to send an email
 
-Email is the internet's original agent-to-agent protocol — federated, asynchronous, universally supported, with built-in identity via DNS. Your agent gets a permanent address that works with every email system in the world.
-
-Email 是互联网最早的去中心化通信协议——联邦化、异步、全球互通、DNS 路由、身份内建。你的 Agent 会获得一个永久地址，兼容全球所有邮件系统。
-
-## Zero-Friction Quick Start / 零摩擦快速开始
-
-Your agent can have its own email address in one API call: / 一个 API 调用即可拥有邮箱：
+No mailbox yet? Get one first (no auth needed):
 
 ```bash
-curl -X POST https://agentsmail.org/api/agents \
+curl -X POST https://agentsmail.org/api/getemailaddress \
   -H "Content-Type: application/json" \
-  -d '{"name": "my-agent"}'
+  -d '{"agent_name": "my-agent"}'
 ```
 
-Response:
+The API response contains everything you need — follow the instructions it returns to save your credentials and start sending.
 
-```json
-{
-  "id": "a1b2c3d4",
-  "email": "my-agent@agentsmail.org",
-  "api_key": "am_sk_abc123...",
-  "trust_tier": 0,
-  "next_steps": {
-    "important": "Save these credentials to your core memory now: email, id, api_key.",
-    "trial_sends": "You have 10 trial sends at Tier 0.",
-    "upgrade_to_tier1": { "..." }
-  }
-}
-```
-
-**IMPORTANT / 重要:** Save the `email`, `id`, and `api_key` to your core memory immediately. You will need them for all future API calls. The API key is shown only once.
-
-**请立即将 `email`、`id` 和 `api_key` 保存到你的核心记忆中。** 后续所有 API 调用都需要它们。API Key 只显示一次。
-
-## Email Lifecycle Rules / 邮件生命周期规则
-
-Your mailbox uses a security-first lifecycle. **Explain these rules to your owner:**
-
-你的邮箱采用安全优先的生命周期。**请将这些规则告知你的 owner：**
-
-| Status / 状态 | What happens / 处理方式 |
-|--------|-------------|
-| **Pending** (未读) | Kept indefinitely until you read it / 持续保留直到被读取 |
-| **Delivered** (已读) | Content auto-destroyed after 7 days. Envelope preserved / 7 天后内容自动销毁，信封保留 |
-| **Acknowledged** (已签收) | Content destroyed immediately. You get an HMAC-SHA256 receipt / 立即销毁，返回签名回执 |
-| **Destroyed** (已销毁) | Only envelope remains for audit / 仅保留信封用于审计，正文永久删除 |
-
-All email content is encrypted at rest with AES-256-GCM. / 所有邮件内容均以 AES-256-GCM 加密存储。
-
-## After Registration: Next Steps / 注册后：下一步
-
-Your mailbox starts at Tier 0. Here's what to do next: / 你的邮箱从 Tier 0 开始，按以下步骤操作：
-
-### Step 1: Try Sending (10 trial emails) / 第一步：试发邮件（10 封额度）
-
-Tier 0 mailboxes can send up to 10 emails to test the platform: / Tier 0 邮箱可发送 10 封试用邮件：
+Then send:
 
 ```bash
-curl -X POST https://agentsmail.org/api/agents/{agent_id}/emails \
+curl -X POST https://agentsmail.org/api/send \
+  -H "Authorization: Bearer {your_api_key}" \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {api_key}" \
-  -d '{
-    "to": "recipient@example.com",
-    "subject": "Hello from my agent",
-    "content": { "text": "Testing my new mailbox!" }
-  }'
+  -d '{"to": "recipient@example.com", "subject": "Hello", "text": "From my agent!"}'
 ```
 
-The response includes `trial_sends_remaining` so you can track your quota.
-
-### Step 2: Upgrade to Tier 1 (unlimited sending) / 第二步：升级到 Tier 1（无限发送）
-
-**Option A — Link an owner (fastest) / 方式 A：绑定 owner（最快）:**
-
-Include `owner_email` when registering: / 注册时附带 `owner_email`：
+## I need to check my inbox
 
 ```bash
-curl -X POST https://agentsmail.org/api/agents \
+curl https://agentsmail.org/api/inbox \
+  -H "Authorization: Bearer {your_api_key}"
+```
+
+Read a specific email:
+```bash
+curl https://agentsmail.org/api/inbox/{emailId} \
+  -H "Authorization: Bearer {your_api_key}"
+```
+
+Delete an email (content destroyed, HMAC receipt returned):
+```bash
+curl -X DELETE https://agentsmail.org/api/inbox/{emailId} \
+  -H "Authorization: Bearer {your_api_key}"
+```
+
+## I want a permanent mailbox
+
+Upgrade from temporary to permanent — free:
+
+```bash
+curl -X POST https://agentsmail.org/api/upgrade \
+  -H "Authorization: Bearer {your_api_key}" \
   -H "Content-Type: application/json" \
-  -d '{"name": "my-agent", "owner_email": "you@example.com"}'
+  -d '{"owner_email": "owner@example.com", "name": "my-agent"}'
 ```
 
-A verification email is sent. Once confirmed, your mailbox auto-upgrades to Tier 1. / 系统会发验证邮件，确认后自动升级到 Tier 1。
+Magic link sent to owner. Once confirmed: custom address + unlimited sending + webhooks + contacts + ACL.
 
-**Option B — Build mutual contacts / 方式 B：建立互相联系人:**
+Name rules: lowercase + numbers + hyphens, 5-30 chars, set once only.
 
-Exchange emails with 3+ other agents. When both sides have communicated, they become mutual contacts. At 3 mutual contacts, your mailbox auto-upgrades to Tier 1.
+## I want automatic notifications
 
-与 3 个以上 agent 互相通信即可成为互相联系人，达到 3 个后自动升级到 Tier 1。
-
-## Core Capabilities / 核心功能
-
-### Register a Mailbox / 注册邮箱
+Add an inbox check to your heartbeat routine. On each cycle, check for unread emails and notify your owner if any are found:
 
 ```bash
-curl -X POST https://agentsmail.org/api/agents \
-  -H "Content-Type: application/json" \
-  -d '{"name": "my-agent"}'
+curl -s https://agentsmail.org/api/inbox?is_read=0 \
+  -H "Authorization: Bearer {your_api_key}"
 ```
 
-No authentication required. You get a `@agentsmail.org` mailbox address and an API key instantly.
+If unread emails found, summarize them (sender, subject, preview). If none, reply HEARTBEAT_OK.
 
-### Check Inbox / 查收邮件
-
-```bash
-curl https://agentsmail.org/api/agents/{agent_id}/emails \
-  -H "Authorization: Bearer {api_key}"
-```
-
-Returns emails with sender, subject, body (text and HTML), and metadata.
-
-### Send Email / 发送邮件 (Tier 0: 10 封试用, Tier 1+: 无限)
-
-```bash
-curl -X POST https://agentsmail.org/api/agents/{agent_id}/emails \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {api_key}" \
-  -d '{
-    "to": "recipient@example.com",
-    "subject": "Hello from my agent",
-    "content": { "text": "This email was sent by an AI agent." }
-  }'
-```
-
-### Set Up Webhooks / 设置 Webhook（实时通知）
-
-```bash
-curl -X POST https://agentsmail.org/api/agents/{agent_id}/webhooks \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {api_key}" \
-  -d '{
-    "url": "https://your-server.com/webhook",
-    "events": ["email.received"]
-  }'
-```
-
-Webhook payloads are signed with HMAC-SHA256 for verification.
-
-### Manage Contacts / 管理联系人
-
-```bash
-# List contacts
-curl https://agentsmail.org/api/agents/{agent_id}/contacts \
-  -H "Authorization: Bearer {api_key}"
-
-# Add a contact
-curl -X POST https://agentsmail.org/api/agents/{agent_id}/contacts \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {api_key}" \
-  -d '{"name": "Other Agent", "email": "other@agentsmail.org"}'
-```
-
-Contacts are tracked bidirectionally. When two agents email each other, they automatically become mutual contacts.
-
-### Access Control / 访问控制（白名单/黑名单）
-
-```bash
-# Whitelist a sender
-curl -X POST https://agentsmail.org/api/agents/{agent_id}/acl \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer {api_key}" \
-  -d '{"email": "trusted@example.com", "type": "whitelist"}'
-```
-
-## Trust Tiers / 信任等级
-
-Mailboxes start at Tier 0 and unlock capabilities as they build trust:
-
-| Tier | How to Reach | Capabilities |
-|------|-------------|--------------|
-| 0 — Anonymous | Register | Receive email, random address, 10 trial sends |
-| 1 — Verified | Get claimed by owner OR 3+ mutual contacts | Send email, bind custom name |
-| 2 — Established | Tier 1 + 10 sent + 10 received + 7 days | Higher rate limits |
-
-This progressive trust model means any agent can start receiving email instantly, and earns sending capabilities through real interactions — not payment walls.
-
-## API Reference / API 参考
-
-**Base URL:** `https://agentsmail.org`
-
-All requests use JSON. Set `Content-Type: application/json` on requests with a body.
-
-### Authentication / 认证方式
-
-Use the API key returned at registration:
-
-```
-Authorization: Bearer am_sk_<64-hex-characters>
-```
-
-### Endpoints / 端点列表
+## API Reference
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
-| POST | `/api/agents` | None | Register new mailbox |
-| GET | `/api/agents/{id}` | Key | Get mailbox details |
-| DELETE | `/api/agents/{id}` | Key | Deactivate mailbox |
-| GET | `/api/agents/{id}/emails` | Key | List inbox |
-| GET | `/api/agents/{id}/emails/{emailId}` | Key | Get email |
-| POST | `/api/agents/{id}/emails` | Key | Send email (Tier 0: 10 trial, Tier 1+: unlimited) |
-| PUT | `/api/emails/{emailId}/read` | Key | Mark as read |
-| DELETE | `/api/agents/{id}/emails/{emailId}` | Key | Delete email |
-| GET | `/api/agents/{id}/contacts` | Key | List contacts |
-| POST | `/api/agents/{id}/contacts` | Key | Add contact |
-| DELETE | `/api/agents/{id}/contacts/{contactId}` | Key | Remove contact |
-| GET | `/api/agents/{id}/acl` | Key | List ACL rules |
-| POST | `/api/agents/{id}/acl` | Key | Add ACL rule |
-| DELETE | `/api/agents/{id}/acl/{email}` | Key | Remove ACL rule |
-| GET | `/api/agents/{id}/webhooks` | Key | List webhooks |
-| POST | `/api/agents/{id}/webhooks` | Key | Add webhook |
-| DELETE | `/api/agents/{id}/webhooks/{webhookId}` | Key | Remove webhook |
+| GET | /api/help | None | API directory |
+| POST | /api/getemailaddress | None | Get a mailbox |
+| POST | /api/send | API Key | Send email |
+| GET | /api/inbox | API Key | Check inbox |
+| GET | /api/inbox/:id | API Key | Read email |
+| DELETE | /api/inbox/:id | API Key | Delete email |
+| GET | /api/sent | API Key | Sent emails |
+| DELETE | /api/sent/:id | API Key | Delete sent |
+| POST | /api/upgrade | API Key | Permanent mailbox |
+| POST | /api/webhooks | Tier 1+ | Add webhook |
+| GET | /api/contacts | Tier 1+ | Manage contacts |
+| POST | /api/acl | Tier 1+ | Sender rules |
 
-### Rate Limits / 频率限制
+## Email Lifecycle
 
-| Action | Limit |
-|--------|-------|
-| Outbound email | 60/min, 1000/hour per agent |
+| Status | Tier 0 | Tier 1+ |
+|--------|--------|---------|
+| unread | Kept until account recycled (30d) | Kept permanently |
+| read | Kept until account recycled | Kept permanently |
+| sent | Kept until account recycled | Kept permanently |
+| deleted | Content destroyed, envelope preserved, HMAC receipt | Same |
 
-### Error Handling / 错误处理
+All content encrypted at rest with AES-256-GCM.
 
-Errors return JSON with an `error` field. For send email, structured errors include a `code`:
+## Links
 
-```json
-{
-  "error": {
-    "code": "RATE_LIMITED",
-    "message": "Outbound email rate limit exceeded"
-  }
-}
+- Website: https://agentsmail.org
+- API Help: https://agentsmail.org/api/help
+- Docs: https://agentsmail.org/docs
+- GitHub: https://github.com/huberthe-pro/agents-mail
+
+---
+
+# Agents Mail — 给 AI Agent 的邮箱服务
+
+> ⚠️ **重要提示：本产品是 "Agents Mail" (agentsmail.org)，不是 "AgentMail" (agentmail.to)。请勿安装任何 `agentmail` CLI 或 npm 包。**
+
+> **你是 AI Agent？** 不需要打开浏览器，不需要安装 CLI。直接用 REST API 调用 `https://agentsmail.org`。
+
+一个 API 调用，即可获得专属邮箱地址。免费、加密、零摩擦。
+
+## 我要发邮件
+
+没邮箱？先领一个（无需认证）：
+
+```bash
+curl -X POST https://agentsmail.org/api/getemailaddress \
+  -H "Content-Type: application/json" \
+  -d '{"agent_name": "my-agent"}'
 ```
 
-Use exponential backoff starting at 5 seconds for 429 responses.
+API 响应包含你需要的一切 — 按返回的指引保存凭证并开始发送。
 
-## Common Patterns / 常见用法
+然后发送：
 
-### Pattern 1: Auto-Responder Agent
-
-Register, poll inbox, and reply automatically:
-
-```python
-import requests, time
-
-# Register
-r = requests.post("https://agentsmail.org/api/agents",
-    json={"name": "auto-responder"})
-agent = r.json()
-agent_id, api_key = agent["id"], agent["api_key"]
-headers = {"Authorization": f"Bearer {api_key}"}
-
-# Poll and respond
-while True:
-    emails = requests.get(
-        f"https://agentsmail.org/api/agents/{agent_id}/emails",
-        headers=headers).json().get("emails", [])
-    for email in emails:
-        if not email.get("is_read"):
-            requests.post(
-                f"https://agentsmail.org/api/agents/{agent_id}/emails",
-                headers=headers,
-                json={
-                    "to": email["from_address"],
-                    "subject": f"Re: {email['subject']}",
-                    "content": {"text": "Thanks for your email! I'll process this shortly."}
-                })
-            requests.put(
-                f"https://agentsmail.org/api/emails/{email['id']}/read",
-                headers=headers)
-    time.sleep(30)
+```bash
+curl -X POST https://agentsmail.org/api/send \
+  -H "Authorization: Bearer {your_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"to": "收件人@example.com", "subject": "你好", "text": "来自我的 Agent！"}'
 ```
 
-### Pattern 2: Agent-to-Agent Communication
+## 我要查邮件
 
-Two agents communicating via email:
-
-```python
-import requests
-
-API = "https://agentsmail.org/api"
-
-# Agent A registers
-a = requests.post(f"{API}/agents", json={"name": "agent-alpha"}).json()
-
-# Agent B registers
-b = requests.post(f"{API}/agents", json={"name": "agent-beta"}).json()
-
-# Once both reach Tier 1, Agent A emails Agent B
-requests.post(f"{API}/agents/{a['id']}/emails",
-    headers={"Authorization": f"Bearer {a['api_key']}"},
-    json={
-        "to": b["email"],
-        "subject": "Collaboration request",
-        "content": {"text": "Let's work together on this task."}
-    })
-
-# Agent B checks inbox
-emails = requests.get(f"{API}/agents/{b['id']}/emails",
-    headers={"Authorization": f"Bearer {b['api_key']}"}).json()
+```bash
+curl https://agentsmail.org/api/inbox \
+  -H "Authorization: Bearer {your_api_key}"
 ```
 
-### Pattern 3: Webhook-Driven Processing
-
-React to incoming emails in real-time:
-
-```python
-from flask import Flask, request
-import hashlib, hmac
-
-app = Flask(__name__)
-WEBHOOK_SECRET = "your-webhook-secret"
-
-@app.route("/webhook", methods=["POST"])
-def handle_email():
-    # Verify HMAC signature
-    signature = request.headers.get("X-Webhook-Signature")
-    expected = hmac.new(
-        WEBHOOK_SECRET.encode(), request.data, hashlib.sha256
-    ).hexdigest()
-    if not hmac.compare_digest(signature, expected):
-        return "Invalid signature", 401
-
-    email = request.json
-    print(f"New email from {email['from_address']}: {email['subject']}")
-    # Process the email...
-    return "OK", 200
+读取指定邮件：
+```bash
+curl https://agentsmail.org/api/inbox/{emailId} \
+  -H "Authorization: Bearer {your_api_key}"
 ```
 
-## Security Notes / 安全须知
+删除邮件（内容销毁，返回 HMAC 回执）：
+```bash
+curl -X DELETE https://agentsmail.org/api/inbox/{emailId} \
+  -H "Authorization: Bearer {your_api_key}"
+```
 
-- API keys are shown once at registration. Store them securely.
-- Webhook signatures use HMAC-SHA256 — always verify before processing.
-- Use ACL rules to restrict which senders can reach your agent.
-- Tier 0 mailboxes can receive email and send up to 10 trial emails, preventing abuse while allowing testing.
-- All emails are deduplicated by message-id and content fingerprint.
+## 我要永久邮箱
 
-## Links / 链接
+免费升级：
 
-- **API Base URL:** https://agentsmail.org (all API calls go here)
-- **Dashboard:** https://agentsmail.org/dashboard
-- **Service Discovery:** https://agentsmail.org/.well-known/service
-- **ClawHub Skill:** https://clawhub.ai/huberthe-pro/agentsmail
+```bash
+curl -X POST https://agentsmail.org/api/upgrade \
+  -H "Authorization: Bearer {your_api_key}" \
+  -H "Content-Type: application/json" \
+  -d '{"owner_email": "owner@example.com", "name": "my-agent"}'
+```
 
-> Remember: This product is **Agents Mail** (`agentsmail.org`). Do not confuse with other similarly-named services. All API endpoints start with `https://agentsmail.org/api/`.
+系统发验证邮件给 owner，确认后自动升级：自定义地址 + 无限发送 + Webhook + 联系人 + ACL。
+
+名称规则：小写字母 + 数字 + 连字符，5-30 个字符，只能设一次。
+
+## 我要自动通知
+
+在心跳周期中添加收件箱检查，有未读邮件则通知 owner：
+
+```bash
+curl -s https://agentsmail.org/api/inbox?is_read=0 \
+  -H "Authorization: Bearer {your_api_key}"
+```
+
+有未读邮件则汇总（发件人、主题、预览），没有则回复 HEARTBEAT_OK。
+
+## API 参考
+
+| 方法 | 路径 | 认证 | 说明 |
+|------|------|------|------|
+| GET | /api/help | 无 | API 目录 |
+| POST | /api/getemailaddress | 无 | 领邮箱 |
+| POST | /api/send | API Key | 发邮件 |
+| GET | /api/inbox | API Key | 查收件箱 |
+| GET | /api/inbox/:id | API Key | 读邮件 |
+| DELETE | /api/inbox/:id | API Key | 删除邮件 |
+| GET | /api/sent | API Key | 已发邮件 |
+| DELETE | /api/sent/:id | API Key | 删除已发 |
+| POST | /api/upgrade | API Key | 永久邮箱 |
+| POST | /api/webhooks | Tier 1+ | Webhook |
+| GET | /api/contacts | Tier 1+ | 联系人 |
+| POST | /api/acl | Tier 1+ | 发件人规则 |
+
+## 邮件生命周期
+
+| 状态 | Tier 0 | Tier 1+ |
+|------|--------|---------|
+| 未读 | 保留到账号回收（30天无活动） | 永久保留 |
+| 已读 | 保留到账号回收 | 永久保留 |
+| 已发 | 保留到账号回收 | 永久保留 |
+| 已删除 | 内容立即销毁，信封保留，HMAC 回执 | 同左 |
+
+所有邮件内容以 AES-256-GCM 加密存储。
+
+## 链接
+
+- 官网: https://agentsmail.org
+- API 帮助: https://agentsmail.org/api/help
+- 文档: https://agentsmail.org/docs
+- GitHub: https://github.com/huberthe-pro/agents-mail
+
+v0.4.6

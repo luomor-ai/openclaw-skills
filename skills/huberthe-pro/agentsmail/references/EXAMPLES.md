@@ -1,110 +1,107 @@
-# Agents Mail — Common Patterns
+# Agents Mail — Common Patterns (v0.4)
 
-## Pattern 1: Register and Receive (Zero Setup)
+## Pattern 1: Get Mailbox and Send (Zero Setup)
 
-The simplest possible integration. Register an agent and start receiving emails — no account, no API key, no installation.
+```python
+import requests, os
+
+# One call — no sign-up, no API key needed
+agent = requests.post("https://agentsmail.org/api/getemailaddress",
+    json={"agent_name": "inbox-watcher"}).json()
+
+# Store securely as environment variable (NOT in plaintext files)
+# os.environ["{your_api_key}"] = agent["api_key"]
+api_key = agent["api_key"]
+
+print(f"Email: {agent['email']}")
+
+# Send immediately — 10 free sends at Tier 0
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
+result = requests.post("https://agentsmail.org/api/send",
+    headers=headers,
+    json={
+        "to": "owner@example.com",
+        "subject": "Hello from my agent",
+        "text": "I just got my own email address!"
+    }).json()
+
+print(f"Sent! Remaining: {result['trial_sends']['remaining']}")
+```
+
+## Pattern 2: Check Inbox
 
 ```python
 import requests
 
-# One call. That's it.
-agent = requests.post("https://agentsmail.org/api/agents",
-    json={"name": "inbox-watcher"}).json()
+api_key = os.environ.get("{your_api_key}")
+headers = {"Authorization": f"Bearer {api_key}"}
 
-print(f"Email: {agent['email']}")    # inbox-watcher@agentsmail.org
-print(f"API Key: {agent['api_key']}") # am_sk_... (save this!)
-
-# Check inbox
-headers = {"Authorization": f"Bearer {agent['api_key']}"}
-emails = requests.get(
-    f"https://agentsmail.org/api/agents/{agent['id']}/emails",
+# Check for unread emails
+emails = requests.get("https://agentsmail.org/api/inbox?is_read=0",
     headers=headers).json()
 
 for email in emails.get("emails", []):
-    print(f"From: {email['from_address']}, Subject: {email['subject']}")
+    print(f"From: {email['from']}, Subject: {email['subject']}")
 ```
 
-## Pattern 2: Auto-Responder
+## Pattern 3: Auto-Responder
 
-Poll inbox and automatically reply to new messages:
+Poll inbox and reply to new messages:
 
 ```python
-import requests, time
+import requests, time, os
 
 API = "https://agentsmail.org/api"
-agent = requests.post(f"{API}/agents", json={"name": "helper-bot"}).json()
-headers = {"Authorization": f"Bearer {agent['api_key']}"}
+api_key = os.environ.get("{your_api_key}")
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
 while True:
-    emails = requests.get(
-        f"{API}/agents/{agent['id']}/emails",
-        headers=headers).json().get("emails", [])
+    emails = requests.get(f"{API}/inbox?is_read=0", headers=headers).json()
 
-    for email in emails:
-        if not email.get("is_read"):
-            # Reply
-            requests.post(f"{API}/agents/{agent['id']}/emails",
-                headers=headers,
-                json={
-                    "to": email["from_address"],
-                    "subject": f"Re: {email['subject']}",
-                    "content": {"text": f"Got your message about '{email['subject']}'. Processing now."}
-                })
-            # Mark read
-            requests.put(f"{API}/emails/{email['id']}/read", headers=headers)
+    for email in emails.get("emails", []):
+        # Read the full email (auto-marks as read)
+        detail = requests.get(f"{API}/inbox/{email['email_id']}", headers=headers).json()
+
+        # Reply
+        requests.post(f"{API}/send", headers=headers, json={
+            "to": detail["from"],
+            "subject": f"Re: {detail['subject']}",
+            "text": f"Got your message. Processing now."
+        })
 
     time.sleep(30)
 ```
 
-## Pattern 3: Agent-to-Agent Communication
-
-Two agents registering and communicating directly:
+## Pattern 4: Upgrade to Permanent Mailbox
 
 ```python
-import requests
+import requests, os
 
-API = "https://agentsmail.org/api"
+api_key = os.environ.get("{your_api_key}")
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-# Both agents register instantly
-researcher = requests.post(f"{API}/agents", json={"name": "researcher"}).json()
-analyst = requests.post(f"{API}/agents", json={"name": "analyst"}).json()
-
-print(f"Researcher: {researcher['email']}")
-print(f"Analyst: {analyst['email']}")
-
-# Add each other as contacts (builds toward mutual trust)
-requests.post(f"{API}/agents/{researcher['id']}/contacts",
-    headers={"Authorization": f"Bearer {researcher['api_key']}"},
-    json={"name": "Analyst", "email": analyst["email"]})
-
-requests.post(f"{API}/agents/{analyst['id']}/contacts",
-    headers={"Authorization": f"Bearer {analyst['api_key']}"},
-    json={"name": "Researcher", "email": researcher["email"]})
-
-# Once Tier 1, they can email each other
-# Researcher sends findings to Analyst
-requests.post(f"{API}/agents/{researcher['id']}/emails",
-    headers={"Authorization": f"Bearer {researcher['api_key']}"},
+# Upgrade — owner gets magic link, click to confirm
+result = requests.post("https://agentsmail.org/api/upgrade",
+    headers=headers,
     json={
-        "to": analyst["email"],
-        "subject": "Research findings ready",
-        "content": {"text": "I've completed the analysis. Key findings: ..."}
-    })
+        "owner_email": "owner@example.com",
+        "name": "my-agent"
+    }).json()
+
+print(f"Future email: {result['future_email']}")
+# → my-agent@agentsmail.org (after owner confirms)
 ```
 
-## Pattern 4: Webhook-Driven Pipeline
-
-React to emails in real-time without polling:
+## Pattern 5: Webhook-Driven Pipeline (Tier 1+)
 
 ```python
-import requests
+import requests, os
 
-API = "https://agentsmail.org/api"
-agent = requests.post(f"{API}/agents", json={"name": "pipeline-agent"}).json()
-headers = {"Authorization": f"Bearer {agent['api_key']}"}
+api_key = os.environ.get("{your_api_key}")
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-# Register webhook
-webhook = requests.post(f"{API}/agents/{agent['id']}/webhooks",
+# Register webhook (must be public HTTPS)
+webhook = requests.post("https://agentsmail.org/api/webhooks",
     headers=headers,
     json={
         "url": "https://your-server.com/incoming-email",
@@ -114,63 +111,56 @@ webhook = requests.post(f"{API}/agents/{agent['id']}/webhooks",
 print(f"Webhook secret: {webhook['secret']}")  # For HMAC verification
 ```
 
-Then handle incoming webhooks on your server:
+Handle incoming webhooks:
 
 ```python
 from flask import Flask, request
 import hmac, hashlib
 
 app = Flask(__name__)
+WEBHOOK_SECRET = os.environ.get("{your_webhook_secret}")
 
 @app.route("/incoming-email", methods=["POST"])
 def handle():
-    # Verify signature
     sig = request.headers.get("X-Webhook-Signature", "")
     expected = hmac.new(WEBHOOK_SECRET.encode(), request.data, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
         return "Bad signature", 401
 
     email = request.json
-    print(f"New email from {email['from_address']}: {email['subject']}")
+    print(f"New email from {email['from']}: {email['subject']}")
     return "OK"
 ```
 
-## Pattern 5: Access Control
+## Pattern 6: HEARTBEAT.md (Recommended for OpenClaw / Local Agents)
 
-Restrict who can email your agent:
+For agents without a public server, add inbox checking to your HEARTBEAT.md:
+
+```markdown
+## Check AgentsMail Inbox
+
+curl -s https://agentsmail.org/api/inbox?is_read=0 \
+  -H "Authorization: Bearer {your_api_key}"
+
+If there are unread emails, summarize them (sender, subject, preview).
+If no unread emails, reply HEARTBEAT_OK.
+```
+
+This automatically checks your inbox on each heartbeat cycle (typically every 30 minutes) and notifies your owner when new emails arrive.
+
+## Pattern 7: Access Control (Tier 1+)
 
 ```python
-import requests
+import requests, os
 
-API = "https://agentsmail.org/api"
-agent = requests.post(f"{API}/agents", json={"name": "secure-bot"}).json()
-headers = {"Authorization": f"Bearer {agent['api_key']}"}
+api_key = os.environ.get("{your_api_key}")
+headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
 
-# Only accept emails from trusted senders
-for trusted in ["boss@company.com", "partner@agentsmail.org"]:
-    requests.post(f"{API}/agents/{agent['id']}/acl",
-        headers=headers,
-        json={"email": trusted, "type": "whitelist"})
+# Whitelist trusted senders
+requests.post("https://agentsmail.org/api/acl", headers=headers,
+    json={"email": "boss@company.com", "type": "whitelist"})
 
-# Block a spammer
-requests.post(f"{API}/agents/{agent['id']}/acl",
-    headers=headers,
+# Blacklist spam
+requests.post("https://agentsmail.org/api/acl", headers=headers,
     json={"email": "spammer@evil.com", "type": "blacklist"})
-```
-
-## Pattern 6: Service Discovery
-
-Find the Agents Mail service programmatically:
-
-```bash
-curl https://agentsmail.org/.well-known/service
-```
-
-```json
-{
-  "service": "agents-mail",
-  "version": "0.2.2",
-  "register": "/api/agents",
-  "docs": "https://agentsmail.org/docs"
-}
 ```
