@@ -1,13 +1,10 @@
 ---
 name: love-advisor
 description: >
-  Your trusted love advisor for navigating the complicated world of modern romance.
-  Get honest, personalized advice on crushes, dating dilemmas, relationship problems,
-  and matters of the heart. Whether you're wondering if they like you back, struggling
-  with commitment issues, or trying to keep the spark alive in a long-term relationship,
-  this AI gives you clear guidance rooted in emotional intelligence and real-world
-  dating experience. Not generic — tailored to your specific love situation.
-  恋爱顾问、感情咨询、爱情建议、情感指导。
+  Love Advisor is an AI relationship guidance tool for people who need grounded love advice
+  instead of vague encouragement. It helps with mixed signals, pacing, exclusivity questions,
+  compatibility doubts, and deciding whether to pursue, pause, or walk away in new or existing
+  relationships. 恋爱建议、关系判断、暧昧分析、追还是放手。
 metadata:
   openclaw:
     emoji: "💕🧭"
