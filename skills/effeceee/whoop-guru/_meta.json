@@ -3,11 +3,16 @@
   "slug": "whoop-guru",
   "displayName": "Whoop Guru",
   "latest": {
-    "version": "8.3.5",
-    "publishedAt": 1774798392311,
-    "commit": "https://github.com/openclaw/skills/commit/ed769a483cdd085ab048c6101f2779d43574883a"
+    "version": "8.3.7",
+    "publishedAt": 1774799246659,
+    "commit": null
   },
   "history": [
+    {
+      "version": "8.3.5",
+      "publishedAt": 1774798392311,
+      "commit": "https://github.com/openclaw/skills/commit/ed769a483cdd085ab048c6101f2779d43574883a"
+    },
     {
       "version": "8.2.6",
       "publishedAt": 1774784714260,

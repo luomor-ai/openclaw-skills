@@ -99,15 +99,6 @@ commands:
     description: 生成健康图表
 
 environment:
-  WHOOP_CLIENT_ID:
-    description: WHOOP OAuth Client ID (required)
-    required: true
-  WHOOP_CLIENT_SECRET:
-    description: WHOOP OAuth Client Secret (required)
-    required: true
-  WHOOP_REFRESH_TOKEN:
-    description: WHOOP refresh token (optional, for env var method)
-    required: false
   OPENCLAW_WORKSPACE:
     description: OpenClaw workspace directory
     required: false

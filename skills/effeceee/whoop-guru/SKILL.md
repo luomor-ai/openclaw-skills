@@ -226,14 +226,11 @@ whoop-guru/
 
 | 变量 | 说明 | 必需 | 默认值 |
 |------|------|------|--------|
-| WHOOP_CLIENT_ID | WHOOP OAuth Client ID | 是 | - |
-| WHOOP_CLIENT_SECRET | WHOOP OAuth Client Secret | 是 | - |
-| WHOOP_REFRESH_TOKEN | WHOOP刷新令牌 | 否 | - |
 | OPENCLAW_WORKSPACE | OpenClaw工作区目录 | 否 | 自动检测 |
 | WHOOP_DATA_DIR | WHOOP数据存储目录 | 否 | 自动检测 |
 | WHOOP_SKILL_DIR | Skill数据目录 | 否 | 自动检测 |
 
-**注意**：WHOOP OAuth 凭证可以通过环境变量或 CLI 参数配置，详见下方配置说明。
+**注意**：WHOOP OAuth 凭证不是环境变量，而是 CLI 参数，详见下方配置说明。
 
 ---
 
