@@ -3,9 +3,15 @@
   "slug": "band-promo-video",
   "displayName": "Band Promo Video",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774604311728,
-    "commit": "https://github.com/openclaw/skills/commit/fff8f673ddea1ada6a79d17affdd80f7f25aa59f"
+    "version": "1.0.3",
+    "publishedAt": 1774639769845,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774604311728,
+      "commit": "https://github.com/openclaw/skills/commit/fff8f673ddea1ada6a79d17affdd80f7f25aa59f"
+    }
+  ]
 }
