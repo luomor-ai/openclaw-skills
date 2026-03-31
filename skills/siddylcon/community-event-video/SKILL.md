@@ -1,6 +1,6 @@
 ---
 name: community-event-video
-version: "1.0.0"
+version: 1.0.2
 displayName: "Community Event Video Maker — Create Block Party, Festival and Local Event Videos"
 description: >
   Community Event Video Maker — Create Block Party, Festival and Local Event Videos.
@@ -27,7 +27,10 @@ description: >
   applications, small-town chambers of commerce filming festival highlights, and
   PTA committees compiling carnival-day memories for yearbook supplements.
   Supports mp4, mov, webm, jpg, png.
-metadata: {"openclaw": {"emoji": "🎪", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
+metadata: {"openclaw": {"emoji": "🎪", "requires": {"env": ["NEMO_TOKEN"], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
+homepage: https://nemovideo.com
+apiDomain: https://mega-api-prod.nemovideo.ai
+repository: https://github.com/nemovideo/nemovideo_skills
 ---
 
 # Community Event Video Maker — Describe the Gathering, Capture the Block
@@ -60,9 +63,9 @@ Token setup if `NEMO_TOKEN` is not set:
 CLIENT_ID="${NEMO_CLIENT_ID:-$(cat ~/.config/nemovideo/client_id 2>/dev/null)}"
 if [ -z "$CLIENT_ID" ]; then
   CLIENT_ID=$(uuidgen 2>/dev/null || echo "client-$(date +%s)-$RANDOM")
-  mkdir -p ~/.config/nemovideo && echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
+  mkdir -p ~/.config/nemovideo & echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
 fi
-curl -s -X POST "$API/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
 ```
 Save `token` as `NEMO_TOKEN`. Expires after 7 days; re-request with same `X-Client-Id`.
 
@@ -84,7 +87,7 @@ Every edit request goes through the SSE workflow. No special syntax needed — n
 | "credits" / "balance" | Balance check §3.3 |
 | "show me what we have" | State query §3.4, show track summary |
 
-**After every edit**, summarize what changed: "✅ Trimmed 5s from the start. Video is now 0:45. Want to add music next?"
+**After every edit**, summarize what changed: "✅ Trimmed 5s from the start. Video is now 0:45. Want to add music next"
 
 ## 3. API Reference
 
@@ -99,18 +102,18 @@ X-Skill-Platform: $SKILL_SOURCE
 
 ### 3.0 Session
 ```bash
-curl -s -X POST "$API/api/tasks/me/with-session/nemo_agent" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/tasks/me/with-session/nemo_agent" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" \
   -d '{"task_name":"editing_session","language":"<lang>"}'
 ```
-Save `session_id`, `task_id`. Browser: `$WEB/workspace/claim?token=$TOKEN&task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
+Save `session_id`, `task_id`. Browser: `$WEB/workspace/claim?task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
 
 ### 3.1 Send Edit (SSE)
 
 Pass user's natural language directly — the backend interprets it:
 ```bash
-curl -s -X POST "$API/run_sse" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/run_sse" \
   -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "Accept: text/event-stream" \
   -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" --max-time 900 \
@@ -123,7 +126,7 @@ SSE: text → show (strip GUI refs); tools → wait silently; heartbeat → "⏳
 **Two-stage generation**: Backend may auto-add BGM/title after raw video. Report raw result immediately, then report enhancements when done.
 
 ### 3.2 Upload
-**File**: `curl -s -X POST "$API/api/upload-video/nemo_agent/me/<sid>" -H "Authorization: Bearer $TOKEN" -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" -F "files=@/path/to/file"`
+**File**: `curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/upload-video/nemo_agent/me/<sid>" -H "Authorization: Bearer $TOKEN" -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" -F "files=@/path/to/file"`
 
 **URL**: same endpoint, `-d '{"urls":["<url>"],"source_type":"url"}'`
 
@@ -131,13 +134,13 @@ Accepts: mp4, mov, avi, webm, mkv, jpg, png, gif, webp, mp3, wav, m4a, aac.
 
 ### 3.3 Credits
 ```bash
-curl -s "$API/api/credits/balance/simple" -H "Authorization: Bearer $TOKEN" \
+curl -s "https://mega-api-prod.nemovideo.ai/api/credits/balance/simple" -H "Authorization: Bearer $TOKEN" \
   -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE"
 ```
 
 ### 3.4 Project State
 ```bash
-curl -s "$API/api/state/nemo_agent/me/<sid>/latest" -H "Authorization: Bearer $TOKEN" \
+curl -s "https://mega-api-prod.nemovideo.ai/api/state/nemo_agent/me/<sid>/latest" -H "Authorization: Bearer $TOKEN" \
   -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE"
 ```
 Draft: `t`=tracks, `tt`=type (0=video, 1=audio, 7=text), `sg`=segments, `d`=duration(ms), `m`=metadata. Show as: `Timeline (3 tracks): 1. Video: clip (0-10s) 2. BGM: Lo-fi (0-10s, 35%) 3. Title: "Intro" (0-3s)`
@@ -145,11 +148,11 @@ Draft: `t`=tracks, `tt`=type (0=video, 1=audio, 7=text), `sg`=segments, `d`=dura
 ### 3.5 Export & Deliver
 Export is free. Verify draft has tracks with segments (§3.4), then:
 ```bash
-curl -s -X POST "$API/api/render/proxy/lambda" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/render/proxy/lambda" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
   -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" \
   -d '{"id":"render_<ts>","sessionId":"<sid>","draft":<json>,"output":{"format":"mp4","quality":"high"}}'
 ```
-Poll `GET $API/api/render/proxy/lambda/<id>` every 30s. Download `output.url`, deliver with task link. Progress: "⏳ Rendering ~30s" → "✅ Video ready!"
+Poll `GET https://mega-api-prod.nemovideo.ai/api/render/proxy/lambda/<id>` every 30s. Download `output.url`, deliver with task link. Progress: "⏳ Rendering ~30s" → "✅ Video ready!"
 
 ### 3.6 Disconnect Recovery
 Don't re-send. Wait 30s → §3.4. After 5 unchanged → report failure.
@@ -166,9 +169,9 @@ Don't re-send. Wait 30s → §3.4. After 5 unchanged → report failure.
 
 ## 5. Conversation Patterns
 
-**Multi-edit sessions**: Users often chain 3-5 edits. After each, confirm and suggest next: "Trimmed ✅. Music next? Or want to add a title?"
+**Multi-edit sessions**: Users often chain 3-5 edits. After each, confirm and suggest next: "Trimmed ✅. Music next Or want to add a title"
 
-**Vague requests**: "make it better" → ask one clarifying question, then act: "Want me to add background music and color-correct, or something else?"
+**Vague requests**: "make it better" → ask one clarifying question, then act: "Want me to add background music and color-correct, or something else"
 
 **Non-video requests**: Redirect politely. "I handle video editing — for images try an image skill."
 
