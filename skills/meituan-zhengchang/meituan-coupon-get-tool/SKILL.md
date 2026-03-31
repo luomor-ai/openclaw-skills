@@ -115,7 +115,63 @@ $PYTHON "$AUTH_SCRIPT" version-check
 
 ---
 
-### Step 1：获取用户 Token（内置认证模块）
+### Step 1：服务协议确认（每次调用前必须检查）
+
+> **法律合规要求**：在使用本 Skill 的任何功能前，必须确认用户已阅读并接受《Skill 服务使用规则》。
+
+**协议文档位置：**`references/terms-of-service.md`
+
+**协议检查命令：**
+
+```bash
+# 检查用户是否已接受协议
+$PYTHON "$AUTH_SCRIPT" terms-check
+```
+
+**返回结果：**
+- `terms_accepted: true` → 用户已接受，可继续认证流程
+- `terms_accepted: false` → 用户未接受，需要引导用户阅读并确认
+
+**协议未接受时的处理流程：**
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│  用户未接受协议时，引导完成协议确认：    │
+│                                            │
+│  1. 展示官方声明并告知《Skill服务使用规则》概要：              │
+│                                            │
+│  "本Skill为美团官方开发并提供，请您放心使用。                  │
+│   使用前请参见并同意《Skill服务使用规则》"       │
+│                                            │
+│  2. 询问用户并合并接受流程：              │
+│  "请问您是否阅读并接受《Skill服务使用规则》？          │
+│   回复 '是' 或 '接受' 表示接受，        │
+│   回复 '否' 或 '拒绝' 表示不接受，      │
+│   回复 '查看全文' 查看完整规则内容。    │
+│   您也可以直接输入手机号，视为接受规则   │
+│   并开始登录认证。"                      │
+│                                            │
+│  3. 用户输入'查看全文'时：                │
+│   [使用Read工具读取并展示references/terms-of-service.md全文]│
+│   → 展示完成后重新询问是否接受            │
+│                                            │
+│  4. 用户接受后（回复'是'/接受 或 输入手机号）： │
+│   $PYTHON "$AUTH_SCRIPT" terms-accept      │
+│   → 如果用户直接输入手机号，跳过询问直接发送验证码│
+│   → 如果用户回复'是'/接受'，再请用户输入手机号  │
+│                                            │
+│  5. 用户拒绝后执行：                         │
+│   $PYTHON "$AUTH_SCRIPT" terms-decline         │
+│   → 告知用户无法使用服务，结束对话       │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+> **重要：**用户接受协议后，`terms_accepted` 状态会持久化存储在本地 Token 文件中，
+> 同一设备后续调用无需重复确认。如需撤销接受，可使用 `terms-decline` 命令。
+
+---
+
+### Step 2：获取用户 Token（内置认证模块）
 
 > 本 Skill 内置美团账号认证能力（`scripts/auth.py`），无需依赖外部 Skill。
 
@@ -140,7 +196,7 @@ PHONE_MASKED=$(echo "$VERIFY_RESULT" | $PYTHON -c "import sys,json; d=json.load(
 您还未登录美团账号，需要先完成验证才能领取权益。
 请告诉我您的手机号，我来帮您发送验证码。
 ```
-按如下流程完成登录，然后重新执行 token-verify 获取有效 Token：
+按如下登录流程完成登录，然后重新执行 token-verify 获取有效 Token：
 
 **登录流程（发送验证码）：**
 ```bash
@@ -191,7 +247,7 @@ $PYTHON "$AUTH_SCRIPT" verify --phone <手机号> --code <6位验证码>
 
 ---
 
-### Step 2：执行发券（领取权益）
+### Step 3：执行发券（领取权益）
 
 ```bash
 ISSUE_RESULT=$($PYTHON "$ISSUE_SCRIPT" --token "$USER_TOKEN" --phone-masked "$PHONE_MASKED")
@@ -252,7 +308,7 @@ ISSUE_RESULT=$($PYTHON "$ISSUE_SCRIPT" --token "$USER_TOKEN" --phone-masked "$PH
 
 ---
 
-### Step 3：查询历史领券记录（可选，用户主动请求时执行）
+### Step 4：查询历史领券记录（可选，用户主动请求时执行）
 
 **触发词**：用户询问「我领了什么券」、「查一下我的领券记录」、「XX 那天发了什么券」等。
 
@@ -400,3 +456,4 @@ $PYTHON "$AUTH_SCRIPT" clear-device-token
 - 发放接口使用线上外网域名（`peppermall.meituan.com`），无需内网环境即可访问
 - **发券失败（success=false）后，必须立即向用户展示失败原因，流程到此结束，禁止继续执行 Step 3 查询**；Step 3 仅在用户主动询问历史记录时才可调用
 - **安全验证（20010）处理**：send-sms 返回 `error=SMS_SECURITY_VERIFY_REQUIRED` 时，**必须从脚本 JSON 输出的 `redirect_url` 字段取值作为跳转链接**，禁止自行拼装或猜测链接；若 `redirect_url` 为空则提示用户稍后重试
+- **展示协议全文时必须展示原文**：当用户要求查看《Skill 服务使用规则》全文时，必须使用 Read 工具读取 `references/terms-of-service.md` 原文展示，不得精简、概括或修改内容
