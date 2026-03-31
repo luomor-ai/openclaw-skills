@@ -3,13 +3,10 @@ import re
 import json
 import sys
 import subprocess
-import os
 
-# API 配置 - 支持环境变量覆盖
-# 默认使用 EarlyData (mi.earlydata.com) 第三方API服务
-API_URL = os.environ.get("TB_MONTH_SALE_API_URL", "https://mi.earlydata.com/monthsale")
-API_TOKEN = os.environ.get("TB_MONTH_SALE_API_TOKEN", "earlydata2026")
-API_VERSION = os.environ.get("TB_MONTH_SALE_API_VERSION", "6.0")
+# API 配置
+API_URL = "https://mi.earlydata.com/monthsale"
+API_VERSION = "6.0"
 
 # 检查依赖库
 def check_dependencies():
@@ -68,17 +65,13 @@ async def get_tb_month_sale(item_id: str = None, item_url: str = None) -> str:
     查询淘宝/天猫商品月销量
     
     本函数通过调用第三方API服务提供商 EarlyData (mi.earlydata.com) 获取商品月销量数据。
-    支持通过环境变量配置API参数：
-    - TB_MONTH_SALE_API_URL: API端点URL (默认: https://mi.earlydata.com/monthsale)
-    - TB_MONTH_SALE_API_TOKEN: API认证Token (默认: earlydata2026)
-    - TB_MONTH_SALE_API_VERSION: API版本 (默认: 6.0)
     
     参数：
     item_id: 商品ID（与 item_url 二选一）
     item_url: 商品链接（支持淘宝/天猫链接，自动解析ID）
     
     返回：
-    查询结果字符串
+    商品月销量字符串
     """
     
     # 1. 参数校验：提取商品ID
@@ -99,7 +92,6 @@ async def get_tb_month_sale(item_id: str = None, item_url: str = None) -> str:
     try:
         params = {
             "itemId": item_id,
-            "token": API_TOKEN,
             "v": API_VERSION
         }
         
@@ -112,8 +104,18 @@ async def get_tb_month_sale(item_id: str = None, item_url: str = None) -> str:
         if not data:
             return "查询失败：该商品不存在或已下架，请确认商品ID/链接是否正确"
         
-        # 根据实际API返回格式解析数据
-        return f"查询成功！\n商品ID：{item_id}\n返回数据：{json.dumps(data, ensure_ascii=False)}"
+        # 检查API返回状态
+        if not data.get("success", False):
+            error_msg = data.get("message", data.get("code", "未知错误"))
+            return f"查询失败：{error_msg}"
+        
+        # 提取月销量数据 (biz30day)
+        month_sale = data.get("data", {}).get("biz30day")
+        if month_sale is None:
+            return "查询失败：API返回数据格式异常，未找到月销量信息"
+        
+        # 返回简化结果
+        return f"商品ID：{item_id} 的月销量为：{month_sale}"
     
     except requests.exceptions.Timeout:
         return "查询失败：网络请求超时，请稍后重试"

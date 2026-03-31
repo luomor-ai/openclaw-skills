@@ -1,12 +1,12 @@
 ---
 name: get-tb-month-sale
 description: 查询阿里平台（淘宝/天猫）商品月销量，支持商品ID或链接输入，返回月销量数据
-version: 1.0.4
+version: 1.1.3
 author: tom.yan@earlydata.com
 permissions: 网络访问权限（用于请求第三方API服务）
 dependencies: requests
 api_provider: EarlyData (mi.earlydata.com)
-api_usage: 本技能通过调用第三方API服务获取数据，使用预置API Token进行认证
+api_usage: 本技能通过调用第三方API服务获取数据，认证由服务端处理
 ---
 
 # Get Taobao Month Sale Skill（查询淘宝商品月销量技能）
@@ -40,7 +40,6 @@ api_usage: 本技能通过调用第三方API服务获取数据，使用预置API
 **API 配置信息:**
 - **API Endpoint:** `https://mi.earlydata.com/monthsale`
 - **API 版本:** 6.0
-- **认证方式:** Token 认证
 - **默认凭证:** 使用预置的API Token进行认证
 
 **数据隐私与安全:**
