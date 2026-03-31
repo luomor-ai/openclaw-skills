@@ -1,6 +1,6 @@
 ---
 name: coding-prompt
-version: "1.0.2"
+version: "1.1.0"
 description: AI coding prompt optimizer and coach. This skill should be used whenever the user is writing programming prompts or instructions to an AI during active coding sessions— including when starting new features, correcting AI's direction, reviewing code, or requesting tests. Trigger when: explicit request to optimize/improve/refine a prompt, the user activates this skill (激活编程提示词), or during coding tasks where instructions to AI are vague, missing constraints, missing acceptance criteria, or could benefit from prompt engineering best practices. Also trigger when the user says "更新技能" or "update skill" to evolve this skill's knowledge base. Do NOT trigger for non-coding prompts or general chat.
 ---
 
@@ -48,6 +48,7 @@ read_file(references/patterns.md)
 read_file(references/templates.md)
 read_file(references/anti-patterns.md)
 read_file(references/structure.md)
+read_file(references/learnings.md)
 ```
 Then run through the checklist and apply principles to rewrite the prompt.
 
@@ -88,46 +89,78 @@ Once activated (Mode 1 triggered), the skill remains active for the rest of the 
 ## 7. Evolution Protocol / 进化协议
 
 > Trigger: 更新技能 / update skill
+> Target: `references/learnings.md` ONLY
+
+### File Permission Matrix
+
+| File | Permission | Reason |
+|------|-----------|--------|
+| `SKILL.md` | 🔒 **READ-ONLY** | Constitution — defines the skill |
+| `references/checklist.md` | 🔒 **READ-ONLY** | Structural checklist — completeness over flexibility |
+| `references/principles.md` | 🔒 **READ-ONLY** | Axiom-level rules — universal best practices |
+| `references/patterns.md` | 🔒 **READ-ONLY** | Communication mechanics — objective patterns |
+| `references/anti-patterns.md` | 🔒 **READ-ONLY** | Curated reference — grow via learnings promotion |
+| `references/templates.md` | 🔒 **READ-ONLY** | Workflow structure — behavioral consistency |
+| `references/structure.md` | 🔒 **READ-ONLY** | Architecture wisdom — condensed condition→action |
+| `references/learnings.md` | ✅ **APPEND-ONLY** | Personal experience layer — the sole evolution target |
+
+**Rule**: Any attempt to modify files outside `learnings.md` is a violation. Refuse and redirect to learnings.md.
 
 ### Step 1: Review
 
-Analyze the current coding session for patterns, mistakes, or insights that could become new rules or improve existing ones.
+Read `references/learnings.md` first to understand existing experience. Then analyze the current coding session for:
+- Patterns that worked well and are **reusable** (not one-off)
+- Mistakes or pitfalls worth **documenting as warnings**
+- Personal preferences or conventions discovered during collaboration
+
+**Filter criteria** — only extract experiences that meet ALL of:
+1. **Reusable**: applicable to future sessions, not specific to one task
+2. **Non-redundant**: not already covered by existing rules in SKILL.md or references/
+3. **Actionable**: can be stated as a clear rule or guideline
 
 ### Step 2: Propose
 
-Present a structured proposal with three sections:
+Present a structured proposal in the format of `learnings.md` sections:
 
 ```
-## Proposed Changes
+## 经验沉淀提案
 
-### Add (新增)
-- [rule summary] — <brief reason>
+### 被验证有效的模式
+- [模式名称]
+  - **规则**: <具体做法，一句话>
+  - **触发场景**: <什么情况下适用>
+  - **来源**: <本次会话的什么具体情况>
 
-### Modify (修改)
-- [existing rule name]: <what to change> — <reason>
+### 反模式（踩过的坑）
+- [问题名称]
+  - **表现**: <AI容易犯的具体错误>
+  - **预防**: <在prompt中加什么约束>
+  - **来源**: <本次会话的具体情况>
 
-### Remove (删除)
-- [existing rule name]: <reason for removal>
+### 个人偏好
+- [偏好项]
+  - **规则**: <具体偏好描述>
 ```
+
+If a section has no content, omit it from the proposal.
 
 ### Step 3: Confirm (MANDATORY)
 
 **Wait for explicit user confirmation before making ANY changes.** This is the highest priority rule in this skill.
 
-### Step 4: Output Change Proposal
+### Step 4: Write to learnings.md
 
-After confirmation, output a **complete change proposal** — full file content with changes applied, clearly marked (e.g., `+` for added lines, `-` for removed lines). **Do NOT directly modify skill files at runtime.** The skill bundle is read-only during execution; changes must be applied by the user or the hosting platform.
-
-1. Output the complete revised file content for each affected file (SKILL.md or references/)
-2. Estimate the new total line count and issue a **warning** if it exceeds 500 lines (SKILL.md + all reference files combined)
-3. If over 500 lines: include a consolidation suggestion (merge similar rules, remove redundancy) in the proposal
-4. Indicate the new `version` value for SKILL.md frontmatter
-5. Report: estimated new line count, files changed, and recommended version bump
+After confirmation:
+1. Read current `references/learnings.md`
+2. Structure the new content to match existing format (consistent style, concise wording)
+3. Check if any new entry **overlaps or supersedes** an existing entry — if so, consolidate by updating the existing entry rather than adding a duplicate
+4. Append or update entries in the appropriate section
+5. Update the version number and "最后更新" date in the header
+6. Write the complete revised file
 
 ### Anti-Bloat Guidelines
 
-- **Soft limit**: ~500 lines total (SKILL.md + all references/ files combined). Exceeding this triggers a warning and consolidation suggestion, but does NOT block changes.
-- **Prefer updating** existing rules over adding new ones
-- **When adding**: evaluate if any existing rule can be merged or removed to make room
-- **Example scope**: principles.md and anti-patterns.md may include Weak → Strong examples. Do NOT add verbose case studies or multi-paragraph narratives.
-- **Periodic audit**: recommend reviewing all rules for relevance every 6 months
+- **Architect-level refinement**: Each entry must be distilled with the precision of a senior architect — abstract the pattern, not the incident. One insight per entry, no padding.
+- **Entry format**: Each entry must be 2-4 lines max. No verbose narratives, no multi-paragraph case studies.
+- **Consolidation over accumulation**: When a new entry overlaps an existing one, merge and refine rather than append. The goal is a growing body of wisdom, not a growing file.
+- **Style consistency**: All entries must follow the same format as existing ones. Do not introduce new section types.
