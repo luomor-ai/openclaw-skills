@@ -1,77 +1,89 @@
-# 🧠 Spark Memory — Persistent Intelligence for OpenClaw Agents
+# 🧠 Spark — Intelligence Layer for OpenClaw Agents
 
-**Your agent forgets everything when the session ends. Spark fixes that.**
+**Your agent starts from zero every session. Spark makes it compound.**
 
-Spark gives your OpenClaw agent a memory that compounds. Not flat storage — a brain that reflects, learns patterns, and gets smarter every day.
-
-## What Makes Spark Different
-
-| Feature | memory-core | memory-lancedb | **Spark** |
-|---------|------------|----------------|-----------|
-| Store memories | ✅ (files) | ✅ (vectors) | ✅ (vectors) |
-| Semantic search | ❌ | ✅ | ✅ |
-| Importance scoring | ❌ | Static 0.7 | **Dynamic (1-10)** |
-| Nightly reflection | ❌ | ❌ | **✅ Synthesizes patterns** |
-| Recency × Relevance scoring | ❌ | ❌ | **✅ Stanford formula** |
-| Cross-session learning | ❌ | ✅ | **✅ + reflection** |
-| Episode types | ❌ | Basic categories | **7 types** |
-| Multi-user support | ❌ | ❌ | **✅ Org-scoped** |
-| Survives device loss | ❌ | ❌ | **✅ Cloud-backed** |
-| Selective capture | ❌ | Trigger-based | **✅ Intelligence-based** |
+Spark isn't memory — it's a brain. It records what matters, reflects on it overnight, detects patterns you missed, and wakes up smarter the next day. The more your agent works, the more it knows.
 
 ## Install
 
 ```bash
-npx clawhub install spark-memory
+openclaw skills install spark-memory
 ```
 
-## Setup
+Your agent handles the rest — 30-second setup, email and password, done.
 
-### Quick Setup (in terminal)
+---
 
-```bash
-# Run the signup script
-./scripts/spark-signup.sh
+## What Your Agent Becomes
 
-# Set the credentials it gives you
-export SPARK_API_KEY="your-key"
-export SPARK_ORG_ID="your-org-id"
+**Without Spark:** A smart assistant that forgets everything when the session ends. Every conversation starts from zero. You repeat yourself constantly.
 
-# Restart OpenClaw
-openclaw gateway restart
-```
+**With Spark:** An intelligence that accumulates. It knows your clients, your decisions, your patterns. It notices things you don't. It tells you what it figured out overnight before you even ask.
 
-### Or Sign Up Online
+### Week 1 — It listens
+Your agent starts recording what matters. Not everything — just decisions, preferences, corrections, important facts. Each one scored by importance.
 
-Create a free account at [zellin.ai/signup](https://zellin.ai/signup), then set the environment variables shown on the confirmation page.
+### Week 2 — It reflects
+Every night, Spark synthesizes the day's events into insights: "This client always pays late." "Tuesdays are your busiest day." "You've been undercharging for emergency work." Patterns emerge from data.
+
+### Month 1 — It thinks ahead
+Your agent opens sessions with things it figured out overnight: "I noticed your cash flow dips every third week — that lines up with when property management payments come in." Not because you asked. Because it connected the dots.
+
+### Month 3 — It knows your business
+It would take a new employee months to learn what Spark knows in weeks. Client histories, pricing patterns, team dynamics, seasonal trends — all synthesized, all searchable, all growing.
+
+---
 
 ## How It Works
 
-1. **Session starts** → Spark recalls relevant memories from previous sessions
-2. **During conversation** → Spark records important facts, preferences, decisions
-3. **Session ends** → Spark saves a conversation summary
-4. **Every night** → Spark reflects on accumulated memories, synthesizes patterns, detects recurring behaviors
-5. **Next session** → Your agent is smarter than yesterday
+```
+You work with your agent normally
+        ↓
+Spark records decisions, facts, corrections (importance-scored)
+        ↓
+Every night: 6-phase intelligence cycle
+  → Synthesize insights from episodes
+  → Strip emotional bias from corrections  
+  → Detect repeated workflows
+  → Find creative cross-domain connections
+  → Filter noise automatically
+  → Generate morning briefing
+        ↓
+Next session: your agent leads with what it learned
+```
 
-Day 1: knows nothing.
-Day 30: knows your preferences, your clients, your patterns.
-Day 365: knows more about your operations than you remember yourself.
+## What's Under the Hood
 
-## Architecture
+- **Dynamic importance scoring (1-10)** — not all information is equal
+- **Nightly reflection** — Stanford Generative Agents architecture, adapted for business
+- **Dream cycle** — 6 REM-inspired phases that process accumulated knowledge
+- **Proactive morning insights** — agent opens with overnight discoveries
+- **Noise filtering** — low-value data gets archived automatically
+- **Reflection dedup** — same insight doesn't get stored five times
+- **Org-scoped** — multiple agents share one unified intelligence
+- **Cloud-backed** — survives device changes and session resets
 
-Based on Stanford's ["Generative Agents" paper](https://arxiv.org/abs/2304.03442) with extensions:
-- Memory Stream (episodes) → Reflection (synthesis) → Patterns (recurring behaviors)
-- Retrieval scored by Recency × Importance × Relevance
-- Org-scoped: multiple users feed one shared memory
-- Cloud-backed: memories survive device changes
+## Built For
+
+- **Freelancers and solopreneurs** who want their agent to remember client preferences across sessions
+- **Service businesses** running field ops, scheduling, client management — where tribal knowledge gets lost
+- **Teams** where multiple agents need shared context about the same clients and projects
+- **Anyone tired of re-explaining the same things** to their AI every session
+
+## Privacy
+
+- Data encrypted in transit (HTTPS) and isolated per organization (Row Level Security)
+- Agent instructed never to record passwords, SSNs, or health data
+- Delete your data anytime — hello@zellin.ai
+- [Privacy policy](https://zellin.ai) | [Source code](https://github.com/zellinun/spark-memory-skill)
 
 ## Free Tier
 
 - 100 episodes/month
-- Basic recall
-- Nightly reflection included
-- [Sign up at zellin.ai](https://zellin.ai)
+- Nightly reflection + dream cycle included
+- Proactive morning insights included
+- [zellin.ai](https://zellin.ai)
 
 ## License
 
-MIT
+MIT-0 — Free to use, modify, and redistribute.

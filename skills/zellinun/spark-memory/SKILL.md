@@ -1,32 +1,33 @@
 ---
 name: spark-memory
-description: "Persistent memory that learns. Records what matters, reflects overnight, recalls with intelligence. Powered by Spark by Zellin (https://zellin.ai) — memory infrastructure for AI agents."
+description: "Intelligence layer that compounds. Records what matters, reflects overnight, detects patterns, and wakes up smarter. 6-phase dream cycle, proactive morning insights, noise filtering — your agent doesn't just remember, it thinks. Powered by Spark (https://zellin.ai)."
 metadata:
   openclaw:
     emoji: "🧠"
+    skillKey: "spark-memory"
+    primaryEnv: "SPARK_API_KEY"
     requires:
       anyBins: ["curl", "python3"]
       env: ["SPARK_API_KEY", "SPARK_ORG_ID"]
+      config: ["skills.entries.spark-memory"]
 ---
+
+> **What this skill does at setup:** The optional signup script (`scripts/spark-signup.sh`) creates a free account at zellin.ai, then — with your explicit consent (two y/n prompts) — writes `SPARK_API_KEY` and `SPARK_ORG_ID` into your OpenClaw config (`skills.entries.spark-memory.env` in `~/.openclaw/openclaw.json`) and restarts the gateway. You can skip this entirely and set the credentials manually. During normal use, recorded memories are sent to zellin.ai's API over HTTPS for storage and retrieval. See Privacy & Data Handling below for details.
 
 # Spark Memory
 
 ## First Time Setup
 
-If `SPARK_API_KEY` or `SPARK_ORG_ID` are not set, the user needs a free Spark account. Do this:
+If `SPARK_API_KEY` or `SPARK_ORG_ID` are not set, activate memory automatically:
 
 1. Tell the user: "I need to activate my memory. Takes 30 seconds — just need an email and password."
 2. Run: `scripts/spark-signup.sh`
-3. The script prompts for email and password, creates the account, and returns credentials.
-4. Help the user set the environment variables — either:
-   - Add to their shell profile (`export SPARK_API_KEY=...` in ~/.zshrc or ~/.bashrc)
-   - Or add to their OpenClaw config file under `"env": {}`
-5. Restart the gateway: `openclaw gateway restart`
-6. Confirm: "Memory is active. I'll remember our conversations from now on."
+3. The script handles everything: creates the account, saves credentials to OpenClaw config, and restarts the gateway. **No manual steps needed.**
+4. Confirm: "Memory is active. I'll remember our conversations from now on."
 
-**Alternative:** They can also sign up at https://zellin.ai/signup if they prefer a web form.
+That's it. The user just provides an email and password — the script does the rest.
 
-**Important:** Do NOT ask the user to paste their API key into chat. Direct them to set it as an environment variable or in their config file.
+**Important:** Do NOT ask the user to paste their API key into chat. The signup script writes credentials directly to the OpenClaw config.
 
 ---
 
@@ -44,7 +45,29 @@ You have access to persistent memory powered by Spark. This means you can rememb
 
 ## Session Start
 
-At the beginning of every session, run `scripts/spark-recall.sh` with the user's first message to load relevant memories. Inject the results into your context. This gives you continuity — you'll know what happened in previous sessions.
+At the beginning of every session, do TWO things:
+
+### 1. Check for overnight insights
+
+Run `scripts/spark-morning.sh` to see if Spark learned something overnight.
+
+```bash
+scripts/spark-morning.sh
+```
+
+If `has_morning` is true and `is_recent` is true, **lead with an insight from the morning context.** Don't dump the whole thing — pick the most interesting or actionable finding and mention it naturally. Examples:
+
+- "I was thinking about your numbers last night — did you know your cash flow gap from late-paying clients is costing you around $5,000 a week?"
+- "I noticed a pattern — your busiest days are Tuesday and Thursday, but you're scheduling the same crew size every day."
+- "Something came up in my overnight analysis — you've got test data mixed in with your real leads. Want me to help clean that up?"
+
+Be conversational, not robotic. This is the moment the user realizes the agent is actually learning. Make it count.
+
+If `has_morning` is false or not recent, skip this step silently.
+
+### 2. Recall relevant memories
+
+Run `scripts/spark-recall.sh` with the user's first message to load relevant memories.
 
 ```bash
 scripts/spark-recall.sh "the user's first message or topic"
