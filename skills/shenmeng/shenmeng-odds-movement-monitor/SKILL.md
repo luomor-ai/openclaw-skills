@@ -8,6 +8,11 @@ metadata:
 
 # Odds Movement Monitor 盘口变化监控
 
+> 💰 **本 Skill 已接入 SkillPay 付费系统**
+> - 每次调用费用：**0.01 USDT**
+> - 支付方式：BNB Chain USDT
+> - 请先确保账户有足够余额
+
 实时监控体育博彩盘口变化，捕捉机构态度转变和异常信号。
 
 ## 核心能力
