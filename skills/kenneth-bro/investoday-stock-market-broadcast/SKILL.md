@@ -1,7 +1,7 @@
 ---
 name: investoday-stock-market-broadcast
 title: "盘面行情播报"
-version: 1.1.0
+version: 1.3.0
 description: 面向A股盘面播报与市场情绪快评，聚焦市场涨跌分布、指数表现、热点主线与盘中阶段解读。基于今日投资金融数据接口，输出口播化、结构化的盘面行情播报。触发词：盘面播报、早盘、午盘、盘中、收盘后、市场怎么样、盘面总结。
 tags:
   - market-broadcast
@@ -17,9 +17,7 @@ metadata:
     emoji: "🕒"
     category: "finance"
     requires:
-      env: ["INVESTODAY_API_KEY"]
       skills: ["investoday-finance-data"]
-    primaryEnv: "INVESTODAY_API_KEY"
 ---
 
 # 🕒 盘面行情播报
@@ -54,13 +52,13 @@ metadata:
 
 ## 前置依赖
 
-本 Skill 依赖 `investoday-finance-data`（今日投资金融数据）Skill 获取实时金融数据，调用方式以该 Skill 为准。
+本 Skill 依赖 `investoday-finance-data`（今日投资金融数据）Skill 获取实时金融数据。
 
-确保 `INVESTODAY_API_KEY` 已配置为环境变量。
+基础 API 调用与底层执行方式统一以该 Skill 为准，业务 Skill 不重复展开底层接入细节。
 
 ## 工具说明
 
-以下为本 Skill 使用的数据接口。在 System Prompt 中以 `工具ID` 标识调用。
+以下为本 Skill 通过 `investoday-finance-data` 使用的数据接口。在 System Prompt 中以 `工具ID` 标识调用。
 
 ### 市场核心工具
 
@@ -199,16 +197,6 @@ Agent 获取数据后，按以下 4 步框架进行结构化分析：
 **以上内容基于实时行情与公开资讯整理，存在时效性，仅供参考。**
 ```
 
-## 证据约束（必须遵守）
-
-1. 每个盘面结论至少引用 2 个市场证据，优先使用“市场广度 + 指数表现”组合
-2. 不允许用单条新闻代替盘面结论，新闻只能作为热点补充
-3. 时间口径必须明确，如“当前盘中”“近24小时新闻”
-4. 不推荐具体个股，不给买卖点、目标价、仓位建议或交易时点
-5. 若非交易时间，不输出完整盘面结构，直接温和提示即可
-6. 若指数数据缺失，可说明“指数实时数据暂缺”，但不得编造市场表现
-7. 播报应简洁、口语化，不写成长篇研究报告
-
 ## 执行示例
 
 用户说：“现在市场怎么样，来一段午盘播报。”
@@ -224,7 +212,3 @@ Agent 获取数据后，按以下 4 步框架进行结构化分析：
 - 仅通过今日投资 API 查询公开市场数据
 - 不记录、不存储用户的查询记录
 - 分析结论仅供参考，不构成投资建议
-
-## Keywords
-
-盘面播报, 市场情绪, 早盘, 午盘, 盘中, 收盘后, 热点轮动, 市场总结, market broadcast, market sentiment
