@@ -1,11 +1,17 @@
 {
   "owner": "mohit21gojs",
   "slug": "unipile-instagram-sdk",
-  "displayName": "Unipile Instagram SDK",
+  "displayName": "Unipile Instagram Sdk",
   "latest": {
-    "version": "1.0.2",
-    "publishedAt": 1774557787841,
-    "commit": "https://github.com/openclaw/skills/commit/306e298e3743cfc568829890cf9fa675cada4b02"
+    "version": "1.0.6",
+    "publishedAt": 1774646610413,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.2",
+      "publishedAt": 1774557787841,
+      "commit": "https://github.com/openclaw/skills/commit/306e298e3743cfc568829890cf9fa675cada4b02"
+    }
+  ]
 }
