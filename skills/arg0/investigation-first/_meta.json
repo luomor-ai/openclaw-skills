@@ -1,0 +1,11 @@
+{
+  "owner": "arg0",
+  "slug": "investigation-first",
+  "displayName": "Investigation First",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774708249748,
+    "commit": null
+  },
+  "history": []
+}
