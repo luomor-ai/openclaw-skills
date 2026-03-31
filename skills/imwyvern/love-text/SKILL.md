@@ -1,13 +1,10 @@
 ---
 name: love-text
 description: >
-  The ultimate love texting assistant. Generate romantic messages, flirty good morning
-  texts, sweet goodnight messages, anniversary wishes, love letters, and heartfelt
-  apologies for your partner. Never run out of creative ways to express your feelings.
-  Adapts to your relationship stage — from first crush butterflies to decades-long
-  marriage. Supports multiple languages and cultural styles. Make them smile with the
-  perfect love text every time.
-  恋爱短信、情话生成、早安晚安、表白文案、情书撰写。
+  Love Text is an AI romantic texting assistant for people who want sweet words, caring
+  check-ins, and heartfelt messages that sound personal instead of copied. It helps craft love
+  notes, good morning texts, apology messages, anniversary captions, and affectionate replies
+  for new love and long-term relationships. 情话生成、浪漫短信、甜蜜文案、恋爱聊天。
 metadata:
   openclaw:
     emoji: "💌💬"
