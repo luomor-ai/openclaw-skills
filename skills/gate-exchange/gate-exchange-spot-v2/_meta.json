@@ -1,0 +1,11 @@
+{
+  "owner": "gate-exchange",
+  "slug": "gate-exchange-spot-v2",
+  "displayName": "Gate Exchange Spot",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774689590526,
+    "commit": null
+  },
+  "history": []
+}
