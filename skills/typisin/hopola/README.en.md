@@ -41,6 +41,18 @@ python3 scripts/build_release_zip.py
 
 - Generation tasks use preferred fixed tool first.
 - If unavailable, fallback discovery uses `/api/gateway/mcp/tools`.
+- If users provide only session-uploaded images (without public URLs), Hopola resolves them first via upload subskill and backfills accessible URLs before cutout/product-image/3D stages.
+- In product-image stage, when `product_image_url` is non-URL input (local path, attachment reference, markdown image source), Hopola must upload first and block generation until URL backfill succeeds.
+- Product-image stage requires `source_image_confirmed=true`, and the source must be user-provided or explicitly user-confirmed as the real product image; otherwise return `PRODUCT_IMAGE_UNCONFIRMED_SOURCE` and stop before tool call.
+- Before product-image generation call, Hopola runs prechecks for tool availability, source URL accessibility, and required args completeness (`image_list`, `prompt`, `output_format`, `size`).
+- For product-image generation, `image_list` must contain only the confirmed `product_image_url`; placeholder, proxy, or generated substitutes are forbidden.
+- If any precheck fails, Hopola returns unified `structured_error` (`code`, `stage`, `message`, `details`, `retry_suggestions`) for direct OpenClaw retry handling.
+
+## Upload Policy
+
+- Upload stage uses MAAT direct upload only via `scripts/maat_upload.py`.
+- Gateway upload endpoint is not used as primary or fallback in current strategy.
+- Returned URLs are validated for accessibility and only stable reachable links are delivered.
 
 ## Release Deliverables
 

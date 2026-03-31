@@ -7,11 +7,12 @@ from zipfile import ZIP_DEFLATED, ZipFile
 
 def should_include(path: Path) -> bool:
     excluded_names = {"dist", "__pycache__", ".git"}
+    excluded_suffixes = {".zip", ".pyc", ".pyo"}
     if any(part in excluded_names for part in path.parts):
         return False
     if path.name in {".DS_Store"}:
         return False
-    if path.suffix == ".zip":
+    if path.suffix.lower() in excluded_suffixes:
         return False
     return True
 

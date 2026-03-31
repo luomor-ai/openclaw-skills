@@ -1,27 +1,31 @@
 ---
 name: "hopola-report"
-description: "拼装统一 Markdown 结果报告。Invoke when pipeline or stage execution needs readable delivery output."
+description: "Builds a unified Markdown delivery report. Invoke when pipeline or stage execution needs readable output."
 ---
 
 # Hopola Report
 
-## 作用
-将检索、生成、上传结果组装为标准 Markdown 报告。
+## Purpose
+Assemble search, generation, and upload outputs into a standard Markdown report.
 
-## 触发时机
-- 全流程完成后输出最终结果。
-- 阶段模式下需要单独出报告。
+## Trigger
+- Output final delivery after full pipeline execution.
+- Generate a standalone report in stage mode.
 
-## 输入
+## Inputs
 - `search_result`
 - `generation_result`
 - `upload_result`
 - `errors`
+- `response_language`
 
-## 输出
+## Output
 - `markdown_report`
 
-## 规则
-- 必含章节：检索摘要、生成结果、上传结果、安全告警、结论建议。
-- 失败场景必须展示阶段、原因、重试结论与下一步建议。
-- 若命中 403001，必须展示 `redirect_url`。
+## Rules
+- Required sections: search summary, generation outputs, upload results, security alerts, and conclusion with next steps.
+- For failures, always show failed stage, root cause, retry conclusion, and next recommendation.
+- If `403001` is returned, include `redirect_url`.
+- Language must follow `response_language`; if missing, infer from latest user message.
+- Never default to Chinese; only use Chinese when the user language is Chinese.
+- Rewrite any upstream mixed-language text into one consistent target language before final output.

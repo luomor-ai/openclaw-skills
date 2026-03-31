@@ -14,8 +14,7 @@
     "key_value": "",
     "endpoints": {
       "mcp_tools": "/api/gateway/mcp/tools",
-      "mcp_call": "/api/gateway/mcp/call",
-      "upload_image": "/api/gateway/upload/image"
+      "mcp_call": "/api/gateway/mcp/call"
     }
   },
   "search": {
@@ -123,35 +122,60 @@
     }
   },
   "product_image_generation": {
-    "preferred_tool_name": "api_product_background_replace",
-    "fallback_tool_name": "image2image_edit_hydra_hoppa",
+    "preferred_tool_name": "image_praline_edit_v2",
+    "fallback_tool_name": "image_praline_edit_v2",
     "fallback_discovery_keywords": [
       "product",
-      "background",
+      "praline",
+      "edit",
+      "image2image",
       "commodity",
-      "goods",
-      "replace"
+      "goods"
     ],
     "required_args_schema": [
-      "image_url",
-      "prompt"
+      "image_list",
+      "prompt",
+      "output_format",
+      "size"
     ],
     "product_image_mcp_args_schema": {
-      "image_url": "product_image_url",
-      "prompt": "product_prompt"
+      "image_list": "product_image_list",
+      "prompt": "product_prompt",
+      "output_format": "product_output_format",
+      "size": "product_size",
+      "ratio": "product_ratio"
     },
     "product_image_result_fields": {
       "url": "product_image_url",
       "id": "product_image_id"
     }
   },
+  "cutout_generation": {
+    "preferred_tool_name": "api_v1_sod_c_async",
+    "fallback_tool_name": "api_v1_sod_c_async",
+    "fallback_discovery_keywords": [
+      "sod",
+      "cutout",
+      "matting",
+      "background",
+      "segment"
+    ],
+    "required_args_schema": [
+      "image_url"
+    ],
+    "cutout_mcp_args_schema": {
+      "image_url": "image_url"
+    },
+    "cutout_result_fields": {
+      "url": "cutout_image_url",
+      "id": "cutout_image_id"
+    }
+  },
   "upload": {
     "enabled": true,
-    "upload_endpoint": "/api/gateway/upload/image",
-    "http_method": "POST",
-    "upload_auth_mode": "header_key",
-    "upload_auth_header": "X-OpenClaw-Key",
-    "upload_field_name": "image",
+    "strategy": "maat_only",
+    "upload_script_path": "scripts/maat_upload.py",
+    "upload_command_template": "python3 scripts/maat_upload.py --file <local_file> --json",
     "max_image_size_mb": 20,
     "upload_payload_schema": {
       "files": "files",
@@ -168,6 +192,7 @@
       "generate-3d",
       "generate-logo",
       "generate-product-image",
+      "cutout",
       "upload",
       "report"
     ],

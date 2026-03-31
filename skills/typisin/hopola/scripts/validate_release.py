@@ -22,6 +22,7 @@ REQUIRED_FILES = [
     "subskills/generate-3d/SKILL.md",
     "subskills/logo-design/SKILL.md",
     "subskills/product-image/SKILL.md",
+    "subskills/cutout/SKILL.md",
     "subskills/upload/SKILL.md",
     "subskills/report/SKILL.md",
     "playbooks/design-intake.md",
@@ -72,6 +73,68 @@ def check_plaintext_key(skill_root: Path, config: dict) -> list[str]:
     return issues
 
 
+def check_disallowed_artifacts(skill_root: Path) -> list[str]:
+    issues = []
+    for p in skill_root.rglob("*"):
+        if not p.is_file():
+            continue
+        rel = p.relative_to(skill_root)
+        if "__pycache__" in p.parts:
+            issues.append(f"{rel}: 不允许发布 __pycache__ 产物")
+            continue
+        if p.suffix.lower() in {".pyc", ".pyo"}:
+            issues.append(f"{rel}: 不允许发布编译产物文件")
+    return issues
+
+
+def check_product_image_guardrails(skill_root: Path) -> list[str]:
+    issues = []
+    required_tokens_by_target = {
+        "SKILL.md": [
+            "task_type=product-image",
+            "stage=generate-product-image",
+            "source_image_confirmed",
+            "PRODUCT_IMAGE_UNCONFIRMED_SOURCE",
+            "image_praline_edit_v2",
+            "normalize natural-language intent first",
+            "never use local/offline image synthesis fallback",
+            "tool_name_used",
+            "source_image_url_used",
+            "source_image_origin",
+            "precheck_report",
+        ],
+        "subskills/product-image/SKILL.md": [
+            "source_image_confirmed",
+            "PRODUCT_IMAGE_UNCONFIRMED_SOURCE",
+            "image_list",
+            "product_image_url",
+            "image_praline_edit_v2",
+            "natural language only",
+            "`key` can be used only as task identity metadata",
+            "must never use local/offline image processing fallback",
+            "PRODUCT_IMAGE_UPLOAD_FAILED",
+            "missing-image inquiry guidance",
+        ],
+        "subskills/upload/SKILL.md": [
+            "必须先上传并回填后才能进入生图阶段",
+            "商品图依赖上传失败时，必须显式标记上游应终止生成",
+        ],
+        "examples.md": [
+            "缺图询问，不触发生图",
+            "PRODUCT_IMAGE_UPLOAD_FAILED",
+            "image_list 与确认源图不一致时拦截",
+            "source_image_url_used",
+            "source_image_origin",
+        ],
+    }
+    for rel, required_tokens in required_tokens_by_target.items():
+        text = (skill_root / rel).read_text(encoding="utf-8")
+        missing = [token for token in required_tokens if token not in text]
+        if missing:
+            issues.append(f"{rel}: 缺少商品图源图门禁关键项 {', '.join(missing)}")
+    return issues
+
+
 def main() -> int:
     skill_root = Path(__file__).resolve().parent.parent
     missing = check_required_files(skill_root)
@@ -91,10 +154,24 @@ def main() -> int:
         print("config.template.json: pipeline.forbid_plaintext_key 必须为 true")
         return 1
 
+    artifact_issues = check_disallowed_artifacts(skill_root)
+    if artifact_issues:
+        print("发布产物校验失败：")
+        for i in artifact_issues:
+            print(f"- {i}")
+        return 1
+
     issues = check_plaintext_key(skill_root, config)
     if issues:
         print("安全校验失败：")
         for i in issues:
+            print(f"- {i}")
+        return 1
+
+    guardrail_issues = check_product_image_guardrails(skill_root)
+    if guardrail_issues:
+        print("商品图门禁校验失败：")
+        for i in guardrail_issues:
             print(f"- {i}")
         return 1
 

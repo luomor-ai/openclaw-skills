@@ -37,6 +37,12 @@ def main() -> int:
     )
     errs.extend(validate_mapping_block("logo_design", config.get("logo_design", {})))
     errs.extend(validate_mapping_block("product_image_generation", config.get("product_image_generation", {})))
+    errs.extend(validate_mapping_block("cutout_generation", config.get("cutout_generation", {})))
+    product_image_generation = config.get("product_image_generation", {})
+    if product_image_generation.get("preferred_tool_name") != "image_praline_edit_v2":
+        errs.append("product_image_generation.preferred_tool_name 必须为 image_praline_edit_v2")
+    if product_image_generation.get("fallback_tool_name") != "image_praline_edit_v2":
+        errs.append("product_image_generation.fallback_tool_name 必须为 image_praline_edit_v2")
 
     stages = config.get("stages", {}).get("supported", [])
     expected = {
@@ -46,6 +52,7 @@ def main() -> int:
         "generate-3d",
         "generate-logo",
         "generate-product-image",
+        "cutout",
         "upload",
         "report",
     }
