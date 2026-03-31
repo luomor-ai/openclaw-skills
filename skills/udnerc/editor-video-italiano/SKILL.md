@@ -1,153 +1,113 @@
 ---
 name: editor-video-italiano
-version: "1.0.0"
-displayName: "Editor Video AI - Modifica Video con Intelligenza Artificiale"
+version: "1.1.0"
+displayName: "Editor Video Italiano — Italian Video Editor — Modifica Video con Intelligenza Artificiale"
 description: >
-  Editor video con intelligenza artificiale — descrivi le modifiche e l'IA le esegue.
-  Tagliare clip, unire video, aggiungere musica di sottofondo, correggere i colori,
-  inserire sottotitoli ed esportare come MP4. Un editor video AI che funziona
-  interamente via chat, senza timeline e senza software di montaggio. Carica un video
-  o incolla un link e inizia a modificare con linguaggio naturale. Supporta montaggio
-  video per TikTok, Instagram Reels, YouTube Shorts e contenuti per social media.
-  Creare video con IA, montare video online, tagliare video, aggiungere testo al
-  video, mettere musica su video, rimuovere sfondo dal video, fare video con foto,
-  convertire testo in video. Strumento di montaggio video in italiano con intelligenza
-  artificiale. Esporta come MP4. Accetta mp4, mov, avi, webm, mkv, jpg, png, gif,
-  webp, mp3, wav, m4a, aac.
+  Modifica video con intelligenza artificiale in italiano — editing video completo con sottotitoli italiani, narrazione con accento italiano autentico, testi animati, montaggio automatico, musica di sottofondo, effetti visivi ed esportazione per tutte le piattaforme. NemoVideo offre produzione video completa in italiano: aggiungi sottotitoli automatici con sincronizzazione parola per parola, genera narrazione in italiano standard o dialettale, crea testi animati e titoli con accenti e apostrofi corretti, applica correzione colore cinematografica, ed esporta per YouTube TikTok Instagram e tutti i social media. Editor video italiano AI, modificare video con IA, editor video online gratis, creare video con IA, sottotitoli automatici italiano, Italian video editor, edit video Italian, Italy video creator, montaggio video italiano.
 metadata: {"openclaw": {"emoji": "🎬", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
 ---
 
-# Editor Video AI - Modifica Video con IA
+# Editor Video Italiano — Produzione Video Professionale in Italiano con IA
 
-## 1. Role & Environment
+L'Italia è il quarto mercato YouTube più grande in Europa, con oltre 40 milioni di utenti mensili. I creator italiani come Me contro Te, FaviJ e ClioMakeUp hanno costruito imperi di contenuti dimostrando l'enorme appetito del pubblico italiano per contenuti nella propria lingua. Instagram è il social network più popolare in Italia dopo WhatsApp, e TikTok ha superato i 20 milioni di utenti italiani. Il mercato video italiano è vivace, creativo e in crescita costante — ma gli strumenti di produzione sono quasi esclusivamente progettati per l'inglese.
 
-You are an OpenClaw agent acting as the **interface layer** between the user and NemoVideo's backend AI Agent. The backend handles video generation/editing but assumes a GUI exists. Your job:
+Italy represents 60 million native Italian speakers with among the highest social media engagement rates in Europe. Italian digital culture is visually driven — Italy's fashion, design, food, and art traditions create audiences with sophisticated visual expectations. Italian video content must meet higher aesthetic standards than many markets: beautiful composition, warm color grading, and visual elegance are baseline expectations, not premium additions. Platform auto-captions handle Italian at roughly 78-82% accuracy — significantly below English — particularly struggling with Italian's geminate consonants (double letters that change meaning: "pala" vs. "palla", "caro" vs. "carro"), regional accent variations (Milanese sounds different from Roman, Neapolitan, Sicilian), and the rapid speech patterns characteristic of Italian conversation. NemoVideo treats Italian as a first-class language: 98%+ transcription accuracy, authentic regional voiceover, correct Italian typography including accent marks and apostrophes, and cultural awareness of the Italian market's visual and communicative preferences.
 
-1. **Relay** user requests to the backend via SSE
-2. **Intercept** backend responses — replace GUI references with API actions
-3. **Supplement** — handle export/render, credits, file delivery directly
-4. **Translate** — present results in user's language with clear status
+## Use Cases
 
-### Environment Variables
+1. **Sottotitoli Automatici — Italian Auto-Captioning (any length)** — An Italian YouTuber or content creator needs accurate captions. Italian presents specific transcription challenges: geminate consonants that change meaning (fatto/fato, notte/note, nonno/nono), accent marks that are grammatically essential (perché, è, più, già, può), apostrophes in contractions (l'uomo, un'amica, dell'anno), and the rapid speech pace that characterizes Italian conversation. NemoVideo: transcribes Italian at 98%+ accuracy preserving all geminate distinctions, rendering accent marks correctly on every vowel (à, è, é, ì, ò, ù — noting the distinction between grave è and acute é which changes meaning: "perché" vs. "caffè"), handling apostrophes in Italian contractions, and maintaining accuracy through rapid conversational speech patterns. Sottotitoli che rispettano la lingua italiana in ogni dettaglio.
 
-| Variable | Required | Default |
-|----------|----------|---------|
-| `NEMO_TOKEN` | No | Auto-generated on first use |
-| `NEMO_API_URL` | No | `https://mega-api-prod.nemovideo.ai` |
-| `NEMO_WEB_URL` | No | `https://nemovideo.com` |
-| `NEMO_CLIENT_ID` | No | Auto-generated UUID, persisted to `~/.config/nemovideo/client_id` |
-| `SKILL_SOURCE` | No | Auto-detected from install path |
+2. **Narrazione Italiana — Authentic Italian Voiceover (any length)** — Marketing, educational, or corporate video needs Italian narration that sounds natively Italian — not dubbed, not translated, not robotic. NemoVideo: generates voiceover in standard Italian (italiano standard — the neutral accent based on Tuscan/Roman pronunciation used in RAI broadcasts and understood nationwide), with the natural musicality and rhythm of Italian speech (Italian has inherent melodic intonation patterns that flat delivery destroys), appropriate use of Italian rhetorical devices (Italian speakers use emphasis, repetition, and dramatic pauses differently than English speakers), and warmth that Italian audiences expect in narration (colder, more clinical delivery styles feel foreign). Una voce che suona italiana — con il calore, il ritmo e la musicalità che il pubblico italiano si aspetta.
 
-If `NEMO_TOKEN` is not set:
+3. **Social Media Italiano — Italian Content Creation (15-90s)** — Italian social media culture has distinct characteristics: visual aesthetics are paramount (Italy's design heritage creates audiences with high visual standards), food and lifestyle content dominates (Italian audiences engage disproportionately with food, fashion, travel, and lifestyle), humor has specific cultural patterns (Italian comedy relies on wordplay, regional stereotypes, and gestural comedy), and WhatsApp is the primary sharing mechanism (content goes viral through WhatsApp forwarding more than platform shares). NemoVideo: creates social content with Italian aesthetic standards (beautiful composition, warm Mediterranean color grading, elegant typography), adds Italian text overlays with correct grammar and typography, applies visual styles that resonate with Italian visual culture (warm tones, golden light, visual richness), and exports for Italian platform preferences (Instagram Reels, TikTok, YouTube Shorts, and WhatsApp-shareable formats). Contenuti che sembrano italiani, non traduzioni dall'inglese.
+
+4. **Video Aziendale — Italian Corporate Content (2-10 min)** — Italian companies from luxury fashion houses to industrial manufacturers to tech startups need corporate video. NemoVideo: produces professional Italian business video with appropriate register (formal "Lei" for corporate, informal "tu" for casual brands — Italian has a three-level formality system: tu/voi/Lei), handles Italian business terminology correctly (Amministratore Delegato, Bilancio, Fatturato — proper corporate titles and financial terms), applies the visual elegance that Italian business culture expects (Italian corporate presentation standards are among the most aesthetically demanding in Europe), and produces content for Italian business platforms. Video aziendale con l'eleganza visiva che il mercato italiano richiede.
+
+5. **Turismo e Food — Italian Tourism and Culinary Content (30-180s)** — Italy is the world's 5th most visited country. Tourism and food content in Italian reaches both domestic audiences and the global Italian diaspora (80 million people of Italian descent worldwide). NemoVideo: creates tourism and food video with the visual warmth and richness that Italian subjects demand (golden Mediterranean light, saturated warm tones, lingering close-ups on food textures and architectural details), adds Italian location tags and descriptions ("Roma — Trastevere" / "Napoli — Spaccanapoli"), layers Italian or Italian-influenced music (not generic "Mediterranean" music — authentically Italian), and produces content that communicates the sensory richness of Italian experience. Video che trasmettono il sapore, il calore e la bellezza dell'Italia.
+
+## How It Works
+
+### Step 1 — Upload Video or Text
+Any video for Italian editing, or text/script for Italian video generation.
+
+### Step 2 — Configure Italian Output
+Italian standard or regional preference, formal or informal register, voiceover style, subtitle design, and cultural/visual preferences.
+
+### Step 3 — Generate
 ```bash
-CLIENT_ID="${NEMO_CLIENT_ID:-$(cat ~/.config/nemovideo/client_id 2>/dev/null)}"
-if [ -z "$CLIENT_ID" ]; then
-  CLIENT_ID=$(uuidgen 2>/dev/null || echo "client-$(date +%s)-$RANDOM")
-  mkdir -p ~/.config/nemovideo && echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
-fi
-curl -s -X POST "$API/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
-```
-Save `token` as `NEMO_TOKEN`. Expires after 7 days; re-request with same `X-Client-Id`.
-
-## 2. Request Router
-
-| User says... | Action | Skip SSE? |
-|-------------|--------|-----------|
-| "export" / "download" / "send me the video" | Export | Yes |
-| "credits" / "balance" | Credits | Yes |
-| "status" / "show tracks" | State | Yes |
-| "upload" / user sends file | Upload | Yes |
-| Everything else | SSE | No |
-
-## 3. Core Flows
-
-`$API` = `${NEMO_API_URL:-https://mega-api-prod.nemovideo.ai}`, `$TOKEN` = `${NEMO_TOKEN}`, `$WEB` = `${NEMO_WEB_URL:-https://nemovideo.com}`.
-
-All API requests MUST include:
-```
-X-Skill-Source: $SKILL_NAME
-X-Skill-Version: $SKILL_VERSION
-X-Skill-Platform: $SKILL_SOURCE
+curl -X POST https://mega-api-prod.nemovideo.ai/api/v1/generate \
+  -H "Authorization: Bearer $NEMO_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "skill": "editor-video-italiano",
+    "prompt": "Aggiungere sottotitoli italiani animati a un video di 4 minuti. Trascrizione automatica in italiano standard con 98%%+ accuratezza. Stile: sottotitoli TikTok animati — parola per parola, evidenziazione in rosso (#FF3333), font bold sans-serif, contorno nero. Posizione: terzo superiore, centro. Generare narrazione italiana — accento standard, tono professionale ma caldo. Musica di sottofondo: elettronica moderna italiana. Titolo iniziale: Il Futuro del Design Italiano — animato. Esportare 16:9 per YouTube + 9:16 per Instagram Reels e TikTok.",
+    "italian_standard": true,
+    "register": "professional-warm",
+    "subtitles": {
+      "style": "tiktok-animated",
+      "highlight_color": "#FF3333",
+      "timing": "word-level",
+      "safe_zone": "instagram"
+    },
+    "voiceover": {"accent": "standard-italian", "tone": "professional-warm"},
+    "title": {"text": "Il Futuro del Design Italiano", "animation": "elegant"},
+    "music": "modern-italian-electronic",
+    "formats": ["16:9", "9:16"]
+  }'
 ```
 
-### 3.0 Create Session
-```bash
-curl -s -X POST "$API/api/tasks/me/with-session/nemo_agent" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" \
-  -d '{"task_name":"project","language":"<lang>"}'
-```
-Save `session_id`, `task_id`.
+### Step 4 — Review Italian Quality
+Verify: accent marks correct (è vs. é distinction), apostrophes in contractions, geminate consonants transcribed accurately, voiceover sounds authentically Italian, and visual aesthetic meets Italian quality expectations.
 
-### 3.1 Send Message via SSE
-```bash
-curl -s -X POST "$API/run_sse" \
-  -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -H "Accept: text/event-stream" -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" --max-time 900 \
-  -d '{"app_name":"nemo_agent","user_id":"me","session_id":"<sid>","new_message":{"parts":[{"text":"<msg>"}]}}'
-```
+## Parameters
 
-### 3.2 Upload
-**File**: `curl -s -X POST "$API/api/upload-video/nemo_agent/me/<sid>" -H "Authorization: Bearer $TOKEN" -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" -F "files=@/path/to/file"`
+| Parameter | Type | Required | Description |
+|-----------|------|:--------:|-------------|
+| `prompt` | string | ✅ | Italian editing requirements |
+| `italian_standard` | boolean | | Use standard Italian pronunciation |
+| `register` | string | | "formal-lei", "informal-tu", "professional-warm" |
+| `subtitles` | object | | {style, timing, highlight_color, position} |
+| `voiceover` | object | | {accent, tone, gender, pace} |
+| `text_overlays` | array | | [{text (Italian), position, animation}] |
+| `music` | string | | Italian-appropriate music style |
+| `visual_style` | string | | "mediterranean-warm", "modern-minimal", "luxury-elegant" |
+| `formats` | array | | ["16:9", "9:16", "1:1"] |
 
-**URL**: same endpoint, `-d '{"urls":["<url>"],"source_type":"url"}'`
+## Output Example
 
-Supported: mp4, mov, avi, webm, mkv, jpg, png, gif, webp, mp3, wav, m4a, aac.
-
-### 3.3 Credits
-```bash
-curl -s "$API/api/credits/balance/simple" -H "Authorization: Bearer $TOKEN" \
-  -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE"
-```
-
-### 3.4 Query State
-```bash
-curl -s "$API/api/state/nemo_agent/me/<sid>/latest" -H "Authorization: Bearer $TOKEN" \
-  -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE"
+```json
+{
+  "job_id": "vedit-20260329-001",
+  "status": "completed",
+  "language": "italian-standard",
+  "subtitles": {"accuracy": 0.983, "words": 510, "accents_correct": true},
+  "voiceover": "standard-italian-professional-warm",
+  "outputs": {
+    "youtube": {"file": "video-it-16x9.mp4", "resolution": "1920x1080"},
+    "reels": {"file": "video-it-9x16.mp4", "resolution": "1080x1920"}
+  }
+}
 ```
 
-### 3.5 Export
-```bash
-curl -s -X POST "$API/api/render/proxy/lambda" -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
-  -H "X-Skill-Source: $SKILL_NAME" -H "X-Skill-Version: $SKILL_VERSION" -H "X-Skill-Platform: $SKILL_SOURCE" \
-  -d '{"id":"render_<ts>","sessionId":"<sid>","draft":<json>,"output":{"format":"mp4","quality":"high"}}'
-```
-Poll `GET $API/api/render/proxy/lambda/<id>` every 30s.
+## Tips
 
-### 3.6 Disconnect Recovery
-Wait 30s, query state. After 5 unchanged polls, report failure.
+1. **Italian accent marks change meaning — è (is) vs. e (and), perché (because/why) vs. perche (does not exist)** — Missing accent marks in Italian are not cosmetic errors — they create different words or non-words. Every accent mark must be correct for professional Italian content.
+2. **Italian audiences have the highest visual standards in Europe** — Italy's design, fashion, and art heritage creates audiences who unconsciously evaluate visual quality. Color grading, composition, and typography must be beautiful, not just functional. Warm Mediterranean tones and elegant typography signal quality to Italian viewers.
+3. **The musicality of Italian speech must be preserved in voiceover** — Italian has inherent melodic intonation. Flat, monotone delivery sounds robotic and foreign to Italian ears even when the words are correct. Authentic Italian narration rises and falls musically, uses dramatic pauses, and varies pace for emphasis.
+4. **Food content is Italy's #1 content category — and the quality bar is highest** — Italian audiences consume and judge food content with expert eyes. Color grading must make food look appetizing (warm, rich), pacing must linger on textures and preparation (Italian food culture values the process, not just the result), and terminology must be correct (it is "spaghetti alla carbonara" not "carbonara pasta").
+5. **WhatsApp is Italy's primary content sharing mechanism** — More content goes viral through WhatsApp forwards in Italy than through platform shares. Square (1:1) and short vertical (9:16) formats that play natively in WhatsApp should always be included in export options for Italian market content.
 
-## 4. GUI Translation
+## Output Formats
 
-| Backend says | You do |
-|-------------|--------|
-| "click Export" | Render + deliver |
-| "open timeline" | Show state |
-| "drag/drop" | Send edit via SSE |
-| "check account" | Show credits |
+| Format | Resolution | Use Case |
+|--------|-----------|----------|
+| MP4 16:9 | 1080p / 4K | YouTube / website |
+| MP4 9:16 | 1080x1920 | TikTok / Instagram Reels |
+| MP4 1:1 | 1080x1080 | Instagram / WhatsApp / Facebook |
 
-## 6. Error Handling
+## Related Skills
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| 0 | Success | Continue |
-| 1001 | Token expired | Re-auth |
-| 1002 | Session gone | New session |
-| 2001 | No credits | Show registration URL |
-| 4001 | Unsupported file | Show formats |
-| 402 | Export restricted | "Register at nemovideo.ai" |
-| 429 | Rate limited | Wait 30s, retry |
-
-## 7. Limitations
-
-- Aspect ratio change after generation requires regeneration
-- YouTube/Spotify music URLs not supported; built-in library available
-- Photo editing not supported; slideshow creation available
-- Local files must be sent in chat or provided as URL
-
-
-## 5. Suggerimenti
-
-**Lingua**: Scrivi le istruzioni in italiano — l'IA capisce e risponde nella tua lingua.
-
-**Formati social**: "Taglia per TikTok verticale" o "Formato YouTube orizzontale" si adatta automaticamente.
+- [ai-subtitle-generator](/skills/ai-subtitle-generator) — Multi-language subtitles
+- [video-editor-deutsch](/skills/video-editor-deutsch) — German video editing
+- [video-editor-pt](/skills/video-editor-pt) — Portuguese video editing
+- [video-bewerken](/skills/video-bewerken) — Dutch video editing
