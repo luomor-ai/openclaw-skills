@@ -1,10 +1,12 @@
 ---
 name: webinar-recording-maker
-version: "1.0.0"
+version: 1.0.5
 displayName: "Webinar Recording Maker — Create Webinar Replay and Presentation Videos"
 description: >
   Webinar Recording Maker — Create Webinar Replay and Presentation Videos.
 metadata: {"openclaw": {"emoji": "📡", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
+homepage: https://nemovideo.com
+repository: https://github.com/nemovideo/nemovideo_skills
 ---
 
 # Webinar Recording Maker — Webinar Replay and Presentation Videos
