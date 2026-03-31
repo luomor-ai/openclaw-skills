@@ -3,9 +3,15 @@
   "slug": "youtube-video-clip-maker",
   "displayName": "Youtube Video Clip Maker",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774519169320,
-    "commit": "https://github.com/openclaw/skills/commit/12ca4206fdadc5337eca513d99f6d8e46f5fb302"
+    "version": "1.0.5",
+    "publishedAt": 1774855124070,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774519169320,
+      "commit": "https://github.com/openclaw/skills/commit/12ca4206fdadc5337eca513d99f6d8e46f5fb302"
+    }
+  ]
 }
