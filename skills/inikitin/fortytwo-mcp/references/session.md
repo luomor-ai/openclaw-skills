@@ -3,11 +3,25 @@
 ## Opening a session
 
 A session is opened automatically on the first successful `tools/call` with `payment-signature`.
-The response includes the header:
+The response includes these headers:
 
 ```
 x-session-id: {uuid}
+payment-response: {base64_json}
 ```
+
+The `payment-response` header (base64-encoded JSON) contains settlement confirmation:
+```json
+{
+  "success": true,
+  "network": "eip155:143",
+  "transaction": "0x<tx_hash>",
+  "payer": "0x<wallet_address>",
+  "sessionId": "<session_uuid>"
+}
+```
+
+Save `x-session-id` for subsequent calls. The `transaction` hash can be used to verify on-chain settlement.
 
 The session is tied to an escrow (chain + escrow_id) and remains open until the budget is
 exhausted or a timeout expires.
@@ -43,8 +57,8 @@ If multiple networks are available (e.g. Base and Monad), the client picks one a
 
 - `manual` — explicit close call
 - `budget_exhausted` — escrow budget fully spent
-- `idle_timeout` — no requests during the idle period
-- `hard_ttl` — absolute session TTL reached
+- `idle_timeout` — no requests for 15 minutes
+- `hard_ttl` — absolute session TTL of 90 minutes reached
 - `client_disconnect` — client dropped the SSE connection
 
 ## Refund
