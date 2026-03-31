@@ -1,16 +1,14 @@
 ---
 name: project-coordinator
-version: 1.0.10
+version: 1.0.12
+homepage: https://github.com/KaigeGao1110/Project-Coordinator
 description: |
   Spawns an isolated Project Coordinator session that owns a project's context,
   breaks work into tasks, and spawns subagents for parallel execution.
-homepage: https://github.com/KaigeGao1110/Project-Coordinator
 dependencies:
   - archive-project
+required: {}
 configPaths: []
-command-dispatch: tool
-command-tool: project-coordinator-start
-command-arg-mode: raw
 permissions:
   - spawn: subagent sessions
   - read: workspace files
@@ -20,25 +18,25 @@ dataPolicy:
   neverExternal: true
 ---
 
-## Tools
+## Installation
 
-### project-coordinator-start
+### Option 1: ClawhHub CLI (recommended)
+```bash
+openclaw skills install project-coordinator
+# or
+clawhub install project-coordinator
+```
 
-**Input:** Project description following "//start "
+### Option 2: From GitHub
+```bash
+# Clone the repo
+git clone https://github.com/KaigeGao1110/Project-Coordinator.git ~/.openclaw/skills/project-coordinator
 
-**What it does:**
-- Activates the Project Coordinator pattern for a new project
-- Spawns an isolated coordinator session to manage the project
-- Reports back to main session when done
-
-**When to use:**
-- User says "//start build a WhatsApp bot"
-- User says "//start a new project: [description]"
-- Any multi-step project needing subagent coordination
-
-**Examples:**
-- Input: "//start build a Chrome extension for Gmail"
-- Output: "Starting new project: build a Chrome extension for Gmail. Spawning Project Coordinator..."
+# Or download directly
+curl -L https://github.com/KaigeGao1110/Project-Coordinator/archive/refs/heads/main.zip -o /tmp/project-coordinator.zip
+unzip /tmp/project-coordinator.zip -d ~/.openclaw/skills/
+mv ~/.openclaw/skills/Project-Coordinator-main ~/.openclaw/skills/project-coordinator
+```
 
 # Project Coordinator Skill
 
@@ -50,7 +48,7 @@ A skill for structuring multi-agent project execution with isolated session arch
 
 ```yaml
 name: project-coordinator
-version: 1.0.10
+version: 1.0.11
 description: |
   Spawns an isolated Project Coordinator session that owns a project's context,
   breaks work into tasks, and spawns subagents for parallel execution.
