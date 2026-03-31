@@ -1,0 +1,11 @@
+{
+  "owner": "rogue-agent1",
+  "slug": "hashcheck",
+  "displayName": "Hashcheck",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774650421088,
+    "commit": null
+  },
+  "history": []
+}
