@@ -1,186 +1,170 @@
 #!/usr/bin/env python3
 """
-Part.7 RWA 项目动态抓取脚本
-数据源：PANews RWA周刊（panewslab.com）
+Part.7 RWA 重要新闻抓取脚本
+数据源：https://cryptorank.io/news/rwa
+API：  https://api.cryptorank.io/v0/news?lang=en&coinKeys=rwa&withFullContent=true
 
-策略：
-  Step 1：用 DuckDuckGo HTML 搜索找到最新一期文章 URL
-  Step 2：curl 抓取文章 HTML（PANews 为 SSR，curl 可直接获取内容）
-  Step 3：提取「项目进展」部分，过滤稳定币相关条目
+特点：
+  · 纯 curl + Python 标准库，无需 Playwright、无需 API Key
+  · 分页拉取，覆盖过去 7 天内所有新闻
+  · 按重要性评分排序，过滤稳定币噪音
 
-筛选规则：
-  收录：实际落地或正在推进中的 RWA 项目
-  排除：稳定币相关项目
-
-依赖：curl（系统自带）、python3 标准库
-运行：python3 scripts/part7_fetch.py [可选:文章URL]
+运行：
+  python3 scripts/part7_fetch.py
+  python3 scripts/part7_fetch.py --days 7      # 最近 N 天（默认 7）
+  python3 scripts/part7_fetch.py --top 12      # 最多展示 N 条（默认 12）
 """
 
-import subprocess, sys, re
-from html.parser import HTMLParser
-import urllib.parse
+import subprocess, sys, json, re, argparse
+from datetime import datetime, timedelta, timezone
 
-STABLECOIN_KW = [
-    '稳定币', 'stablecoin', 'USDT', 'USDC', 'USDE', 'FDUSD',
-    'USD1', 'PYUSD', 'DAI', 'FRAX', '港元稳定币', '法币支持'
+API_BASE   = 'https://api.cryptorank.io/v0/news'
+SOURCE_URL = 'https://cryptorank.io/news/rwa'
+PAGE_SIZE  = 20   # 每次请求条数
+
+# ── 重要性关键词（命中越多，评分越高）─────────────────────────────────────
+PRIORITY_KW = [
+    'tokeniz', 'tokenise', 'real-world asset', 'rwa', 'on-chain',
+    'launch', 'partner', 'integrat', 'billion', 'million',
+    'regulat', 'approve', 'fund', 'bond', 'treasur', 'securit',
+    'blackrock', 'franklin', 'ondo', 'centrifuge', 'maple',
+    'real estate', 'backed', 'protocol', 'expand', 'pilot',
+    'institution', 'defi', 'yield', 'custody', 'complian',
 ]
-SECTION_KW = ['项目进展', '项目动态', '进展动态']
-SECTION_END_KW = ['监管', '数据概览', '市场', '总结', '本周观察', '稳定币市场']
+NOISE_KW = ['meme', 'airdrop', 'nft drop', 'presale', 'giveaway', 'lottery']
+STABLECOIN_KW = [
+    'stablecoin', 'usdt', 'usdc', 'usde', 'fdusd',
+    'usd1', 'pyusd', 'dai ', ' dai', 'frax',
+]
 
+# ── 中文月份 ───────────────────────────────────────────────────────────────
+def ts_to_zh(ts_ms: int) -> str:
+    dt = datetime.fromtimestamp(ts_ms / 1000, tz=timezone.utc)
+    return f'{dt.year}年{dt.month}月{dt.day}日'
 
-def fetch_url(url):
+# ── 评分 ───────────────────────────────────────────────────────────────────
+def score(title: str, desc: str) -> int:
+    text = (title + ' ' + desc).lower()
+    s = sum(1 for kw in PRIORITY_KW if kw in text)
+    s -= sum(2 for kw in NOISE_KW if kw in text)
+    return s
+
+# ── curl 拉取 API ──────────────────────────────────────────────────────────
+def fetch_page(offset: int, limit: int) -> list:
+    url = (f'{API_BASE}?lang=en&coinKeys=rwa'
+           f'&withFullContent=true&limit={limit}&offset={offset}')
     r = subprocess.run(
-        ['curl', '-s', '-L', '--max-time', '20',
+        ['curl', '-s', '-L', '--max-time', '15',
          '-H', 'User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7)',
-         '-H', 'Accept: text/html',
-         '-H', 'Accept-Language: zh-CN,zh;q=0.9',
+         '-H', 'Accept: application/json',
+         '-H', 'Referer: https://cryptorank.io/',
          url],
         capture_output=True, text=True
     )
-    return r.stdout if r.returncode == 0 else ''
+    if r.returncode != 0:
+        print(f'[WARN] curl 失败 offset={offset}: {r.stderr[:80]}', file=sys.stderr)
+        return []
+    try:
+        data = json.loads(r.stdout)
+        items = data.get('data') if isinstance(data, dict) else data
+        return items if isinstance(items, list) else []
+    except json.JSONDecodeError as e:
+        print(f'[WARN] JSON 解析失败 offset={offset}: {e}', file=sys.stderr)
+        return []
 
+# ── 主抓取流程 ─────────────────────────────────────────────────────────────
+def fetch_news(days: int = 7) -> list:
+    cutoff_ms = (datetime.now(tz=timezone.utc) - timedelta(days=days)).timestamp() * 1000
+    results, offset = [], 0
 
-def search_latest_article():
-    """用 DuckDuckGo 搜索最新期 RWA 周刊 URL"""
-    query = urllib.parse.quote('site:panewslab.com "RWA周刊" "项目进展" 2026')
-    html = fetch_url(f'https://html.duckduckgo.com/html/?q={query}')
-    if not html:
-        return ''
-    urls = re.findall(
-        r'https?://www\.panewslab\.com/(?:zh|en)/articles/[a-f0-9\-]{30,}',
-        html
-    )
-    seen = set()
-    for u in urls:
-        if u not in seen:
-            seen.add(u)
-            return u
-    return ''
-
-
-class ArticleParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.in_tag = False
-        self.paragraphs = []
-        self.current = []
-
-    def handle_starttag(self, tag, attrs):
-        if tag in ('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'li'):
-            self.in_tag = True
-            self.current = []
-
-    def handle_endtag(self, tag):
-        if self.in_tag and tag in ('p', 'h1', 'h2', 'h3', 'h4', 'h5', 'li'):
-            text = re.sub(r'\s+', ' ', ''.join(self.current)).strip()
-            if text and len(text) > 3:
-                self.paragraphs.append(text)
-            self.in_tag = False
-            self.current = []
-
-    def handle_data(self, data):
-        if self.in_tag:
-            self.current.append(data)
-
-
-def extract_and_parse(html):
-    """提取项目进展部分并解析项目"""
-    # 解析段落
-    parser = ArticleParser()
-    parser.feed(html)
-    paragraphs = parser.paragraphs
-
-    # 若 HTML 解析段落过少，用正则备用
-    if len(paragraphs) < 10:
-        raw = re.findall(r'<p[^>]*>(.*?)</p>', html, re.DOTALL)
-        paragraphs = [re.sub(r'<[^>]+>', '', p).strip() for p in raw if len(p.strip()) > 3]
-
-    # 找「项目进展」部分
-    in_section = False
-    section = []
-    for para in paragraphs:
-        if not in_section:
-            if any(kw in para for kw in SECTION_KW):
-                in_section = True
-            continue
-        # 遇到下一章节标题则停止
-        if len(para) < 25 and any(kw in para for kw in SECTION_END_KW):
+    while True:
+        items = fetch_page(offset, PAGE_SIZE)
+        print(f'[INFO] offset={offset} 拿到 {len(items)} 条', file=sys.stderr)
+        if not items:
             break
-        section.append(para)
 
-    if not section:
-        return [], paragraphs  # 返回全部段落供调试
+        hit_old = False
+        for item in items:
+            ts = item.get('date', 0)
+            if ts < cutoff_ms:
+                hit_old = True
+                break
 
-    # 解析项目：短行为项目名，后续长行为详情
-    projects = []
-    cur_name, cur_details = None, []
+            title = item.get('title', '')
+            desc  = item.get('description', '') or ''
+            url   = item.get('url', '')
+            src   = item.get('source', '')
+            if isinstance(src, dict):
+                src = src.get('name', '')
 
-    for para in section:
-        is_stablecoin = any(kw in para for kw in STABLECOIN_KW)
-        is_title = (
-            len(para) < 35 and
-            '。' not in para and
-            not para.startswith(('根据', '据', '此前', '近期'))
-        )
+            # 过滤稳定币
+            combined = (title + ' ' + desc).lower()
+            if any(kw in combined for kw in STABLECOIN_KW):
+                continue
 
-        if is_title and len(para) > 2:
-            if cur_name and cur_details and not any(kw in cur_name for kw in STABLECOIN_KW):
-                projects.append({'name': cur_name, 'detail': ' '.join(cur_details[:3])})
-            cur_name = para if not is_stablecoin else None
-            cur_details = []
-        elif cur_name and not is_stablecoin:
-            cur_details.append(para)
+            results.append({
+                'ts':    ts,
+                'date':  ts_to_zh(ts),
+                'title': title,
+                'desc':  desc[:200].strip(),
+                'url':   url,
+                'source': src,
+                'score': score(title, desc),
+            })
 
-    if cur_name and cur_details and not any(kw in cur_name for kw in STABLECOIN_KW):
-        projects.append({'name': cur_name, 'detail': ' '.join(cur_details[:3])})
+        if hit_old or len(items) < PAGE_SIZE:
+            break
+        offset += PAGE_SIZE
 
-    return projects, section
+    # 按评分降序，同分按时间降序
+    results.sort(key=lambda x: (x['score'], x['ts']), reverse=True)
+    return results
 
+# ── 输出 ───────────────────────────────────────────────────────────────────
+def print_report(news: list, days: int, top: int) -> None:
+    today = datetime.now(tz=timezone.utc)
+    date_str = f'{today.year}年{today.month}月{today.day}日'
 
+    print('=' * 60)
+    print('  Part.7  RWA 重要新闻')
+    print(f'  数据来源：{SOURCE_URL}')
+    print(f'  覆盖范围：近 {days} 天  /  抓取时间：{date_str}')
+    print('=' * 60)
+
+    if not news:
+        print('\n[⚠️] 未抓取到符合条件的 RWA 新闻。')
+        print('可能原因：网络限制 / API 参数变更 / 本周 RWA 新闻较少')
+        return
+
+    shown = news[:top]
+    for i, item in enumerate(shown, 1):
+        src_str = f'  来源：{item["source"]}' if item['source'] else ''
+        print(f'\n【{i}】{item["title"]}')
+        print(f'  日期：{item["date"]}{src_str}')
+        if item['desc']:
+            # 清理 description 中的重复标题前缀
+            desc = re.sub(r'^.*?\n\n', '', item['desc']).strip()
+            if not desc:
+                desc = item['desc']
+            print(f'  摘要：{desc[:180]}')
+        print(f'  链接：{item["url"]}')
+        print(f'  点评：⚠️（AI 根据标题与摘要生成背景解读）')
+
+    print(f'\n共展示 {len(shown)} 条重要 RWA 新闻（已过滤稳定币相关，按重要性排序）')
+    if len(news) > top:
+        print(f'（另有 {len(news) - top} 条次要新闻未展示）')
+
+# ── 入口 ───────────────────────────────────────────────────────────────────
 def main():
-    if len(sys.argv) > 1:
-        url = sys.argv[1]
-        print(f'[INFO] 使用指定 URL: {url}', file=sys.stderr)
-    else:
-        print('[INFO] 搜索最新期 RWA 周刊...', file=sys.stderr)
-        url = search_latest_article()
-        if not url:
-            print('\n[⚠️] 无法自动找到最新期文章 URL。', file=sys.stderr)
-            print('请手动运行：python3 scripts/part7_fetch.py <文章URL>')
-            print('文章列表参考：https://www.panewslab.com/zh/ 搜索「RWA周刊」')
-            sys.exit(1)
-        print(f'[INFO] 找到文章: {url}', file=sys.stderr)
+    parser = argparse.ArgumentParser(description='抓取 Cryptorank RWA 新闻')
+    parser.add_argument('--days', type=int, default=7,  help='最近几天（默认 7）')
+    parser.add_argument('--top',  type=int, default=12, help='最多展示几条（默认 12）')
+    args = parser.parse_args()
 
-    html = fetch_url(url)
-    if not html:
-        print('[ERROR] 文章抓取失败', file=sys.stderr)
-        sys.exit(1)
-    print(f'[INFO] HTML 长度: {len(html)} 字节', file=sys.stderr)
-
-    projects, section = extract_and_parse(html)
-    print(f'[INFO] 解析到 {len(projects)} 个项目', file=sys.stderr)
-
-    print('=' * 55)
-    print('  Part.7  RWA 项目动态')
-    print(f'  来源：PANews RWA周刊 {url}')
-    print('=' * 55)
-
-    if projects:
-        for p in projects:
-            detail = p['detail'][:200]
-            print(f'\n{p["name"]}\n详情：{detail}')
-        print(f'\n共 {len(projects)} 个项目（已排除稳定币相关）')
-    else:
-        print('\n[⚠️] 自动解析未找到项目条目。')
-        if section:
-            print('\n── 项目进展原始段落（供手动整理）──')
-            for s in section[:20]:
-                print(f'  {s}')
-        else:
-            print('请将本期「项目进展」部分粘贴给 AI 整理。')
-
-    print('\n⚠️  建议与原文核对，稳定币相关项目已自动过滤。')
-
+    print(f'[INFO] 抓取近 {args.days} 天 RWA 新闻...', file=sys.stderr)
+    news = fetch_news(days=args.days)
+    print(f'[INFO] 过滤后共 {len(news)} 条', file=sys.stderr)
+    print_report(news, args.days, args.top)
 
 if __name__ == '__main__':
     main()
