@@ -3,9 +3,15 @@
   "slug": "event-recap-video",
   "displayName": "Event Recap Video",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1774603131110,
-    "commit": "https://github.com/openclaw/skills/commit/04d3ef426bbe6f9abe1815f351886f8960b9e771"
+    "version": "1.0.5",
+    "publishedAt": 1774660641613,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1774603131110,
+      "commit": "https://github.com/openclaw/skills/commit/04d3ef426bbe6f9abe1815f351886f8960b9e771"
+    }
+  ]
 }
