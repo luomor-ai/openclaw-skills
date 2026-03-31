@@ -40,11 +40,12 @@ metadata:
 - 索引分析
 - 数据库规范
 
-### 5. 开发规范文档
+### 5. 开发规范文档 ⭐
 - 代码规范
 - 命名约定
 - 目录结构规范
 - Git 提交规范
+- ⭐ **规范检查与自动创建**：生成前扫描项目是否有规范文档，无则自动创建
 
 ### 6. 快速启动文档
 - 环境要求
@@ -104,6 +105,12 @@ metadata:
    - 扫描 Controller/Router
    - 提取 API 端点
    - 分析请求/响应结构
+
+4. 规范检查 ⭐ NEW
+   - 扫描项目中的规范文档
+   - 检查 docs/、.github/、根目录下的规范文件
+   - 识别已有规范：编码规范、命名规范、Git规范、测试规范等
+   - 标记缺失的规范文档
 ```
 
 ### Phase 3: 文档生成
@@ -119,10 +126,11 @@ metadata:
    - ER 图
    - 索引说明
 
-3. 生成开发规范
+3. 生成开发规范 ⭐ 自动补全
    - 代码规范
    - 命名约定
    - Git 规范
+   - ⭐ 检查缺失 → 自动创建
 
 4. 生成快速启动文档
    - 环境要求
@@ -133,6 +141,24 @@ metadata:
    - 测试框架
    - 测试规范
    - 覆盖率要求
+
+6. 规范补全逻辑 ⭐ NEW
+   检查项目是否缺少以下规范文档，如缺失则自动创建：
+   
+   **通用规范：**
+   - coding-standards.md (代码规范)
+   - naming-conventions.md (命名约定)
+   - git-workflow.md (Git 工作流)
+   - code-review.md (代码审查)
+   - test-standards.md (测试规范)
+   - api-design.md (API 设计规范)
+   - security-policy.md (安全规范)
+   
+   **数据库规范 ⭐：**
+   - database-standards.md (数据库设计规范)
+   - sql-coding-standards.md (SQL 编码规范)
+   - data-migration.md (数据迁移规范)
+   - index-design.md (索引设计规范)
 ```
 
 ### Phase 4: Apifox 对接
@@ -389,6 +415,9 @@ apifox report --project-id 12345 --output docs/api/test-reports/
 | `output.base_dir` | string | docs | 文档输出目录 |
 | `database.analyze_entities` | bool | true | 是否分析 Entity 类 |
 | `database.analyze_migrations` | bool | true | 是否分析 migration 文件 |
+| `standards.auto_create` | bool | true ⭐ | 是否自动创建缺失的规范文档 |
+| `standards.confirm_before_create` | bool | true | 创建前是否确认 |
+| `standards.force_overwrite` | bool | false | 是否覆盖已存在的规范 |
 | `apifox.project_id` | number | - | Apifox 项目 ID |
 | `apifox.auto_sync` | bool | false | 是否自动同步到 Apifox |
 | `apifox.auto_test` | bool | false | 是否自动执行测试 |
