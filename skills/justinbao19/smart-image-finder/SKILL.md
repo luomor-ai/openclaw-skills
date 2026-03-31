@@ -4,7 +4,7 @@ description: |
   Smart image search and download tool for AI agents. Three methods: news website extraction, Brave image search, AI generation.
   Use cases: article illustrations, news thumbnails, dashboard images, social media posts.
   Triggers: find image, search photo, download picture, news image, AI generate image, article illustration
-version: 1.0.2
+version: 1.0.4
 author: Justin
 ---
 
@@ -142,6 +142,24 @@ curl -s "https://api.search.brave.com/res/v1/images/search?q=keyword&count=10" \
 curl -s "https://api.search.brave.com/res/v1/images/search?q=SpaceX%20Starship&count=1" \
   -H "X-Subscription-Token: $BRAVE_API_KEY" | jq -r '.results[0].properties.url'
 ```
+
+### Rate Limiting ⚠️
+
+Brave API has rate limits. When making multiple searches:
+
+```bash
+# Add delay between requests (1-2 seconds recommended)
+for query in "query1" "query2" "query3"; do
+  curl -s "https://api.search.brave.com/res/v1/images/search?q=$query&count=1" \
+    -H "X-Subscription-Token: $BRAVE_API_KEY" | jq -r '.results[0].properties.url'
+  sleep 2  # Wait 2 seconds between requests
+done
+```
+
+**Best practices:**
+- Free tier: ~1 request/second max
+- Add `sleep 1` or `sleep 2` between batch requests
+- If you get 429 (rate limited), wait 60 seconds before retrying
 
 ### Search Tips
 
