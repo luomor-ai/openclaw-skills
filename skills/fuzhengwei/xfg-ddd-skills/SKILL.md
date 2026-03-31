@@ -1,7 +1,7 @@
 ---
-name: xfg-ddd-skills
-version: 2.2.0
-description: "DDD 六边形架构设计与开发技能包。包含：领域层设计（Aggregate/Entity/CommandEntity/ValueObject/EnumVO）、Domain Service（策略模式/责任链模式/模板方法）、Repository、Port适配器、Case编排层、Trigger触发层、Infrastructure基础设施层。DevOps 部署支持：Dockerfile 打包、docker-compose 环境部署（MySQL/Redis/RabbitMQ）、应用启动停止脚本、阿里云镜像加速。参考 ai-mcp-gateway 真实工程规范。触发词：'DDD'、'六边形架构'、'部署'、'deploy'、'Docker'、'发布'、'上线'、'创建 DDD 项目'。不要用于简单 CRUD 应用或没有领域复杂度的微服务。@小傅哥"
+name: "xfg-ddd-skills"
+description: "DDD 六边形架构设计与部署技能包。提供 Domain/Case/Infrastructure 层设计模式与代码模板，以及 Docker 环境部署脚本。当用户询问 DDD 架构、设计模式或需要部署项目时调用。"
+version: 2.2.3
 author: xiaofuge
 license: MIT
 triggers:
@@ -103,18 +103,18 @@ AI：确认在 /Users/xxx/projects 下创建项目，开始执行...
    | ArtifactId | 项目模块唯一标识名称 | `your-project-name` | `order-system` |
    | Version | 项目版本号 | `1.0.0-SNAPSHOT` | `1.0.0-RELEASE` |
    | Package | Java 代码根包名 | 自动从 GroupId + ArtifactId 推导 | `cn.bugstack.order` |
-   | Archetype 版本 | 脚手架模板版本 | `1.3` | - |
+   | Archetype 版本 | 脚手架模板版本 | `1.8` | - |
 
 3. **第三步：确认并生成**
 
    显示所有配置，确认后执行 Maven Archetype 生成项目。
 
-**脚本执行方式**（在 `ddd-skills-v2` 项目根目录下运行）:
+**脚本执行方式**（在 `xfg-ddd-skills` 项目根目录下运行）:
 ```bash
 bash scripts/create-ddd-project.sh
 ```
 
-> ⚠️ **必须先 cd 到 `ddd-skills-v2` 项目目录下再执行**，脚本会自动定位自身路径。
+> ⚠️ **必须先 cd 到 `xfg-ddd-skills` 项目目录下再执行**，脚本会自动定位自身路径。
 > AI 负责引导用户选择目录、填写参数，无需手动拼凑 Maven 命令。
 > **⚠️ 再次强调：创建项目前必须询问用户项目创建地址，不能随意创建！**
 
@@ -134,6 +134,7 @@ bash scripts/create-ddd-project.sh
 | Case layer orchestration | [references/case-layer.md](references/case-layer.md) |
 | Trigger layer | [references/trigger-layer.md](references/trigger-layer.md) |
 | Infrastructure layer | [references/infrastructure-layer.md](references/infrastructure-layer.md) |
+| **Domain 层设计指南（避免常见错误）** | **[references/domain-design-guide.md](references/domain-design-guide.md)** |
 | **Domain 层核心模式** | **[references/domain-patterns.md](references/domain-patterns.md)** |
 | **Infrastructure 层核心模式** | **[references/infrastructure-patterns.md](references/infrastructure-patterns.md)** |
 | **DevOps 部署** | **[references/devops-deployment.md](references/devops-deployment.md)** |
@@ -172,6 +173,30 @@ bash scripts/create-ddd-project.sh
 
 **Dependency Rule**: `Trigger → API → Case → Domain ← Infrastructure`
 
+## ⚠️ Domain 层设计自检清单
+
+在生成 Domain 层代码前，必须逐项检查：
+
+**1. 是否有多种处理方式（if-else 判断类型）？**
+→ 是：使用**策略模式**（`IXxxStrategy` 接口 + 实现类 + `Map<String, IXxxStrategy>` 注入）
+
+**2. 是否有多个独立的校验/过滤步骤（3步以上）？**
+→ 是：使用**责任链模式**（`IXxxFilter` 接口 + Factory 组装链）
+
+**3. Service 方法是否超过 60 行？**
+→ 是：拆分为过滤器（校验）+ 策略（执行）+ 私有方法（保存）
+
+**4. Infrastructure 层是否包含业务判断逻辑？**
+→ 是：将业务校验移到 Domain 层的过滤器中，Infrastructure 只做数据读写
+
+**5. 是否跨域直接依赖另一个 Domain 的 Repository？**
+→ 是：通过 Case 层编排，或在本域 Repository 接口中聚合所需数据
+
+**6. Infrastructure 包名是否正确？**
+→ Repository 实现：`adapter/repository/`（❌ 不是 `persistent/repository/`）
+→ DAO 操作：`dao/`（❌ 不是 `scenario/dao/` 或其他包）
+→ Redis 操作：`redis/`（❌ 不是 `config/`）
+
 ## Domain Layer 目录结构
 
 ```
@@ -187,6 +212,859 @@ model/
 ```
 
 **⚠️ 注意**：`model/` 下没有单独的 `command/` 包，命令实体统一放在 `entity/` 包下。
+
+---
+
+## 🔄 新功能开发完整流程
+
+当用户需要实现一个新功能时，必须按照以下分层调用流程进行开发：
+
+### 调用链路图
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           新功能开发流程                                 │
+└─────────────────────────────────────────────────────────────────────────┘
+
+  外部请求
+      │
+      ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 1. Trigger 层（触发层）                                                  │
+│    职责：接收外部请求，路由转发，参数校验，不含业务逻辑                     │
+│                                                                         │
+│    • HTTP Controller  →  接收 HTTP 请求                                  │
+│    • MQ Listener      →  监听消息队列                                    │
+│    • Job/Task         →  定时任务/异步任务                               │
+│                                                                         │
+│    输出：调用 Case 层接口，或轻量场景直接调用 Domain 层                    │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 2. Case 层（编排层）- 可选，复杂业务需要                                  │
+│    职责：跨领域业务编排，流程串联，事务管理                                │
+│                                                                         │
+│    • 接收 Trigger 调用                                                   │
+│    • 编排多个 Domain Service 调用顺序                                     │
+│    • 处理跨领域数据转换                                                   │
+│    • 管理分布式事务（如需要）                                             │
+│                                                                         │
+│    输出：调用 Domain 层 Service 接口                                      │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 3. Domain 层（领域层）                                                   │
+│    职责：核心业务逻辑，业务规则校验，领域模型操作                           │
+│                                                                         │
+│    • Service 服务实现业务逻辑                                             │
+│    • Entity/Aggregate 封装业务行为                                       │
+│    • 通过 Adapter 接口（Port/Repository）与外部交互                        │
+│                                                                         │
+│    注意：Domain 层不直接依赖 Infrastructure，只依赖接口                    │
+│                                                                         │
+│    输出：调用 Adapter 接口（定义在 domain/adapter/ 下）                    │
+└─────────────────────────┬───────────────────────────────────────────────┘
+                          │ 依赖倒置：Domain 定义接口，Infrastructure 实现
+                          ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│ 4. Infrastructure 层（基础设施层）                                        │
+│    职责：技术实现，数据持久化，外部服务调用                                │
+│                                                                         │
+│    • adapter/repository/  →  实现 Repository 接口，操作数据库              │
+│    • adapter/port/        →  实现 Port 接口，调用外部 HTTP/RPC 服务        │
+│    • dao/                 →  MyBatis DAO 接口和 PO 对象                   │
+│    • gateway/             →  HTTP/RPC 客户端，远程服务调用                 │
+│    • redis/               →  Redis 操作                                  │
+│                                                                         │
+│    输出：返回数据给 Domain 层，或执行外部调用                              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 分层职责速查表
+
+| 层级 | 职责 | 禁止做的事 | 依赖方向 |
+|------|------|-----------|----------|
+| **Trigger** | 接收请求、参数校验、路由转发 | 业务逻辑、直接操作数据库 | → API/Case/Domain |
+| **Case** | 跨域编排、流程串联、事务管理 | 直接操作数据库、外部 HTTP 调用 | → Domain |
+| **Domain** | 业务规则、领域模型、逻辑编排 | 直接依赖 MyBatis/Redis/HTTP | → 只依赖接口 |
+| **Infrastructure** | 数据持久化、外部调用、技术实现 | 业务判断、业务规则 | 实现 Domain 接口 |
+
+### 开发流程检查清单
+
+当用户说"帮我实现一个 XXX 功能"时，按以下顺序检查：
+
+#### Step 1: 确定入口方式（Trigger）
+
+询问用户或根据需求判断：
+
+```
+□ HTTP API 接口？  →  创建 Controller
+□ MQ 消息监听？    →  创建 MQ Listener
+□ 定时任务？       →  创建 Job
+□ 异步任务？       →  创建 Task/Worker
+```
+
+#### Step 2: 判断是否需要 Case 层
+
+```
+□ 涉及多个领域协作？     →  需要 Case 层
+□ 业务流程超过 3 步？    →  需要 Case 层
+□ 需要分布式事务？       →  需要 Case 层
+□ 单领域、简单业务？     →  Trigger 直接调用 Domain
+```
+
+#### Step 3: Domain 层设计
+
+```
+□ 定义 Entity/Aggregate/VO
+□ 定义 Service 接口和实现
+□ 定义 Repository 接口（数据访问）
+□ 定义 Port 接口（外部调用，如需要）
+```
+
+#### Step 4: Infrastructure 层实现
+
+```
+□ 实现 Repository 接口（adapter/repository/）
+□ 创建 DAO 接口和 PO 对象（dao/）
+□ 实现 Port 接口（adapter/port/，如需要）
+□ 创建 Gateway 客户端（gateway/，如需要）
+□ 配置 Redis 操作（redis/，如需要）
+```
+
+### 代码示例：完整调用链
+
+以"订单支付"功能为例，展示完整分层调用：
+
+#### 1. Trigger 层（HTTP Controller）
+
+```java
+@RestController
+@RequestMapping("/api/order")
+public class OrderController {
+    
+    @Resource
+    private IOrderPayCase orderPayCase;  // 复杂业务，调用 Case 层
+    
+    @PostMapping("/pay")
+    public Response<OrderPayResponse> pay(@RequestBody OrderPayRequest request) {
+        // 1. 参数校验
+        if (request.getOrderId() == null || request.getPayAmount() == null) {
+            return Response.fail("参数不完整");
+        }
+        
+        // 2. 调用 Case 层（复杂业务）
+        // 如果是简单业务，可直接调用 Domain Service
+        try {
+            OrderPayResult result = orderPayCase.execute(request);
+            return Response.success(convertToResponse(result));
+        } catch (Exception e) {
+            return Response.fail(e.getMessage());
+        }
+    }
+}
+```
+
+#### 2. Case 层（业务编排）
+
+```java
+public interface IOrderPayCase {
+    OrderPayResult execute(OrderPayRequest request) throws Exception;
+}
+
+@Service
+public class OrderPayCaseImpl implements IOrderPayCase {
+    
+    @Resource
+    private IOrderService orderService;      // 订单领域服务
+    @Resource
+    private IPaymentService paymentService;  // 支付领域服务
+    @Resource
+    private IInventoryService inventoryService; // 库存领域服务
+    
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public OrderPayResult execute(OrderPayRequest request) throws Exception {
+        log.info("执行订单支付流程，订单号：{}", request.getOrderId());
+        
+        // 1. 查询订单
+        OrderEntity order = orderService.queryOrder(request.getOrderId());
+        
+        // 2. 扣减库存（调用库存领域服务）
+        inventoryService.deduct(order.getProductId(), order.getQuantity());
+        
+        // 3. 执行支付（调用支付领域服务）
+        PaymentResult payment = paymentService.pay(order, request.getPayAmount());
+        
+        // 4. 更新订单状态（调用订单领域服务）
+        orderService.markPaid(order.getOrderId(), payment.getTransactionId());
+        
+        // 5. 返回结果
+        return OrderPayResult.builder()
+            .orderId(order.getOrderId())
+            .status("PAID")
+            .transactionId(payment.getTransactionId())
+            .build();
+    }
+}
+```
+
+#### 3. Domain 层（领域服务）
+
+```java
+// 订单领域服务接口
+public interface IOrderService {
+    OrderEntity queryOrder(String orderId);
+    void markPaid(String orderId, String transactionId);
+}
+
+// 订单领域服务实现
+@Service
+public class OrderServiceImpl implements IOrderService {
+    
+    @Resource
+    private IOrderRepository orderRepository;  // 依赖 Repository 接口，非实现
+    
+    @Override
+    public OrderEntity queryOrder(String orderId) {
+        return orderRepository.queryById(orderId);
+    }
+    
+    @Override
+    public void markPaid(String orderId, String transactionId) {
+        OrderEntity order = orderRepository.queryById(orderId);
+        // 业务规则校验
+        if (order.getStatus() != OrderStatus.PENDING_PAY) {
+            throw new BusinessException("订单状态不正确，无法支付");
+        }
+        // 执行业务逻辑
+        order.pay(transactionId);  // Entity 封装业务行为
+        orderRepository.save(order);
+    }
+}
+
+// 支付领域服务
+public interface IPaymentService {
+    PaymentResult pay(OrderEntity order, BigDecimal amount);
+}
+
+@Service
+public class PaymentServiceImpl implements IPaymentService {
+    
+    @Resource
+    private IPaymentPort paymentPort;  // 依赖 Port 接口，调用外部支付网关
+    
+    @Override
+    public PaymentResult pay(OrderEntity order, BigDecimal amount) {
+        // 构建支付请求
+        PaymentRequest request = PaymentRequest.builder()
+            .orderId(order.getOrderId())
+            .amount(amount)
+            .build();
+        
+        // 调用外部支付服务（通过 Port 接口）
+        return paymentPort.executePayment(request);
+    }
+}
+```
+
+#### 4. Infrastructure 层（技术实现）
+
+```java
+// Repository 实现 - 订单数据访问
+@Repository
+public class OrderRepositoryImpl implements IOrderRepository {
+    
+    @Resource
+    private IOrderDao orderDao;  // MyBatis DAO
+    @Resource
+    private StringRedisTemplate redisTemplate;
+    
+    @Override
+    public OrderEntity queryById(String orderId) {
+        // 先查缓存
+        String cacheKey = "order:" + orderId;
+        String cached = redisTemplate.opsForValue().get(cacheKey);
+        if (cached != null) {
+            return JSON.parseObject(cached, OrderEntity.class);
+        }
+        
+        // 再查数据库
+        OrderPO po = orderDao.queryById(orderId);
+        OrderEntity entity = convertToEntity(po);
+        
+        // 写入缓存
+        redisTemplate.opsForValue().set(cacheKey, JSON.toJSONString(entity), 30, TimeUnit.MINUTES);
+        
+        return entity;
+    }
+    
+    @Override
+    public void save(OrderEntity entity) {
+        OrderPO po = convertToPO(entity);
+        orderDao.update(po);
+        
+        // 更新缓存
+        redisTemplate.opsForValue().set("order:" + entity.getOrderId(), 
+            JSON.toJSONString(entity), 30, TimeUnit.MINUTES);
+    }
+}
+
+// Port 实现 - 外部支付网关调用
+@Component
+public class PaymentPortImpl implements IPaymentPort {
+    
+    @Resource
+    private PaymentGateway paymentGateway;  // HTTP 客户端
+    
+    @Override
+    public PaymentResult executePayment(PaymentRequest request) {
+        // 调用外部支付服务
+        PaymentGatewayRequest gatewayRequest = convertToGatewayRequest(request);
+        PaymentGatewayResponse response = paymentGateway.pay(gatewayRequest);
+        
+        if (!response.isSuccess()) {
+            throw new PaymentException("支付失败：" + response.getErrorMsg());
+        }
+        
+        return PaymentResult.builder()
+            .transactionId(response.getTransactionId())
+            .status("SUCCESS")
+            .build();
+    }
+}
+```
+
+### 常见问题与纠正
+
+#### ❌ 错误1：Trigger 层直接调用 Repository
+
+```java
+// 错误示例
+@RestController
+public class OrderController {
+    @Resource
+    private IOrderRepository orderRepository;  // ❌ 直接依赖 Repository
+    
+    @PostMapping("/order")
+    public Response create(@RequestBody OrderRequest request) {
+        // 业务逻辑散落在 Controller
+        OrderEntity order = new OrderEntity();
+        order.setStatus("CREATED");
+        orderRepository.save(order);  // ❌ 直接操作数据库
+        return Response.success();
+    }
+}
+```
+
+**纠正**：Trigger 层只负责接收请求和路由，业务逻辑应下沉到 Domain 层。
+
+#### ❌ 错误2：Domain Service 直接依赖 DAO
+
+```java
+// 错误示例
+@Service
+public class OrderServiceImpl implements IOrderService {
+    @Resource
+    private IOrderDao orderDao;  // ❌ 直接依赖 DAO，违反分层
+    
+    public OrderEntity queryOrder(String orderId) {
+        OrderPO po = orderDao.queryById(orderId);  // ❌ 直接操作数据库
+        return convert(po);
+    }
+}
+```
+
+**纠正**：Domain 层应依赖 Repository 接口，由 Infrastructure 层实现。
+
+#### ❌ 错误3：Infrastructure 层包含业务逻辑
+
+```java
+// 错误示例
+@Repository
+public class OrderRepositoryImpl implements IOrderRepository {
+    
+    public void save(OrderEntity entity) {
+        // ❌ 在 Repository 中做业务判断
+        if (entity.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException("金额必须大于0");  // 业务异常不应在这里抛
+        }
+        orderDao.update(convertToPO(entity));
+    }
+}
+```
+
+**纠正**：业务判断应在 Domain 层完成，Infrastructure 层只负责数据读写。
+
+#### ❌ 错误4：跨域直接调用 Repository
+
+```java
+// 错误示例
+@Service
+public class OrderServiceImpl implements IOrderService {
+    @Resource
+    private IInventoryRepository inventoryRepository;  // ❌ 跨域依赖 Repository
+    
+    public void createOrder(OrderEntity order) {
+        // 直接操作库存领域的数据
+        InventoryPO inventory = inventoryRepository.queryByProductId(order.getProductId());
+        // ...
+    }
+}
+```
+
+**纠正**：跨域操作应通过 Case 层编排，或调用目标领域的 Service 接口。
+
+### 总结口诀
+
+```
+Trigger 只路由，Case 做编排
+Domain 管业务，Infra 做实现
+接口定义在 Domain，实现放在 Infra 层
+依赖永远向内指，Domain 是核心
+```
+
+---
+
+## 📦 新功能开发规范
+
+当用户需要增加新功能时，按照以下决策流程进行开发：
+
+### 决策流程图
+
+```
+用户需要新功能
+        │
+        ▼
+┌───────────────────┐
+│ 检查现有领域服务   │ ──是──→ 扩展现有 Service
+│ domain/xxx/service│
+│ 是否有支持？      │
+└─────────┬─────────┘
+          │否
+          ▼
+┌───────────────────┐
+│ 创建新的领域？     │ ──是──→ 创建新领域（完整结构）
+│ domain/xxx/       │
+│                   │
+└─────────┬─────────┘
+          │
+          ▼
+┌───────────────────┐
+│ Case 层是否需要？  │ ──是──→ 创建 Case 层编排
+│ 业务复杂？多领域？  │
+└─────────┬─────────┘
+          │否（轻量工程）
+          ▼
+┌───────────────────┐
+│ Trigger 直接调用   │ ←── Trigger → Domain
+│ Domain 领域层     │
+└───────────────────┘
+```
+
+### 决策指南
+
+| 问题 | 答案 | 处理方式 |
+|------|------|----------|
+| 现有领域能否支持新功能？ | ✅ 是 | 在现有 Service 中添加方法 |
+| 是否需要跨多个领域？ | ✅ 是 | 创建 Case 层编排 |
+| 业务逻辑是否复杂？ | ✅ 是 | 创建 Case 层编排 |
+| 是否是轻量工程？ | ✅ 是 | Trigger 直接调用 Domain |
+| Trigger 是否越来越复杂？ | ✅ 是 | 询问用户是否创建 Case 层 |
+
+---
+
+### 场景一：扩展现有领域服务
+
+**判断条件**：新功能属于现有领域的业务范围。
+
+**开发步骤**：
+
+1. **检查现有领域服务**
+   - 查看 `domain/{domain}/service/` 目录
+   - 确认是否有相关的 Service 接口
+
+2. **扩展现有 Service**
+   - 在现有接口中添加新方法
+   - 在实现类中实现新方法
+
+**示例**：在交易域添加一个"查询订单列表"功能
+
+```java
+// 1. 在现有接口中添加方法
+public interface ITradeRepository {
+    // 现有方法...
+    
+    // 新增：查询订单列表
+    List<MarketPayOrderEntity> queryOrderList(QueryOrderRequest request);
+}
+
+// 2. 在实现类中实现
+@Repository
+public class TradeRepository implements ITradeRepository {
+    
+    @Resource
+    private IMcpGatewayDao mcpGatewayDao;
+    
+    @Override
+    public List<MarketPayOrderEntity> queryOrderList(QueryOrderRequest request) {
+        // 实现查询逻辑
+    }
+}
+```
+
+---
+
+### 场景二：创建新的领域
+
+**判断条件**：新功能涉及全新的业务领域，与现有领域无关。
+
+**开发步骤**：
+
+1. **创建完整的领域结构**
+   ```
+   domain/
+   └── {new-domain}/                    # 新领域
+       ├── adapter/                    # 适配器接口
+       │   ├── port/                  # 端口接口
+       │   │   └── I{Xxx}Port.java
+       │   └── repository/            # 仓储接口
+       │       └── I{Xxx}Repository.java
+       ├── model/                     # 领域模型
+       │   ├── aggregate/            # 聚合根
+       │   ├── entity/               # 实体
+       │   └── valobj/               # 值对象
+       └── service/                   # 领域服务
+           ├── I{Xxx}Service.java     # 服务接口
+           └── {能力}/
+               └── {Xxx}ServiceImpl.java
+   ```
+
+2. **定义 Adapter 接口**
+   ```java
+   // Repository 接口
+   public interface I{Xxx}Repository {
+       XxxEntity queryById(Long id);
+       void save(XxxEntity entity);
+   }
+   
+   // Port 接口
+   public interface I{Xxx}Port {
+       void notify(XxxEntity entity) throws Exception;
+   }
+   ```
+
+3. **定义 Model**
+   ```java
+   // 实体
+   @Data
+   public class XxxEntity {
+       private Long id;
+       private String name;
+   }
+   
+   // 值对象
+   @Getter
+   public enum XxxStatusEnumVO {
+       CREATED("created", "已创建"),
+       PROCESSING("processing", "处理中"),
+       COMPLETED("completed", "已完成");
+       private String code;
+       private String info;
+   }
+   ```
+
+4. **实现 Service**
+   ```java
+   public interface I{Xxx}Service {
+       void process(XxxEntity entity) throws Exception;
+   }
+   
+   @Slf4j
+   @Service
+   public class XxxServiceImpl implements I{Xxx}Service {
+       
+       @Resource
+       private I{Xxx}Repository repository;
+       
+       @Resource
+       private I{Xxx}Port port;
+       
+       @Override
+       public void process(XxxEntity entity) throws Exception {
+           log.info("处理业务:{}", entity.getId());
+           // 业务逻辑
+           repository.save(entity);
+           port.notify(entity);
+       }
+   }
+   ```
+
+---
+
+### 场景三：创建 Case 层
+
+**判断条件**：业务涉及多个领域协作，或需要编排多个领域服务。
+
+**开发步骤**：
+
+1. **创建 Case 模块结构**
+   ```
+   case/
+   └── {domain}/
+       └── {capability}/
+           ├── I{Xxx}Case.java           # Case 接口
+           └── impl/
+               └── {Xxx}CaseImpl.java    # Case 实现
+   ```
+
+2. **定义 Case 接口**
+   ```java
+   /**
+    * XXX 业务编排接口
+    * 
+    * 职责：编排多个领域服务，完成复杂业务场景
+    */
+   public interface I{Xxx}Case {
+       
+       /**
+        * 执行 XXX 业务
+        */
+       void execute(XxxRequest request) throws Exception;
+   }
+   ```
+
+3. **实现 Case 编排**
+   ```java
+   /**
+    * XXX 业务编排实现
+    * 
+    * @author xiaofuge
+    */
+   @Slf4j
+   @Service
+   public class XxxCaseImpl implements I{Xxx}Case {
+       
+       @Resource
+       private IDomain1Service domain1Service;
+       
+       @Resource
+       private IDomain2Service domain2Service;
+       
+       @Override
+       public void execute(XxxRequest request) throws Exception {
+           log.info("执行 XXX 业务");
+           
+           // 1. 调用领域服务1
+           Domain1Result r1 = domain1Service.method1(request.getParam1());
+           
+           // 2. 调用领域服务2
+           domain2Service.method2(r1.getData());
+           
+           // 3. 组装结果
+           // ...
+       }
+   }
+   ```
+
+**Case 层命名规范**：
+- 接口命名：`I{Xxx}Case`
+- 实现类命名：`{Xxx}CaseImpl`
+
+---
+
+### 场景四：Trigger 直接调用 Domain
+
+**判断条件**：轻量工程，业务简单，不需要 Case 层编排。
+
+**开发步骤**：
+
+1. **在 Trigger 层直接调用 Domain**
+   ```java
+   @RestController
+   @RequestMapping("/api/xxx")
+   public class XxxController {
+       
+       @Resource
+       private I{Xxx}Service xxxService;
+       
+       @PostMapping("/process")
+       public Response<XxxResponse> process(@RequestBody XxxRequest request) {
+           try {
+               xxxService.process(request.toEntity());
+               return Response.success();
+           } catch (Exception e) {
+               return Response.fail(e.getMessage());
+           }
+       }
+   }
+   ```
+
+2. **Trigger 层职责**
+   - 接收请求参数
+   - 参数校验
+   - 调用 Domain 层
+   - 处理异常
+   - 返回响应
+
+---
+
+### 场景五：Trigger 复杂化后重构为 Case 层
+
+**判断条件**：Trigger 层代码越来越复杂，包含大量业务逻辑。
+
+**警告信号**：
+- Controller 代码超过 100 行
+- Controller 中有大量 if-else 判断
+- Controller 依赖多个 Domain Service
+- 业务逻辑难以测试
+
+**重构步骤**：
+
+1. **询问用户**
+   ```
+   AI：检测到 Trigger 层代码比较复杂，是否需要创建 Case 层来分摊业务逻辑？
+       这样可以：
+       1. 将业务逻辑从 Controller 移到 Case 层
+       2. 提高代码可测试性
+       3. 更好的职责分离
+   ```
+
+2. **创建 Case 层**
+   - 按照场景三的方式创建 Case 模块
+   - 将 Controller 中的业务逻辑移到 Case 层
+
+3. **简化 Trigger 层**
+   ```java
+   // 重构前
+   @RestController
+   public class XxxController {
+       @Resource private IDomain1Service d1;
+       @Resource private IDomain2Service d2;
+       @Resource private IDomain3Service d3;
+       
+       public Response process(Request req) {
+           // 100+ 行业务逻辑...
+       }
+   }
+   
+   // 重构后
+   @RestController
+   public class XxxController {
+       @Resource private I{Xxx}Case xxxCase;
+       
+       public Response process(Request req) {
+           xxxCase.execute(req);
+           return Response.success();
+       }
+   }
+   ```
+
+---
+
+### 完整开发流程示例
+
+**需求**：在拼团系统中添加"订单超时取消"功能
+
+**步骤 1：检查现有领域**
+```
+trade/
+├── adapter/repository/ITradeRepository.java  ← 可以复用
+├── model/entity/TradeLockRuleCommandEntity.java
+└── service/
+    ├── lock/TradeLockOrderService.java     ← 部分相关
+    └── refund/TradeRefundOrderService.java  ← 退单逻辑可参考
+```
+
+**步骤 2：决策**
+- 现有领域（trade）已有相关服务
+- 需要扩展现有 Service
+- 不需要创建新领域
+
+**步骤 3：实现**
+
+```java
+// 1. 扩展 ITradeRepository
+public interface ITradeRepository {
+    // 现有方法...
+    
+    // 新增：查询超时未支付订单
+    List<MarketPayOrderEntity> queryTimeoutUnpaidOrders();
+    
+    // 新增：取消订单
+    void cancelOrder(String orderId);
+}
+
+// 2. 扩展 TradeLockOrderService
+public interface ITradeLockOrderService {
+    // 现有方法...
+    
+    // 新增：处理超时订单
+    void handleTimeoutOrders();
+}
+
+@Slf4j
+@Service
+public class TradeLockOrderService implements ITradeLockOrderService {
+    
+    @Resource
+    private ITradeRepository repository;
+    
+    @Override
+    public void handleTimeoutOrders() {
+        log.info("处理超时未支付订单");
+        
+        // 1. 查询超时订单
+        List<MarketPayOrderEntity> orders = repository.queryTimeoutUnpaidOrders();
+        
+        // 2. 遍历取消
+        for (MarketPayOrderEntity order : orders) {
+            repository.cancelOrder(order.getOrderId());
+        }
+    }
+}
+```
+
+**步骤 4：添加 Trigger**
+```java
+@Component
+public class OrderTimeoutJob {
+    
+    @Resource
+    private ITradeLockOrderService tradeLockOrderService;
+    
+    @Scheduled(cron = "0 */5 * * * ?")  // 每5分钟执行
+    public void execute() {
+        try {
+            tradeLockOrderService.handleTimeoutOrders();
+        } catch (Exception e) {
+            log.error("订单超时处理异常", e);
+        }
+    }
+}
+```
+
+---
+
+### 规范速查表
+
+| 场景 | 判断条件 | 实现位置 |
+|------|---------|----------|
+| 扩展现有服务 | 功能属于现有领域 | `domain/{domain}/service/` |
+| 创建新领域 | 全新业务领域 | 创建完整的 `domain/{new}/` 结构 |
+| 创建 Case 层 | 多领域协作、复杂业务 | `case/{domain}/{capability}/` |
+| Trigger 调用 | 轻量工程、简单业务 | `trigger/{domain}/controller/` |
+| 重构为 Case | Trigger 越来越复杂 | 询问用户后重构 |
+
+**核心原则**：
+1. **优先复用**：先检查现有领域是否能支持
+2. **单一职责**：新功能归到对应领域，不随意扩张
+3. **适度分层**：简单场景直接调用，复杂场景创建 Case
+4. **持续演进**：Trigger 复杂化时，询问用户是否重构
+
+---
 
 ## Quick Templates
 

@@ -33,12 +33,12 @@ Trigger 层 (HTTP/MQ/Job)
 ## 命名规范
 
 ```java
-// 接口命名
-public interface I{Domain}CaseService {}
+// 接口命名：I{Xxx}Case
+public interface I{Xxx}Case {}
 
-// 实现类命名
+// 实现类命名：{Xxx}CaseImpl
 @Service
-public class {Domain}CaseServiceImpl implements I{Domain}CaseService {}
+public class {Xxx}CaseImpl implements I{Xxx}Case {}
 
 // 内部 Node 命名（复杂流程时使用）
 @Service("{domain}{业务}Node")
@@ -49,6 +49,10 @@ public class {业务}Node extends AbstractCaseSupport {}
 public class Default{Domain}CaseFactory {}
 ```
 
+**⚠️ 命名约束：**
+- Case 接口：`I{Xxx}Case`（不是 `I{Xxx}CaseService`）
+- Case 实现：`{Xxx}CaseImpl`（不是 `{Xxx}CaseServiceImpl`）
+
 ## 包结构
 
 ```
@@ -57,17 +61,29 @@ public class Default{Domain}CaseFactory {}
 └── src/main/java/
     └── cn/{company}/cases/
         └── {domain}/
-            ├── I{Domain}CaseService.java           # 接口
+            ├── I{Xxx}Case.java                     # 接口（I{Xxx}Case 命名）
+            └── impl/
+                └── {Xxx}CaseImpl.java              # 实现（{Xxx}CaseImpl 命名）
+```
+
+**复杂流程（Node 编排）时的包结构：**
+
+```
+{project}-case/
+├── pom.xml
+└── src/main/java/
+    └── cn/{company}/cases/
+        └── {domain}/
+            ├── I{Xxx}Case.java                     # 接口
             ├── impl/
-            │   ├── {Domain}CaseServiceImpl.java   # 简单流程实现
-            │   └── {Domain}CaseServiceImpl.java    # 复杂流程：Node 编排
-            ├── node/                                # 复杂流程节点
+            │   └── {Xxx}CaseImpl.java              # 实现
+            ├── node/                                # 复杂流程节点（可选）
             │   ├── AbstractCaseSupport.java        # Node 基类
             │   ├── RootNode.java                   # 开始节点
             │   ├── {业务}Node.java                  # 业务节点
             │   └── EndNode.java                    # 结束节点
-            └── factory/
-                └── Default{Domain}CaseFactory.java # 流程工厂
+            └── factory/                             # 流程工厂（可选）
+                └── Default{Domain}CaseFactory.java
 ```
 
 ## 简单 Case 实现
@@ -78,7 +94,7 @@ public class Default{Domain}CaseFactory {}
 /**
  * 订单用例服务接口
  */
-public interface IOrderCaseService {
+public interface IOrderCase {
 
     /**
      * 创建订单
@@ -96,7 +112,7 @@ public interface IOrderCaseService {
  */
 @Service
 @Slf4j
-public class OrderCaseServiceImpl implements IOrderCaseService {
+public class OrderCaseImpl implements IOrderCase {
 
     @Resource
     private IOrderDomainService orderDomainService;
@@ -392,7 +408,7 @@ public class EndNode extends AbstractCaseSupport<String, DynamicContext, Respons
  */
 @Service
 @Slf4j
-public class OrderCaseServiceImpl implements IOrderCaseService {
+public class OrderCaseImpl implements IOrderCase {
 
     @Resource
     private DefaultOrderCaseFactory orderCaseFactory;
@@ -459,6 +475,99 @@ public class OrderCaseServiceImpl implements IOrderCaseService {
 └─────────────┘
 ```
 
+## ai-mcp-gateway 真实案例 (策略树编排)
+
+`ai-mcp-gateway` 使用策略树（Strategy Tree）模式对复杂的会话生命周期进行了编排。以下是其核心流程的简化呈现：
+
+### 1. 节点设计
+
+```java
+// RootNode 路由节点
+@Slf4j
+@Service("mcpSessionRootNode")
+public class RootNode extends AbstractCaseSupport<String, DynamicContext, SessionEntity> {
+    @Resource(name = "mcpSessionVerifyNode")
+    private VerifyNode verifyNode;
+
+    @Override
+    protected SessionEntity doApply(String request, DynamicContext context) {
+        log.info("MCP会话创建-RootNode");
+        return router(request, context);
+    }
+
+    @Override
+    public StrategyHandler<String, DynamicContext, SessionEntity> get(String request, DynamicContext context) {
+        return verifyNode;
+    }
+}
+
+// VerifyNode 校验节点（协调 Domain Auth 服务）
+@Slf4j
+@Service("mcpSessionVerifyNode")
+public class VerifyNode extends AbstractCaseSupport<String, DynamicContext, SessionEntity> {
+    @Resource(name = "mcpSessionNode")
+    private SessionNode sessionNode;
+    @Resource
+    private IAuthLicenseService authLicenseService;
+
+    @Override
+    protected SessionEntity doApply(String request, DynamicContext context) {
+        log.info("MCP会话创建-VerifyNode 鉴权");
+        authLicenseService.verify(request);
+        return router(request, context);
+    }
+
+    @Override
+    public StrategyHandler<String, DynamicContext, SessionEntity> get(String request, DynamicContext context) {
+        return sessionNode;
+    }
+}
+
+// SessionNode 会话节点（协调 Domain Session 服务）
+@Slf4j
+@Service("mcpSessionNode")
+public class SessionNode extends AbstractCaseSupport<String, DynamicContext, SessionEntity> {
+    @Resource(name = "mcpSessionEndNode")
+    private EndNode endNode;
+    @Resource
+    private ISessionManagementService sessionManagementService;
+
+    @Override
+    protected SessionEntity doApply(String request, DynamicContext context) {
+        log.info("MCP会话创建-SessionNode 创建会话");
+        SessionEntity session = sessionManagementService.createSession(request);
+        context.setSessionEntity(session);
+        return router(request, context);
+    }
+
+    @Override
+    public StrategyHandler<String, DynamicContext, SessionEntity> get(String request, DynamicContext context) {
+        return endNode;
+    }
+}
+```
+
+### 2. Case 服务调用
+
+```java
+@Service
+public class McpSessionService implements IMcpSessionService {
+    @Resource
+    private DefaultMcpSessionFactory factory;
+
+    @Override
+    public SessionEntity createSession(String request) {
+        StrategyHandler<String, DynamicContext, SessionEntity> handler = factory.strategyHandler();
+        try {
+            return handler.apply(request, new DynamicContext());
+        } catch (Exception e) {
+            log.error("创建会话失败", e);
+            throw new RuntimeException(e);
+        }
+    }
+}
+```
+
 ## 设计要点
 
 ### 1. Trigger 极简原则
@@ -469,7 +578,7 @@ public class OrderCaseServiceImpl implements IOrderCaseService {
 public class OrderController {
 
     @Resource
-    private IOrderCaseService orderCaseService;
+    private IOrderCase orderCase;
 
     @PostMapping("/create")
     public Response<OrderDTO> create(@RequestBody @Valid CreateOrderRequest request) {
@@ -477,7 +586,7 @@ public class OrderController {
         // 1. 参数校验（@Valid）
         // 2. 调用 Case
         // 3. 返回结果
-        return orderCaseService.createOrder(request);
+        return orderCase.createOrder(request);
     }
 }
 ```
