@@ -10,5 +10,5 @@
       "model": "你的模型名称（必需）"
     }
   },
-  "autoSendToFeishu": true
+  "autoSendToFeishu": false
 }
