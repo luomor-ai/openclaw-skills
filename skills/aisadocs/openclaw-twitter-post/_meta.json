@@ -1,11 +1,17 @@
 {
   "owner": "aisadocs",
   "slug": "openclaw-twitter-post",
-  "displayName": "X/Twitter All-in-One: 30+ APIs, OAuth Post, One Key",
+  "displayName": "Twitter/X All-in-One — Search, Monitor & Publish Text & Media Posts",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1774295689131,
-    "commit": "https://github.com/openclaw/skills/commit/8b18ad055cc2cde7f295118fa8f87a4de047a9e6"
+    "version": "2.0.2",
+    "publishedAt": 1774906396628,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1774295689131,
+      "commit": "https://github.com/openclaw/skills/commit/8b18ad055cc2cde7f295118fa8f87a4de047a9e6"
+    }
+  ]
 }
