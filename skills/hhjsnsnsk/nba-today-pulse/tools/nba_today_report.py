@@ -16,7 +16,8 @@ if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))
 
 from nba_common import NBAReportError  # noqa: E402
-from nba_teams import TEAM_DISPLAY, canonicalize_team_abbr, normalize_team_input  # noqa: E402
+from nba_player_names import display_player_name, localize_player_line, localize_player_list  # noqa: E402
+from nba_teams import TEAM_DISPLAY, canonicalize_team_abbr, extract_teams_from_text, format_matchup_display, normalize_team_input, team_display_name  # noqa: E402
 from provider_espn import fetch_scoreboard, fetch_summary, fetch_team_schedule, fetch_team_statistics  # noqa: E402
 from timezone_resolver import ResolvedTimezone, resolve_timezone  # noqa: E402
 
@@ -63,6 +64,14 @@ I18N = {
         "analysis_turning_point": "转折点",
         "analysis_key_matchup": "关键对位",
         "analysis_deep_note": "高阶分析仅基于结构化比赛与球队数据，不提供投注建议。",
+        "team_form": "球队近况",
+        "head_to_head": "历史交锋",
+        "season_series": "赛季交锋",
+        "full_stats": "比赛全统计",
+        "team_totals_compare": "球队整体数据对比",
+        "key_player_lines": "关键球员数据",
+        "season_average": "赛季场均",
+        "pending": "待确认",
     },
     "en": {
         "title_day": "NBA Daily Report",
@@ -106,6 +115,14 @@ I18N = {
         "analysis_turning_point": "Turning Point",
         "analysis_key_matchup": "Key Matchup",
         "analysis_deep_note": "Advanced analysis is derived from structured game and team data, not betting advice.",
+        "team_form": "Team Form",
+        "head_to_head": "Head-to-Head",
+        "season_series": "Season Series",
+        "full_stats": "Full Game Stats",
+        "team_totals_compare": "Team Totals Comparison",
+        "key_player_lines": "Key Player Lines",
+        "season_average": "Season Avg",
+        "pending": "Pending",
     },
 }
 
@@ -195,6 +212,54 @@ def parse_linescores(competitor: dict[str, Any]) -> list[str]:
         if value is not None:
             values.append(str(value))
     return values
+
+
+def normalize_competitors(competitors: list[dict[str, Any]]) -> tuple[dict[str, Any], dict[str, Any]]:
+    home = next((item for item in competitors if item.get("homeAway") == "home"), {})
+    away = next((item for item in competitors if item.get("homeAway") == "away"), {})
+    if away or home:
+        return away, home
+    if len(competitors) >= 2:
+        return competitors[0], competitors[1]
+    return {}, {}
+
+
+def parse_short_name_matchup(short_name: str) -> tuple[str | None, str | None]:
+    teams = extract_teams_from_text(short_name)
+    if len(teams) < 2:
+        return None, None
+    return teams[0], teams[1]
+
+
+def event_matchup(event: dict[str, Any]) -> dict[str, str]:
+    competition = (event.get("competitions") or [{}])[0]
+    competitors = competition.get("competitors") or []
+    away_competitor, home_competitor = normalize_competitors(competitors)
+    away_abbr = canonicalize_team_abbr(((away_competitor.get("team") or {}).get("abbreviation")))
+    home_abbr = canonicalize_team_abbr(((home_competitor.get("team") or {}).get("abbreviation")))
+    if away_abbr and home_abbr:
+        return {"away": away_abbr, "home": home_abbr}
+    short_name = str(event.get("shortName") or "")
+    away_text, home_text = parse_short_name_matchup(short_name)
+    return {"away": away_text or "", "home": home_text or ""}
+
+
+def format_matchup_line(
+    away_abbr: str | None,
+    home_abbr: str | None,
+    *,
+    away_score: Any = None,
+    home_score: Any = None,
+) -> str:
+    away = away_abbr or "AWAY"
+    home = home_abbr or "HOME"
+    if away_score is not None or home_score is not None:
+        return f"{away} {away_score or ''} @ {home} {home_score or ''}".replace("  ", " ").strip()
+    return f"{away} @ {home}"
+
+
+def _labels_lang(labels: dict[str, str]) -> str:
+    return "zh" if labels.get("timezone") == "请求方时区" else "en"
 
 
 def extract_summary_leaders(summary: dict[str, Any]) -> dict[str, list[str]]:
@@ -436,21 +501,39 @@ def extract_last_five_snapshot(summary: dict[str, Any]) -> dict[str, dict[str, A
         events = entry.get("events") or []
         wins = 0
         losses = 0
+        games_counted = 0
         recent_scores: list[str] = []
         for event in events[:5]:
-            winner = str(event.get("winner") or "").lower() == "true"
-            if winner:
-                wins += 1
+            game_result = str(event.get("gameResult") or "").strip().upper()
+            outcome: str | None = None
+            if game_result in {"W", "L"}:
+                outcome = game_result
             else:
+                winner_raw = event.get("winner")
+                if isinstance(winner_raw, bool):
+                    outcome = "W" if winner_raw else "L"
+                else:
+                    winner_text = str(winner_raw or "").strip().lower()
+                    if winner_text == "true":
+                        outcome = "W"
+                    elif winner_text == "false":
+                        outcome = "L"
+            if outcome == "W":
+                wins += 1
+                games_counted += 1
+            elif outcome == "L":
                 losses += 1
+                games_counted += 1
             if event.get("score"):
                 recent_scores.append(str(event["score"]))
         if team_id:
+            record = f"{wins}-{losses}" if games_counted else ""
             result[team_id] = {
                 "abbr": abbr,
-                "record": f"{wins}-{losses}",
+                "record": record,
                 "wins": wins,
                 "losses": losses,
+                "gamesCounted": games_counted,
                 "scores": recent_scores[:5],
             }
     return result
@@ -596,8 +679,7 @@ def enrich_game(
 ) -> dict[str, Any]:
     competition = (event.get("competitions") or [{}])[0]
     competitors = competition.get("competitors") or []
-    home = next((item for item in competitors if item.get("homeAway") == "home"), {})
-    away = next((item for item in competitors if item.get("homeAway") == "away"), {})
+    away, home = normalize_competitors(competitors)
     status = competition.get("status") or event.get("status") or {}
     status_type = status.get("type") or {}
     start_time_utc = parse_iso_datetime(competition.get("date") or event.get("date"))
@@ -654,6 +736,7 @@ def enrich_game(
         "lastFiveGames": last_five_games,
         "seasonSeries": summary.get("seasonseries") or [],
         "article": extract_article(summary),
+        "summaryBoxscore": summary.get("boxscore") or {},
         "teamSeasonStats": {
             canonicalize_team_abbr((away.get("team") or {}).get("abbreviation")): team_statistics.get(away_team_id) or {},
             canonicalize_team_abbr((home.get("team") or {}).get("abbreviation")): team_statistics.get(home_team_id) or {},
@@ -666,6 +749,19 @@ def enrich_game(
         "winProbabilityTimeline": extract_win_probability(summary),
         "analysisSignals": {},
         "analysisSummary": {},
+        "context": {
+            "teamForm": {},
+            "headToHead": {},
+        },
+        "fullStats": {
+            "available": False,
+            "source": "unavailable",
+            "teams": {},
+            "players": {},
+        },
+        "meta": {
+            "sections": {},
+        },
     }
     game["startersConfirmed"] = bool(game["starters"].get(game["away"]["abbr"])) and bool(game["starters"].get(game["home"]["abbr"]))
     game["hotspots"] = build_hotspots(game, labels)
@@ -756,10 +852,13 @@ def build_report_payload(args: argparse.Namespace) -> dict[str, Any]:
 
 
 def render_team_lines(game: dict[str, Any], labels: dict[str, str]) -> list[str]:
+    lang = _labels_lang(labels)
     away = game["away"]
     home = game["home"]
+    away_name = team_display_name(away["abbr"], lang)
+    home_name = team_display_name(home["abbr"], lang)
     lines = [
-        f"### {away['abbr']} {away['score'] or ''} @ {home['abbr']} {home['score'] or ''}".replace("  ", " ").strip(),
+        f"### {format_matchup_display(away['abbr'], home['abbr'], lang=lang, away_score=away['score'], home_score=home['score'])}",
         f"- {labels['status']}: {game.get('displayStatusLocal') or game['statusDetail']}",
         f"- {labels['start_time']}: {game['startTimeLocal']}",
     ]
@@ -770,50 +869,229 @@ def render_team_lines(game: dict[str, Any], labels: dict[str, str]) -> list[str]
     if game.get("broadcasts"):
         lines.append(f"- {labels['broadcasts']}: {', '.join([item for item in game['broadcasts'] if item])}")
     lines.append(
-        f"- {labels['records']}: {away['abbr']} {away.get('record') or labels['none']} / "
-        f"{home['abbr']} {home.get('record') or labels['none']}"
+        f"- {labels['records']}: {away_name} {away.get('record') or labels['none']} / "
+        f"{home_name} {home.get('record') or labels['none']}"
     )
     if away.get("linescores") or home.get("linescores"):
         lines.append(
             f"- {labels['score_by_period']}: "
-            f"{away['abbr']} {'-'.join(away.get('linescores') or []) or labels['none']} / "
-            f"{home['abbr']} {'-'.join(home.get('linescores') or []) or labels['none']}"
+            f"{away_name} {'-'.join(away.get('linescores') or []) or labels['none']} / "
+            f"{home_name} {'-'.join(home.get('linescores') or []) or labels['none']}"
         )
     if game["startersConfirmed"]:
         lines.append(
             f"- {labels['starters']}: "
-            f"{away['abbr']} {', '.join(game['starters'].get(away['abbr']) or [])} / "
-            f"{home['abbr']} {', '.join(game['starters'].get(home['abbr']) or [])}"
+            f"{away_name} {', '.join(localize_player_list(game['starters'].get(away['abbr']) or [], lang))} / "
+            f"{home_name} {', '.join(localize_player_list(game['starters'].get(home['abbr']) or [], lang))}"
         )
     elif game["statusState"] == "pre":
         lines.append(f"- {labels['starters']}: {labels['lineup_unconfirmed']}")
     return lines
 
 
+FULL_STATS_TEAM_ORDER = ("PTS", "REB", "OREB", "DREB", "AST", "STL", "BLK", "TOV", "PF", "FG", "3PT", "FT")
+FULL_STATS_PLAYER_ORDER = ("MIN", "PTS", "REB", "AST", "STL", "BLK", "TOV", "FG", "3PT", "FT")
+COMPACT_TEAM_TOTAL_KEYS = ("REB", "AST", "TOV", "FG", "3PT", "FT")
+
+STAT_LABELS = {
+    "zh": {
+        "PTS": "得分",
+        "REB": "篮板",
+        "AST": "助攻",
+        "STL": "抢断",
+        "BLK": "盖帽",
+        "TOV": "失误",
+        "FG": "投篮",
+        "3PT": "三分",
+        "FT": "罚球",
+        "MIN": "时间",
+    },
+    "en": {
+        "PTS": "PTS",
+        "REB": "REB",
+        "AST": "AST",
+        "STL": "STL",
+        "BLK": "BLK",
+        "TOV": "TOV",
+        "FG": "FG",
+        "3PT": "3PT",
+        "FT": "FT",
+        "MIN": "MIN",
+    },
+}
+
+STAT_SUFFIXES_ZH = {
+    "PTS": "分",
+    "REB": "板",
+    "AST": "助",
+    "STL": "断",
+    "BLK": "帽",
+    "TOV": "失误",
+}
+
+
+def render_full_stats_team_line(stats: dict[str, Any]) -> str:
+    parts = [f"{key} {stats[key]}" for key in FULL_STATS_TEAM_ORDER if stats.get(key) not in (None, "")]
+    return ", ".join(parts)
+
+
+def render_compact_team_totals_line(
+    stats: dict[str, Any],
+    *,
+    lang: str,
+    keys: tuple[str, ...] = COMPACT_TEAM_TOTAL_KEYS,
+) -> str:
+    parts: list[str] = []
+    labels = STAT_LABELS.get(lang, STAT_LABELS["en"])
+    separator = "，" if lang == "zh" else ", "
+    for key in keys:
+        value = stats.get(key)
+        if value in (None, ""):
+            continue
+        label = labels.get(key, key)
+        if lang == "zh":
+            parts.append(f"{label} {value}")
+        else:
+            parts.append(f"{label} {value}")
+    return separator.join(parts)
+
+
+def _render_average_value(value: Any, *, percent: bool = False) -> str | None:
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if percent:
+        return f"{number * 100:.1f}%"
+    if number.is_integer():
+        return f"{int(number)}"
+    return f"{number:.1f}"
+
+
+def render_season_average_line(averages: dict[str, Any] | None, labels: dict[str, str]) -> str | None:
+    if not averages:
+        return None
+    parts: list[str] = []
+    for key in ("PTS", "REB", "AST", "STL", "BLK"):
+        rendered = _render_average_value(averages.get(key))
+        if rendered is not None:
+            parts.append(f"{key} {rendered}")
+    fg = _render_average_value(averages.get("FG_PCT"), percent=True)
+    fg3 = _render_average_value(averages.get("FG3_PCT"), percent=True)
+    if fg is not None:
+        parts.append(f"FG% {fg}")
+    if fg3 is not None:
+        parts.append(f"3PT% {fg3}")
+    if not parts:
+        return None
+    return f"{labels['season_average']}: {', '.join(parts)}"
+
+
+def render_full_stats_player_line(player: dict[str, Any], labels: dict[str, str]) -> str:
+    lang = _labels_lang(labels)
+    stats = player.get("stats") or {}
+    parts = [f"{key} {stats[key]}" for key in FULL_STATS_PLAYER_ORDER if stats.get(key) not in (None, "")]
+    display_name = display_player_name(str(player.get("playerName") or ""), lang)
+    text = f"{display_name}: {', '.join(parts)}" if parts else display_name
+    averages = render_season_average_line(player.get("seasonAverages"), labels)
+    if averages:
+        return f"{text} ({averages})"
+    return text
+
+
+def render_compact_player_stat_line(
+    player: dict[str, Any],
+    *,
+    lang: str,
+    include_shooting: bool = True,
+    include_minutes: bool = False,
+    include_secondary: bool = True,
+) -> str:
+    stats = player.get("stats") or {}
+    display_name = display_player_name(str(player.get("playerName") or ""), lang)
+    if not display_name:
+        return ""
+
+    core_parts: list[str] = []
+    for key in ("PTS", "REB", "AST"):
+        value = stats.get(key)
+        if value in (None, ""):
+            continue
+        if lang == "zh":
+            core_parts.append(f"{value}{STAT_SUFFIXES_ZH[key]}")
+        else:
+            core_parts.append(f"{value} {STAT_LABELS['en'][key].lower()}")
+
+    secondary_parts: list[str] = []
+    if include_secondary:
+        for key in ("STL", "BLK", "TOV"):
+            value = stats.get(key)
+            if value in (None, "", 0, "0"):
+                continue
+            if lang == "zh":
+                secondary_parts.append(f"{value}{STAT_SUFFIXES_ZH[key]}")
+            else:
+                secondary_parts.append(f"{value} {STAT_LABELS['en'][key].lower()}")
+
+    shooting_parts: list[str] = []
+    if include_shooting:
+        for key in ("FG", "3PT", "FT"):
+            value = stats.get(key)
+            if value in (None, ""):
+                continue
+            label = STAT_LABELS.get(lang, STAT_LABELS["en"]).get(key, key)
+            shooting_parts.append(f"{label} {value}")
+
+    if include_minutes and stats.get("MIN") not in (None, ""):
+        minutes = stats["MIN"]
+        if lang == "zh":
+            secondary_parts.insert(0, f"{minutes}分钟")
+        else:
+            secondary_parts.insert(0, f"MIN {minutes}")
+
+    if lang == "zh":
+        body_parts = [" ".join(part for part in core_parts if part)]
+        if secondary_parts:
+            body_parts.append(" ".join(secondary_parts))
+        if shooting_parts:
+            body_parts.append("，".join(shooting_parts))
+        body = "，".join(part for part in body_parts if part)
+        return f"{display_name}：{body}" if body else display_name
+
+    body = ", ".join(part for part in [", ".join(core_parts), ", ".join(secondary_parts), ", ".join(shooting_parts)] if part)
+    return f"{display_name}: {body}" if body else display_name
+
+
 def render_detail_blocks(game: dict[str, Any], labels: dict[str, str]) -> list[str]:
+    lang = _labels_lang(labels)
     lines: list[str] = []
     if game["leaders"]:
         lines.append(f"#### {labels['leaders']}")
         for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
-            lines.append(f"- {abbr}: {', '.join(game['leaders'].get(abbr) or [labels['none']])}")
+            items = [localize_player_line(item, lang) for item in (game["leaders"].get(abbr) or [labels["none"]])]
+            lines.append(f"- {team_display_name(abbr, lang)}: {', '.join(items)}")
         lines.append("")
     if game["keyPlayers"]:
         lines.append(f"#### {labels['key_players']}")
         for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
             if game["keyPlayers"].get(abbr):
-                lines.append(f"- {abbr}: {', '.join(game['keyPlayers'][abbr][:3])}")
+                items = [localize_player_line(item, lang) for item in game["keyPlayers"][abbr][:3]]
+                lines.append(f"- {team_display_name(abbr, lang)}: {', '.join(items)}")
         lines.append("")
     if game["teamStats"]:
         lines.append(f"#### {labels['team_stats']}")
         for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
             if game["teamStats"].get(abbr):
-                lines.append(f"- {abbr}: {', '.join(game['teamStats'][abbr][:4])}")
+                lines.append(f"- {team_display_name(abbr, lang)}: {', '.join(game['teamStats'][abbr][:4])}")
         lines.append("")
     if game["injuries"]:
         lines.append(f"#### {labels['injuries']}")
         for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
             if game["injuries"].get(abbr):
-                lines.append(f"- {abbr}: {'; '.join(game['injuries'][abbr][:4])}")
+                items = [localize_player_line(item, lang) for item in game["injuries"][abbr][:4]]
+                lines.append(f"- {team_display_name(abbr, lang)}: {'; '.join(items)}")
         lines.append("")
     if game["recentPlays"] and game["statusState"] == "in":
         lines.append(f"#### {labels['recent_plays']}")
@@ -824,6 +1102,57 @@ def render_detail_blocks(game: dict[str, Any], labels: dict[str, str]) -> list[s
         lines.append(f"#### {labels['hotspots']}")
         for item in game["hotspots"]:
             lines.append(f"- {item}")
+        lines.append("")
+    context = game.get("context") or {}
+    team_form = context.get("teamForm") or {}
+    if team_form:
+        lines.append(f"#### {labels['team_form']}")
+        for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
+            snapshot = team_form.get(abbr) or {}
+            if not snapshot.get("available"):
+                continue
+            recent = (snapshot.get("recentForm") or {}).get("record") or "N/A"
+            rest_days = (snapshot.get("schedule") or {}).get("restDays")
+            injuries = (snapshot.get("injuries") or {}).get("count")
+            rest_text = labels["pending"] if rest_days is None else str(rest_days)
+            lines.append(
+                f"- {team_display_name(abbr, lang)}: recent {recent}, rest {rest_text}, "
+                f"injuries {injuries if injuries is not None else labels['none']}"
+            )
+        lines.append("")
+    head_to_head = context.get("headToHead") or {}
+    if head_to_head.get("available"):
+        lines.append(f"#### {labels['head_to_head']}")
+        if head_to_head.get("seasonSeriesSummary"):
+            lines.append(f"- {labels['season_series']}: {head_to_head['seasonSeriesSummary']}")
+        latest = head_to_head.get("latestMeeting")
+        if latest:
+            latest_text = format_matchup_display(
+                latest.get("awayAbbr"),
+                latest.get("homeAbbr"),
+                lang=lang,
+                away_score=latest.get("awayScore"),
+                home_score=latest.get("homeScore"),
+            )
+            lines.append(f"- latest: {latest_text} ({latest.get('detail') or labels['none']})")
+        lines.append("")
+    full_stats = game.get("fullStats") or {}
+    if full_stats.get("available"):
+        lines.append(f"#### {labels['full_stats']}")
+        lines.append(f"##### {labels['team_totals_compare']}")
+        for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
+            stats = (full_stats.get("teams") or {}).get(abbr) or {}
+            if stats:
+                compact = render_full_stats_team_line(stats)
+                if compact:
+                    lines.append(f"- {team_display_name(abbr, lang)}: {compact}")
+        lines.append("")
+        lines.append(f"##### {labels['key_player_lines']}")
+        for abbr in (game["away"]["abbr"], game["home"]["abbr"]):
+            players = (full_stats.get("players") or {}).get(abbr) or []
+            if players:
+                top_lines = [render_full_stats_player_line(player, labels) for player in players[:3]]
+                lines.append(f"- {team_display_name(abbr, lang)}: {'; '.join([line for line in top_lines if line])}")
         lines.append("")
     return lines
 

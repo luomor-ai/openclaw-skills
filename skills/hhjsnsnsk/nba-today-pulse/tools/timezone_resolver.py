@@ -88,6 +88,25 @@ def _resolve_iana(name: str, source: str) -> ResolvedTimezone | None:
     return ResolvedTimezone(name=name, tzinfo=zone, source=source)
 
 
+def canonical_timezone_name(resolved: ResolvedTimezone | None) -> str | None:
+    """Return the canonical long-term timezone name when one exists.
+
+    Region-based IANA timezones are the only preferred canonical storage form.
+    Fixed UTC offsets remain valid for the current request, but should not
+    displace an existing IANA timezone preference.
+    """
+
+    if resolved and isinstance(resolved.tzinfo, ZoneInfo):
+        return resolved.name
+    return None
+
+
+def canonicalize_timezone_input(text: str | None) -> str | None:
+    """Normalize user-facing timezone input to canonical IANA when possible."""
+
+    return canonical_timezone_name(extract_timezone_hint(text))
+
+
 def extract_timezone_hint(text: str | None) -> ResolvedTimezone | None:
     raw_text = (text or "").strip()
     if not raw_text:

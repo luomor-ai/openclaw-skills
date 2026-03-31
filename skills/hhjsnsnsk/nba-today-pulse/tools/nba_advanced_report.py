@@ -14,6 +14,7 @@ if str(CURRENT_DIR) not in sys.path:
     sys.path.insert(0, str(CURRENT_DIR))
 
 from nba_common import NBAReportError  # noqa: E402
+from entity_guard import extract_primary_name, normalize_player_name  # noqa: E402
 from nba_today_report import (  # noqa: E402
     I18N,
     build_report_payload,
@@ -71,25 +72,54 @@ def abbr_by_team_id(game: dict[str, Any], team_id: str | None) -> str | None:
     return None
 
 
+def team_form_for_side(game: dict[str, Any], side: str) -> dict[str, Any]:
+    abbr = game[side]["abbr"]
+    return (game.get("context", {}).get("teamForm", {}) or {}).get(abbr) or {}
+
+
 def standings_for_side(game: dict[str, Any], side: str) -> dict[str, Any]:
+    snapshot = team_form_for_side(game, side)
+    if snapshot.get("standings"):
+        return snapshot["standings"]
     team_id = game[side].get("id") or ""
     return game.get("standings", {}).get(team_id) or {}
 
 
 def last_five_for_side(game: dict[str, Any], side: str) -> dict[str, Any]:
+    snapshot = team_form_for_side(game, side)
+    if snapshot.get("recentForm"):
+        return snapshot["recentForm"]
     team_id = game[side].get("id") or ""
     return game.get("lastFiveGames", {}).get(team_id) or {}
 
 
 def season_stats_for_side(game: dict[str, Any], side: str) -> dict[str, str]:
+    snapshot = team_form_for_side(game, side)
+    if snapshot.get("seasonStats"):
+        return snapshot["seasonStats"]
     return game.get("teamSeasonStats", {}).get(game[side]["abbr"]) or {}
 
 
 def schedule_context_for_side(game: dict[str, Any], side: str) -> dict[str, Any]:
+    snapshot = team_form_for_side(game, side)
+    if snapshot.get("schedule"):
+        return snapshot["schedule"]
     return game.get("teamScheduleContext", {}).get(game[side]["abbr"]) or {}
 
 
+def head_to_head_context(game: dict[str, Any]) -> dict[str, Any]:
+    return game.get("context", {}).get("headToHead") or {}
+
+
+def full_stats_for_side(game: dict[str, Any], side: str) -> dict[str, Any]:
+    return (game.get("fullStats", {}).get("teams") or {}).get(game[side]["abbr"]) or {}
+
+
 def injury_burden(game: dict[str, Any], side: str) -> float:
+    snapshot = team_form_for_side(game, side)
+    injury_snapshot = snapshot.get("injuries") or {}
+    if injury_snapshot.get("burden") is not None:
+        return float(injury_snapshot["burden"])
     burden = 0.0
     for item in game.get("injuries", {}).get(game[side]["abbr"], []):
         lowered = item.lower()
@@ -116,10 +146,96 @@ def compare_metric(game: dict[str, Any], metric: str, higher_is_better: bool = T
 
 
 def matchup_text(game: dict[str, Any], labels: dict[str, str]) -> str | None:
-    away_leader = (game.get("leaders", {}).get(game["away"]["abbr"]) or [None])[0]
-    home_leader = (game.get("leaders", {}).get(game["home"]["abbr"]) or [None])[0]
-    if away_leader and home_leader:
-        return f"{game['away']['abbr']} {away_leader} vs {game['home']['abbr']} {home_leader}"
+    away_matchup = matchup_candidate_text(game, "away")
+    home_matchup = matchup_candidate_text(game, "home")
+    if away_matchup and home_matchup:
+        return f"{game['away']['abbr']} {away_matchup} vs {game['home']['abbr']} {home_matchup}"
+    return None
+
+
+INELIGIBLE_MATCHUP_STATUSES = {"out", "doubtful", "questionable"}
+
+
+def _injury_status_by_team(game: dict[str, Any], side: str) -> dict[str, str]:
+    abbr = game[side]["abbr"]
+    statuses: dict[str, str] = {}
+    for item in (game.get("injuryItems", {}) or {}).get(abbr) or []:
+        name = normalize_player_name(item.get("playerName"))
+        status = str(item.get("status") or "").strip()
+        if name and status:
+            statuses[name] = status
+    return statuses
+
+
+def _matchup_candidate_lines(game: dict[str, Any], side: str) -> list[str]:
+    abbr = game[side]["abbr"]
+    candidates: list[str] = []
+    for group_name in ("leaders", "keyPlayers", "starters"):
+        for line in (game.get(group_name, {}).get(abbr) or []):
+            if line not in candidates:
+                candidates.append(line)
+    return candidates
+
+
+def _is_matchup_eligible(line: str, *, allowed_names: set[str], status_by_player: dict[str, str]) -> bool:
+    primary_name = extract_primary_name(line)
+    normalized_name = normalize_player_name(primary_name)
+    if not normalized_name:
+        return False
+    if allowed_names and normalized_name not in allowed_names:
+        return False
+    lowered_status = str(status_by_player.get(normalized_name) or "").strip().casefold()
+    if lowered_status in INELIGIBLE_MATCHUP_STATUSES:
+        return False
+    return True
+
+
+def matchup_candidate_text(game: dict[str, Any], side: str) -> str | None:
+    allowed_names = {normalize_player_name(name) for name in (game.get("verifiedPlayers") or []) if name}
+    status_by_player = _injury_status_by_team(game, side)
+    for line in _matchup_candidate_lines(game, side):
+        if _is_matchup_eligible(line, allowed_names=allowed_names, status_by_player=status_by_player):
+            return line
+    return None
+
+
+def top_full_stats_player(game: dict[str, Any], side: str) -> str | None:
+    players = (game.get("fullStats", {}).get("players") or {}).get(game[side]["abbr"]) or []
+    best: tuple[int, str] | None = None
+    for player in players:
+        stats = player.get("stats") or {}
+        points = stats.get("PTS")
+        if points is None:
+            continue
+        line_parts = [str(player.get("playerName") or "")]
+        for key in ("PTS", "REB", "AST"):
+            if stats.get(key) is not None:
+                line_parts.append(f"{stats[key]} {key}")
+        line = " | ".join(line_parts)
+        if best is None or int(points) > best[0]:
+            best = (int(points), line)
+    return best[1] if best else None
+
+
+def team_totals_edge_reason(game: dict[str, Any], favored_side: str, labels: dict[str, str]) -> str | None:
+    own = full_stats_for_side(game, favored_side)
+    other = full_stats_for_side(game, "away" if favored_side == "home" else "home")
+    if not own or not other:
+        return None
+    for key, text_zh, text_en, higher_better in (
+        ("REB", "篮板边际", "Rebounding edge", True),
+        ("AST", "分享球边际", "Assist edge", True),
+        ("TOV", "失误控制边际", "Turnover control edge", False),
+    ):
+        own_value = safe_float(own.get(key))
+        other_value = safe_float(other.get(key))
+        if own_value is None or other_value is None or own_value == other_value:
+            continue
+        better = own_value > other_value if higher_better else own_value < other_value
+        if better:
+            if labels["timezone"] == "请求方时区":
+                return f"{text_zh}: {game[favored_side]['abbr']} {own_value:.0f}-{other_value:.0f}"
+            return f"{text_en}: {game[favored_side]['abbr']} {own_value:.0f}-{other_value:.0f}"
     return None
 
 
@@ -231,13 +347,23 @@ def build_pregame_analysis(game: dict[str, Any], labels: dict[str, str]) -> dict
         else:
             reasons.append((1, f"Offensive profile edge: {game[favored_side]['abbr']}"))
 
-    season_series = game.get("seasonSeries") or []
-    if season_series:
-        series = season_series[0]
-        summary = str(series.get("summary") or "")
-        if game["home"]["abbr"] in summary and "lead" in summary.lower():
+    head_to_head = head_to_head_context(game)
+    season_series_summary = str(head_to_head.get("seasonSeriesSummary") or "")
+    wins_by_team = head_to_head.get("winsByTeam") or {}
+    if wins_by_team:
+        home_wins = int(wins_by_team.get(game["home"]["abbr"]) or 0)
+        away_wins = int(wins_by_team.get(game["away"]["abbr"]) or 0)
+        if home_wins != away_wins:
+            favored_side = "home" if home_wins > away_wins else "away"
+            scores[favored_side] += 1
+            if labels["timezone"] == "请求方时区":
+                reasons.append((1, f"交锋边际: {game[favored_side]['abbr']}"))
+            else:
+                reasons.append((1, f"Head-to-head edge: {game[favored_side]['abbr']}"))
+    elif season_series_summary:
+        if game["home"]["abbr"] in season_series_summary and "lead" in season_series_summary.lower():
             scores["home"] += 1
-        elif game["away"]["abbr"] in summary and "lead" in summary.lower():
+        elif game["away"]["abbr"] in season_series_summary and "lead" in season_series_summary.lower():
             scores["away"] += 1
 
     favored_side: str | None = None
@@ -351,6 +477,10 @@ def build_live_analysis(game: dict[str, Any], labels: dict[str, str]) -> dict[st
             reasons.append(f"近期攻势: {game[run_side]['abbr']} 近段净胜 {run_margin} 分")
         else:
             reasons.append(f"Recent run: {game[run_side]['abbr']} is +{run_margin} over the latest scoring stretch")
+    if leading_side:
+        full_stats_reason = team_totals_edge_reason(game, leading_side, labels)
+        if full_stats_reason:
+            reasons.append(full_stats_reason)
 
     if leading_side and ((margin >= 8 and (game.get("period") or 0) >= 4) or (wp_side == leading_side and (wp_value or 0) >= 0.75)):
         summary = (
@@ -438,12 +568,15 @@ def build_post_analysis(game: dict[str, Any], labels: dict[str, str]) -> dict[st
             reasons.append(f"决定性阶段: {decisive_period}")
         else:
             reasons.append(f"Decisive stretch: {decisive_period}")
-    winner_key_player = (game.get("keyPlayers", {}).get(game[winner_side]["abbr"]) or [None])[0]
+    winner_key_player = top_full_stats_player(game, winner_side) or (game.get("keyPlayers", {}).get(game[winner_side]["abbr"]) or [None])[0]
     if winner_key_player:
         if labels["timezone"] == "请求方时区":
             reasons.append(f"关键球员: {game[winner_side]['abbr']} {winner_key_player}")
         else:
             reasons.append(f"Lead performer: {game[winner_side]['abbr']} {winner_key_player}")
+    full_stats_reason = team_totals_edge_reason(game, winner_side, labels)
+    if full_stats_reason:
+        reasons.append(full_stats_reason)
     article = game.get("article") or {}
     if article.get("headline"):
         reasons.append(str(article["headline"]))

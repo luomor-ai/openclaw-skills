@@ -71,6 +71,39 @@ TEAM_DISPLAY = {
     "WAS": "Washington Wizards",
 }
 
+TEAM_DISPLAY_ZH = {
+    "ATL": "亚特兰大老鹰",
+    "BOS": "波士顿凯尔特人",
+    "BKN": "布鲁克林篮网",
+    "CHA": "夏洛特黄蜂",
+    "CHI": "芝加哥公牛",
+    "CLE": "克利夫兰骑士",
+    "DAL": "达拉斯独行侠",
+    "DEN": "丹佛掘金",
+    "DET": "底特律活塞",
+    "GSW": "金州勇士",
+    "HOU": "休斯顿火箭",
+    "IND": "印第安纳步行者",
+    "LAC": "洛杉矶快船",
+    "LAL": "洛杉矶湖人",
+    "MEM": "孟菲斯灰熊",
+    "MIA": "迈阿密热火",
+    "MIL": "密尔沃基雄鹿",
+    "MIN": "明尼苏达森林狼",
+    "NOP": "新奥尔良鹈鹕",
+    "NYK": "纽约尼克斯",
+    "OKC": "俄克拉荷马城雷霆",
+    "ORL": "奥兰多魔术",
+    "PHI": "费城76人",
+    "PHX": "菲尼克斯太阳",
+    "POR": "波特兰开拓者",
+    "SAC": "萨克拉门托国王",
+    "SAS": "圣安东尼奥马刺",
+    "TOR": "多伦多猛龙",
+    "UTA": "犹他爵士",
+    "WAS": "华盛顿奇才",
+}
+
 PROVIDER_ABBR_MAP = {
     "GS": "GSW",
     "SA": "SAS",
@@ -170,11 +203,28 @@ def normalize_team_input(value: str | None) -> str | None:
 
 
 def extract_team_from_text(text: str | None) -> str | None:
+    teams = extract_teams_from_text(text)
+    return teams[0] if teams else None
+
+
+def _alias_pattern(alias: str) -> str:
+    if re.fullmatch(r"[a-z0-9 .'-]+", alias):
+        return rf"(?<![a-z]){re.escape(alias)}(?![a-z])"
+    return re.escape(alias)
+
+
+def extract_teams_from_text(text: str | None) -> list[str]:
     normalized_text = _normalize(text or "")
+    matches_by_team: dict[str, tuple[int, int, str]] = {}
     for alias, abbr in _SORTED_ALIASES:
-        if re.search(rf"(?<![a-z]){re.escape(alias)}(?![a-z])", normalized_text):
-            return abbr
-    return None
+        pattern = _alias_pattern(alias)
+        for match in re.finditer(pattern, normalized_text):
+            candidate = (match.start(), -(match.end() - match.start()), abbr)
+            current = matches_by_team.get(abbr)
+            if current is None or candidate[:2] < current[:2]:
+                matches_by_team[abbr] = candidate
+    ordered = sorted(matches_by_team.values())
+    return [abbr for _, _, abbr in ordered]
 
 
 def canonicalize_team_abbr(value: str | None) -> str:
@@ -189,3 +239,25 @@ def provider_team_id(abbr: str | None, provider: str) -> str | None:
     if provider == "nba":
         return NBA_TEAM_IDS.get(canonical)
     return None
+
+
+def team_display_name(abbr: str | None, lang: str = "en") -> str:
+    canonical = canonicalize_team_abbr(abbr)
+    if lang == "zh":
+        return TEAM_DISPLAY_ZH.get(canonical, canonical or "")
+    return TEAM_DISPLAY.get(canonical, canonical or "")
+
+
+def format_matchup_display(
+    away_abbr: str | None,
+    home_abbr: str | None,
+    *,
+    lang: str = "en",
+    away_score: object | None = None,
+    home_score: object | None = None,
+) -> str:
+    away = team_display_name(away_abbr, lang) or "AWAY"
+    home = team_display_name(home_abbr, lang) or "HOME"
+    if away_score is not None or home_score is not None:
+        return f"{away} {away_score or ''} @ {home} {home_score or ''}".replace("  ", " ").strip()
+    return f"{away} @ {home}"

@@ -1,39 +1,17 @@
 #!/usr/bin/env python3
-"""Shared in-memory and optional disk cache for NBA_TR."""
+"""Shared in-memory cache for the public ClawHub bundle."""
 
 from __future__ import annotations
 
-import hashlib
 import json
 import threading
 import time
-from pathlib import Path
 from typing import Any, Callable
 
 from nba_common import NBAReportError
 
 MEMORY_LOCK = threading.Lock()
 MEMORY_CACHE: dict[tuple[str, str], dict[str, Any]] = {}
-
-DEFAULT_DISK_NAMESPACES = {
-    "espn:scoreboard",
-    "espn:summary",
-    "espn:team_roster",
-    "espn:team_schedule",
-    "espn:team_statistics",
-    "nba:scoreboard",
-    "nba:play_by_play",
-    "nba:boxscore",
-    "nba:team_roster",
-}
-
-
-def disk_cache_enabled() -> bool:
-    return False
-
-
-def cache_root() -> Path:
-    return Path("/tmp/nba_tr_cache_public_bundle")
 
 
 def _cache_key(namespace: str, key: str) -> tuple[str, str]:
@@ -42,25 +20,6 @@ def _cache_key(namespace: str, key: str) -> tuple[str, str]:
 
 def _serialize_payload(payload: Any) -> str:
     return json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
-
-
-def _cache_path(namespace: str, key: str) -> Path:
-    digest = hashlib.sha256(f"{namespace}:{key}".encode("utf-8")).hexdigest()
-    return cache_root() / namespace.replace(":", "_") / f"{digest}.json"
-
-
-def _read_disk_entry(path: Path) -> dict[str, Any] | None:
-    try:
-        return json.loads(path.read_text(encoding="utf-8"))
-    except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return None
-
-
-def _write_disk_entry(path: Path, entry: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    tmp_path = path.with_suffix(".tmp")
-    tmp_path.write_text(json.dumps(entry, ensure_ascii=False), encoding="utf-8")
-    tmp_path.replace(path)
 
 
 def _trim_oversized_entry(entry: dict[str, Any], max_payload_bytes: int) -> dict[str, Any]:
@@ -87,21 +46,11 @@ def cached_json_fetch(
     if memory_entry and memory_entry.get("expiresAt", 0) >= now:
         return memory_entry.get("payload"), "fresh"
 
-    disk_path = _cache_path(namespace, key)
-    disk_entry = None
-    if disk_cache_enabled() and namespace in DEFAULT_DISK_NAMESPACES:
-        disk_entry = _read_disk_entry(disk_path)
-        if disk_entry and disk_entry.get("expiresAt", 0) >= now:
-            with MEMORY_LOCK:
-                MEMORY_CACHE[cache_key] = disk_entry
-            return disk_entry.get("payload"), "fresh"
-
     try:
         payload = fetcher()
     except Exception as exc:
-        stale_entry = memory_entry or disk_entry
-        if allow_stale and stale_entry and stale_entry.get("payload") is not None:
-            return stale_entry.get("payload"), "stale"
+        if allow_stale and memory_entry and memory_entry.get("payload") is not None:
+            return memory_entry.get("payload"), "stale"
         if isinstance(exc, NBAReportError):
             raise
         raise NBAReportError(str(exc), kind="request_failed") from exc
@@ -119,8 +68,6 @@ def cached_json_fetch(
 
     with MEMORY_LOCK:
         MEMORY_CACHE[cache_key] = entry
-    if disk_cache_enabled() and namespace in DEFAULT_DISK_NAMESPACES:
-        _write_disk_entry(disk_path, entry)
     return payload, "fresh"
 
 

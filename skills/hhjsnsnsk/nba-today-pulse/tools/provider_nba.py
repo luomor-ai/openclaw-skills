@@ -118,6 +118,72 @@ def fetch_team_roster(
     }
 
 
+def fetch_team_player_averages(
+    team_id: str,
+    *,
+    season: str | None = None,
+    base_url: str | None = None,
+    timeout_seconds: int = 20,
+) -> dict[str, Any]:
+    stats_base = resolve_stats_base_url(base_url)
+    target_season = season or "2025-26"
+    url = _build_url(
+        stats_base,
+        "leaguedashplayerstats",
+        {
+            "College": "",
+            "Conference": "",
+            "Country": "",
+            "DateFrom": "",
+            "DateTo": "",
+            "Division": "",
+            "DraftPick": "",
+            "DraftYear": "",
+            "GameScope": "",
+            "GameSegment": "",
+            "Height": "",
+            "LastNGames": "0",
+            "LeagueID": "00",
+            "Location": "",
+            "MeasureType": "Base",
+            "Month": "0",
+            "OpponentTeamID": "0",
+            "Outcome": "",
+            "PORound": "0",
+            "PaceAdjust": "N",
+            "PerMode": "PerGame",
+            "Period": "0",
+            "PlayerExperience": "",
+            "PlayerPosition": "",
+            "PlusMinus": "N",
+            "Rank": "N",
+            "Season": target_season,
+            "SeasonSegment": "",
+            "SeasonType": "Regular Season",
+            "ShotClockRange": "",
+            "StarterBench": "",
+            "TeamID": team_id,
+            "TwoWay": "0",
+            "VsConference": "",
+            "VsDivision": "",
+            "Weight": "",
+        },
+    )
+    payload, freshness = cached_json_fetch(
+        namespace="nba:team_player_averages",
+        key=f"{team_id}:{target_season}",
+        ttl_seconds=1800,
+        fetcher=lambda: _fetch_json(url, timeout_seconds),
+    )
+    return {
+        "baseUrl": stats_base,
+        "endpoint": "leaguedashplayerstats",
+        "request": {"team": team_id, "season": target_season},
+        "data": payload,
+        "dataFreshness": freshness,
+    }
+
+
 def fetch_live_boxscore(game_id: str, *, base_url: str | None = None, timeout_seconds: int = 20) -> dict[str, Any]:
     live_base = resolve_live_base_url(base_url)
     url = f"{live_base}/boxscore/boxscore_{game_id}.json"
@@ -267,6 +333,48 @@ def extract_play_actions(payload: dict[str, Any]) -> list[dict[str, Any]]:
                 "playerName": str(player_name),
             }
         )
+    return results
+
+
+def _float_or_none(value: Any) -> float | None:
+    try:
+        if value in (None, ""):
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def extract_team_player_averages(payload: dict[str, Any]) -> dict[str, dict[str, float | None]]:
+    result_sets = payload.get("resultSets") or payload.get("resultSet") or []
+    if isinstance(result_sets, dict):
+        result_sets = [result_sets]
+    if not result_sets:
+        return {}
+    first = next((entry for entry in result_sets if isinstance(entry, dict)), None)
+    if not first:
+        return {}
+    headers = first.get("headers") or []
+    rows = first.get("rowSet") or []
+    results: dict[str, dict[str, float | None]] = {}
+    for row in rows:
+        record = {headers[index]: row[index] for index in range(min(len(headers), len(row)))}
+        name = str(record.get("PLAYER_NAME") or record.get("PLAYER") or "").strip()
+        if not name:
+            continue
+        results[name] = {
+            "MIN": _float_or_none(record.get("MIN")),
+            "PTS": _float_or_none(record.get("PTS")),
+            "REB": _float_or_none(record.get("REB")),
+            "AST": _float_or_none(record.get("AST")),
+            "STL": _float_or_none(record.get("STL")),
+            "BLK": _float_or_none(record.get("BLK")),
+            "TOV": _float_or_none(record.get("TOV")),
+            "FG_PCT": _float_or_none(record.get("FG_PCT")),
+            "FG3_PCT": _float_or_none(record.get("FG3_PCT")),
+            "FT_PCT": _float_or_none(record.get("FT_PCT")),
+            "GP": _float_or_none(record.get("GP")),
+        }
     return results
 
 
