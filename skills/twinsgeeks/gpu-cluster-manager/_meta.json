@@ -1,11 +1,17 @@
 {
   "owner": "twinsgeeks",
   "slug": "gpu-cluster-manager",
-  "displayName": "Gpu Cluster Manager",
+  "displayName": "GPU Cluster Manager — Apple Silicon AI Fleet for Mac Studio, Mac Mini, MacBook Pro",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1774298910337,
-    "commit": "https://github.com/openclaw/skills/commit/df1e21c79724bed08023b5ade9636ed1faa9e997"
+    "version": "1.3.0",
+    "publishedAt": 1774911364627,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1774298910337,
+      "commit": "https://github.com/openclaw/skills/commit/df1e21c79724bed08023b5ade9636ed1faa9e997"
+    }
+  ]
 }
