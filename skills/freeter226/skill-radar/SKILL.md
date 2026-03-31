@@ -1,6 +1,6 @@
 ---
 name: skill-radar
-description: 扫描、洞察、优化你的 AI 技能生态。一键诊断 Skill 使用情况、发现需求缺口、检查版本更新。Trigger on "skill检查", "skill雷达", "skill管理", "skill诊断", "skill优化", "检查skill", "skill radar", "skill usage".
+description: Scan, analyze, and optimize your AI skill ecosystem. Diagnose skill usage, discover capability gaps, and check version updates in one command. Trigger on "skill check", "skill radar", "skill management", "skill diagnostics", "skill optimization", "check skill", "skill usage".
 metadata:
   openclaw:
     emoji: "📡"
@@ -10,65 +10,64 @@ metadata:
 
 # Skill Radar 📡
 
-> 你的 AI 技能管家 — 让每一个安装的 Skill 都物尽其用
+> Your AI Skill Manager — Make every installed Skill count
 
-## 核心理念
+## Core Philosophy
 
-**让用户使用 Skill 变得更简单更高效。**
+**Make Skill management simpler and more efficient.**
 
-- **更简单** — 一条命令看清全貌，不再迷失在100+个Skill里
-- **更高效** — 精准识别闲置与缺口，每一分投入都有回报
-- **更智能** — 基于真实使用数据做判断，不是拍脑袋
+- **Simpler** — See the full picture with one command, no more getting lost in 100+ Skills
+- **More Efficient** — Precisely identify idle skills and gaps, maximize every investment
+- **Smarter** — Data-driven decisions, not guesswork
 
-## 触发条件
+## Trigger Conditions
 
-- "检查skill"、"skill雷达"、"skill诊断"、"skill管理"、"skill优化"
-- "skill usage"、"skill radar"、"skill insight"
-- "哪些skill没用到"、"要不要装这个skill"、"skill需不需要更新"
+- "check skill", "skill radar", "skill diagnostics", "skill management", "skill optimization"
+- "skill usage", "skill insight"
+- "which skills am I not using", "should I install this skill", "do my skills need updating"
 
-## 功能
+## Features
 
-| 命令 | 说明 |
-|------|------|
-| `usage` | 📊 使用价值评估（基于6大数据源） |
-| `status` | 📋 Missing/Ready 状态检查 |
-| `recommend` | 💡 智能推荐（基于历史对话发现需求缺口） |
-| `versions` | 🔄 版本更新检查 |
-| `all` | 完整报告（以上四项） |
+| Command | Description |
+|---------|-------------|
+| `usage` | 📊 Usage Value Assessment (based on 5 data sources) |
+| `status` | 📋 Missing/Ready Status Check |
+| `recommend` | 💡 Smart Recommendations (discover capability gaps from conversation history) |
+| `versions` | 🔄 Version Check |
+| `all` | Full Report (all commands above) |
 
-## 使用方法
+## Usage
 
 ```bash
-# 完整报告（推荐首次使用）
+# Full report (recommended for first use)
 python3 <skill-path>/scripts/health_check.py all
 
-# 单项检查
-python3 <skill-path>/scripts/health_check.py usage       # 使用价值评估
-python3 <skill-path>/scripts/health_check.py status      # 状态检查
-python3 <skill-path>/scripts/health_check.py recommend   # 智能推荐
-python3 <skill-path>/scripts/health_check.py versions    # 版本检查
+# Individual checks
+python3 <skill-path>/scripts/health_check.py usage       # Usage value assessment
+python3 <skill-path>/scripts/health_check.py status      # Status check
+python3 <skill-path>/scripts/health_check.py recommend   # Smart recommendations
+python3 <skill-path>/scripts/health_check.py versions    # Version check
 
-# 输出为 Markdown 文件
+# Output as Markdown
 python3 <skill-path>/scripts/health_check.py all > report.md
 ```
 
-## 使用价值评估说明
+## Usage Value Assessment
 
-整合6大数据源推断每个Skill的使用情况：
+Integrates 5 data sources to infer each Skill's usage:
 
-| 数据源 | 内容 | 权重 |
-|--------|------|------|
-| Mem0 记忆 | 用户主动记录的重要信息 | ⭐⭐⭐ |
-| 每日记忆 | 当天事件、决策、进展 | ⭐⭐⭐ |
-| MEMORY.md | 核心配置、偏好 | ⭐⭐⭐ |
-| HEARTBEAT.md | 定期任务配置 | ⭐⭐ |
-| Session 日志 | 原始对话记录 | ⭐⭐ |
-| AGENTS.md | 工作规则 | ⭐⭐ |
+| Data Source | Content | Weight |
+|-------------|---------|--------|
+| Daily Memory | Events, decisions, progress | ⭐⭐⭐ |
+| MEMORY.md | Core config, preferences | ⭐⭐⭐ |
+| HEARTBEAT.md | Scheduled task config | ⭐⭐ |
+| Session Logs | Raw conversation records | ⭐⭐ |
+| AGENTS.md | Work rules | ⭐⭐ |
 
-评分：🔵 高频（核心工具）/ 🟢 中频 / 🟡 低频 / 🔴 未使用
+Scoring: 🔵 High (core tool) / 🟢 Medium / 🟡 Low / 🔴 Unused
 
-## 依赖
+## Dependencies
 
-- Python 3.8+（纯标准库，无外部依赖）
-- OpenClaw CLI（`openclaw`）
-- ClawHub CLI（`npx clawhub`，仅版本检查需要）
+- Python 3.8+ (pure standard library, no external dependencies)
+- OpenClaw CLI (`openclaw`)
+- ClawHub CLI (`npx clawhub`, only for version check and recommendations)

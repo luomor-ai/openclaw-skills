@@ -1,118 +1,116 @@
 # Skill Radar 📡
 
-> 你的 AI 技能管家 — 让每一个安装的 Skill 都物尽其用
+> Your AI Skill Manager — Make every installed Skill count
 
-## 核心理念
+## Core Philosophy
 
-**让用户使用 Skill 变得更简单更高效。**
+**Make Skill management simpler and more efficient.**
 
-装了太多 Skill 不知道哪些在用？不知道还缺什么？不知道版本是不是最新？
+Too many Skills installed and don't know which ones are actually being used? Not sure what's missing? Wondering if versions are up to date?
 
-Skill Radar 一键扫描，给你完整的洞察。
+Skill Radar scans everything and gives you the full picture in one command.
 
-### 三个层面
+### Three Pillars
 
-- **更简单** — 降低认知负担，一条命令看清全貌
-- **更高效** — 减少无效投入，精准识别闲置与缺口
-- **更智能** — 从被动管理到主动优化，基于真实数据做判断
+- **Simpler** — Lower cognitive load, see the full picture with one command
+- **More Efficient** — Reduce wasted effort, precisely identify idle skills and gaps
+- **Smarter** — Move from reactive management to proactive optimization with real data
 
-## 功能
+## Features
 
-| 命令 | 说明 |
-|------|------|
-| `usage` | 📊 使用价值评估 — 哪些在用、哪些闲置、使用频率如何 |
-| `status` | 📋 状态检查 — Ready/Missing 统计，清理建议 |
-| `recommend` | 💡 智能推荐 — 基于历史对话发现需求缺口，推荐安装 |
-| `versions` | 🔄 版本检查 — 对比 ClawHub 最新版本，一键更新 |
-| `all` | 完整报告（以上四项） |
+| Command | Description |
+|---------|-------------|
+| `usage` | 📊 Usage Value Assessment — Which skills are active, idle, and how often |
+| `status` | 📋 Status Check — Ready/Missing stats with cleanup suggestions |
+| `recommend` | 💡 Smart Recommendations — Discover capability gaps from conversation history |
+| `versions` | 🔄 Version Check — Compare against latest ClawHub versions |
+| `all` | Full Report (all commands above) |
 
-## 安装
+## Installation
 
 ```bash
-# 通过 ClawHub 安装（推荐）
+# Install via ClawHub (recommended)
 npx clawhub install skill-radar
 
-# 或手动安装
+# Or install manually
 cp -r skill-radar ~/.openclaw/workspace/skills/
 ```
 
-## 使用
+## Usage
 
 ```bash
 SKILL_PATH=~/.openclaw/workspace/skills/skill-radar
 
-# 完整报告（推荐首次使用）
+# Full report (recommended for first use)
 python3 $SKILL_PATH/scripts/health_check.py all
 
-# 单项检查
-python3 $SKILL_PATH/scripts/health_check.py usage       # 使用价值评估
-python3 $SKILL_PATH/scripts/health_check.py status      # 状态检查
-python3 $SKILL_PATH/scripts/health_check.py recommend   # 智能推荐
-python3 $SKILL_PATH/scripts/health_check.py versions    # 版本检查
+# Individual checks
+python3 $SKILL_PATH/scripts/health_check.py usage       # Usage value assessment
+python3 $SKILL_PATH/scripts/health_check.py status      # Status check
+python3 $SKILL_PATH/scripts/health_check.py recommend   # Smart recommendations
+python3 $SKILL_PATH/scripts/health_check.py versions    # Version check
 
-# 输出到文件
+# Output to file
 python3 $SKILL_PATH/scripts/health_check.py all > skill-report.md
 ```
 
-## 使用价值评估
+## Usage Value Assessment
 
-整合6大数据源，精准判断每个Skill是否被使用：
+Integrates 5 data sources to accurately determine whether each Skill is being used:
 
-| 数据源 | 内容 | 说明 |
-|--------|------|------|
-| 🧠 Mem0 记忆 | 用户主动记录的重要信息 | 质量最高的数据源 |
-| 📝 每日记忆 | 当天事件、决策、进展 | 时间线清晰，能看趋势 |
-| 📋 MEMORY.md | 核心配置、偏好 | 长期稳定的需求 |
-| 💓 HEARTBEAT.md | 定期任务配置 | 说明持续在用的能力 |
-| 💬 Session 日志 | 原始对话记录 | 过滤系统消息后分析 |
-| 🤖 AGENTS.md | 工作规则 | 反映长期使用模式 |
+| Data Source | Content | Description |
+|-------------|---------|-------------|
+| 📝 Daily Memory | Events, decisions, progress | Clear timeline, shows trends |
+| 📋 MEMORY.md | Core config, preferences | Long-term stable needs |
+| 💓 HEARTBEAT.md | Scheduled task config | Indicates continuously used capabilities |
+| 💬 Session Logs | Raw conversation records | Analyzed after filtering system messages |
+| 🤖 AGENTS.md | Work rules | Reflects long-term usage patterns |
 
-**评分体系**：
+**Scoring System**:
 
-| 评分 | 含义 | 判定 |
-|------|------|------|
-| 🔵 高频 | 核心工具 | 多数据源高频出现 |
-| 🟢 中频 | 经常用 | 2+数据源出现 |
-| 🟡 低频 | 偶尔用 | 仅关键词匹配 |
-| 🔴 未使用 | 从未提及 | 所有数据源无命中 |
+| Score | Meaning | Criteria |
+|-------|---------|----------|
+| 🔵 High | Core tool | Frequent mentions across multiple data sources |
+| 🟢 Medium | Regularly used | Appears in 2+ data sources |
+| 🟡 Low | Occasionally used | Only keyword matches |
+| 🔴 Unused | Never mentioned | No hits in any data source |
 
-## 智能推荐
+## Smart Recommendations
 
-基于历史对话和工作空间配置，主动发现需求缺口：
+Based on conversation history and workspace config, proactively discovers capability gaps:
 
-- 分析用户经常做什么
-- 对比已安装Skill
-- 推荐缺失的能力
-- 区分高频需求和低频需求
+- Analyzes what the user frequently does
+- Compares against installed Skills
+- Recommends missing capabilities
+- Distinguishes between high-frequency and low-frequency needs
 
-## 依赖
+## Dependencies
 
-- Python 3.8+（纯标准库，无外部依赖）
-- OpenClaw CLI（`openclaw`，状态检查需要）
-- ClawHub CLI（`npx clawhub`，版本检查和推荐搜索需要）
+- Python 3.8+ (pure standard library, no external dependencies)
+- OpenClaw CLI (`openclaw`, required for status check)
+- ClawHub CLI (`npx clawhub`, required for version check and recommendations)
 
-## 平台支持
+## Platform Support
 
-- ✅ macOS（Homebrew / npm global）
-- ✅ Linux（Linuxbrew / npm global）
-- ⚠️ Windows（未测试，暂不保证）
+- ✅ macOS (Homebrew / npm global)
+- ✅ Linux (Linuxbrew / npm global)
+- ⚠️ Windows (not tested, no guarantees)
 
-## 安全机制
+## Security
 
-推荐安装的 Skill 会经过自动安全扫描（基于 skill-vetter 协议）：
+Recommended Skills go through automatic security scanning (based on skill-vetter protocol):
 
-- **已安装 Skill**：代码级扫描（25+ 红旗规则）
-- **未安装 Skill**：元数据级检查（作者、更新时间等）
-- 🔴 高危 Skill 自动从推荐列表移除
-- 扫描结果缓存 7 天，推荐结果缓存 24 小时
+- **Installed Skills**: Code-level scan (25+ red flag rules)
+- **Uninstalled Skills**: Metadata-level check (author, update time, etc.)
+- 🔴 High-risk Skills automatically removed from recommendation list
+- Scan results cached for 7 days, recommendation results cached for 24 hours
 
-## 零配置原则
+## Zero-Config Principle
 
-所有外部组件均为可选，缺失时优雅降级：
+All external components are optional, with graceful degradation:
 
-- 没有 Mem0？照样评估，只是少一个数据源
-- 没有 Session 日志？没问题，用工作空间文件评估
-- 有啥用啥，不报错不报❌
+- No Session Logs? No problem, evaluate with workspace files
+- Missing data sources? Use what's available, no errors, no ❌
 
 ## License
 
