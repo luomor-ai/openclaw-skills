@@ -1,12 +1,10 @@
 ---
 name: confidence-builder
 description: >
-  Build real confidence and overcome self-doubt with an AI confidence coach. Practical
-  exercises for social confidence, dating confidence, public speaking, workplace
-  assertiveness, and overcoming imposter syndrome. Not generic motivation — specific
-  techniques backed by psychology including cognitive reframing, gradual exposure,
-  power posing, and self-compassion practices. Helps you build genuine self-esteem
-  that comes from competence, not affirmation. 自信心训练、克服社恐、社交自信、职场自信。
+  Confidence Builder is an AI coach for people fighting self-doubt, social hesitation, and
+  imposter syndrome in dating, work, and everyday life. It helps reframe inner criticism,
+  prepare hard conversations, build evidence-based confidence habits, and act with steadier
+  energy instead of waiting to feel perfect first. 自信提升、自我怀疑、冒名顶替综合征、行动力训练。
 metadata:
   openclaw:
     emoji: "💪🔥"
