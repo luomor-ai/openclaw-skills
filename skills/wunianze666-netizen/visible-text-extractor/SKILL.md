@@ -1,18 +1,6 @@
 ---
 name: visible-text-extractor
 description: Extract and reconstruct as much visible text as possible from webpage URLs, article pages, screenshots, long images, image directories, and GIFs. Use when the goal is not just raw OCR, but a clean, human-readable result with section grouping, OCR cleanup, deduplication, structured JSON, original reading-order reconstruction, and explicit uncertainty notes. Especially useful for WeChat articles, event posters, long screenshots, mixed text-plus-image pages, and cases where visible information must be preserved without dumping noisy OCR into the final answer.
-metadata:
-  openclaw:
-    emoji: "📝"
-    homepage: "https://clawhub.ai"
-    os: ["linux", "macos"]
-    requires:
-      anyBins: ["node", "nodejs"]
-      bins: ["python3", "bash"]
-    install:
-      - kind: node
-        package: docx
-        bins: []
 ---
 
 # Visible Text Extractor
