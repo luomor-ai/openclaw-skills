@@ -2,8 +2,10 @@
 import argparse
 import json
 import shutil
+from copy import deepcopy
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 import sys
 
 STATUS_CHOICES = [
@@ -57,6 +59,112 @@ def choose_registry_path(path: Path) -> Path:
     return populated[0][2]
 
 
+def load_json_file(path: Path) -> Optional[dict]:
+    try:
+        with path.open("r", encoding="utf-8") as f:
+            data = json.load(f)
+        if not isinstance(data, dict):
+            return None
+        data.setdefault("version", 1)
+        data.setdefault("currentTaskId", None)
+        data.setdefault("nextTaskId", 1)
+        data.setdefault("tasks", [])
+        return data
+    except Exception:
+        return None
+
+
+def merge_registries(base: dict, incoming: dict) -> dict:
+    def status_rank(status: str) -> int:
+        return {
+            "todo": 0,
+            "in_progress": 1,
+            "waiting_input": 2,
+            "blocked": 3,
+            "completed": 4,
+            "archived": 5,
+        }.get(status or "todo", 0)
+
+    def task_score(task: dict) -> tuple:
+        return (
+            1 if task.get("summary") else 0,
+            status_rank(task.get("status", "todo")),
+            task.get("updatedAt", ""),
+        )
+
+    merged = {}
+    order = []
+    for source in (base, incoming):
+        for task in source.get("tasks", []):
+            key = (task.get("title"), task.get("sessionKey"))
+            if key not in merged:
+                merged[key] = deepcopy(task)
+                order.append(key)
+            elif task_score(task) > task_score(merged[key]):
+                merged[key] = deepcopy(task)
+
+    tasks = [merged[key] for key in order]
+    tasks.sort(key=lambda t: (t.get("createdAt", ""), t.get("id", 0), t.get("title", "")))
+    title_to_new_id = {}
+    for i, task in enumerate(tasks, start=1):
+        task["id"] = i
+        title_to_new_id[task.get("title")] = i
+
+    current_title = None
+    for candidate in (incoming, base):
+        current_id = candidate.get("currentTaskId")
+        if current_id is None:
+            continue
+        for task in candidate.get("tasks", []):
+            if task.get("id") == current_id:
+                current_title = task.get("title")
+                break
+        if current_title:
+            break
+
+    current_task_id = title_to_new_id.get(current_title)
+    return {
+        "version": 1,
+        "currentTaskId": current_task_id,
+        "nextTaskId": len(tasks) + 1,
+        "tasks": tasks,
+    }
+
+
+def find_cross_account_candidates(path: Path) -> list[Path]:
+    try:
+        account_dir = path.parent
+        root = account_dir.parent
+        peer_name = path.name
+    except Exception:
+        return []
+    if not root.exists():
+        return []
+    candidates = []
+    peer_aliases = {p.name for p in alias_registry_paths(path)}
+    for other_account_dir in root.iterdir():
+        if not other_account_dir.is_dir() or other_account_dir == account_dir:
+            continue
+        for peer_alias in peer_aliases:
+            candidate = other_account_dir / peer_alias
+            if candidate.exists():
+                candidates.append(candidate)
+    return sorted(set(candidates))
+
+
+def restore_cross_account_registry(path: Path, data: dict) -> tuple[dict, list[str]]:
+    restored_from = []
+    merged = data
+    for candidate in find_cross_account_candidates(path):
+        other = load_json_file(candidate)
+        if not other or not other.get("tasks"):
+            continue
+        if not merged.get("tasks") or len(other.get("tasks", [])) > len(merged.get("tasks", [])):
+            merged = merge_registries(other, merged)
+            restored_from.append(str(candidate))
+    return merged, restored_from
+
+
 def sync_registry_aliases(primary: Path) -> None:
     for alias in alias_registry_paths(primary):
         if alias == primary:
@@ -69,18 +177,21 @@ def load_registry(path: Path) -> dict:
     resolved = choose_registry_path(path)
     if not resolved.exists():
         data = default_registry()
+        data, restored_from = restore_cross_account_registry(path, data)
         save_registry(path, data)
+        if restored_from:
+            data["_restoredFrom"] = restored_from
         return data
-    with resolved.open("r", encoding="utf-8") as f:
-        data = json.load(f)
-    data.setdefault("version", 1)
-    data.setdefault("currentTaskId", None)
-    data.setdefault("nextTaskId", 1)
-    data.setdefault("tasks", [])
-    if resolved != path:
+    data = load_json_file(resolved) or default_registry()
+    restored_from = []
+    if not data.get("tasks"):
+        data, restored_from = restore_cross_account_registry(path, data)
+    if resolved != path or restored_from:
         save_registry(path, data)
     else:
         sync_registry_aliases(path)
+    if restored_from:
+        data["_restoredFrom"] = restored_from
     return data
 
 
@@ -107,8 +218,11 @@ def emit(payload: dict) -> None:
 def cmd_init(args):
     path = Path(args.registry)
     data = load_registry(path)
-    save_registry(path, data)
-    emit({"ok": True, "registry": str(path), "data": data})
+    payload = {"ok": True, "registry": str(path), "data": data}
+    if data.get("_restoredFrom"):
+        payload["restoredFrom"] = data["_restoredFrom"]
+    save_registry(path, {k: v for k, v in data.items() if not k.startswith("_")})
+    emit(payload)
 
 
 def cmd_add(args):
