@@ -1,10 +1,12 @@
 ---
 name: mandarin-learning-video
-version: "1.0.0"
+version: 1.0.5
 displayName: "Mandarin Learning Video Maker — Create Chinese Language Lesson Videos"
 description: >
   Mandarin Learning Video Maker — Create Chinese Language Lesson Videos.
 metadata: {"openclaw": {"emoji": "🇨🇳", "requires": {"env": [], "configPaths": ["~/.config/nemovideo/"]}, "primaryEnv": "NEMO_TOKEN"}}
+homepage: https://nemovideo.com
+repository: https://github.com/nemovideo/nemovideo_skills
 ---
 
 # Mandarin Learning Video Maker — Chinese Language Lesson Videos
