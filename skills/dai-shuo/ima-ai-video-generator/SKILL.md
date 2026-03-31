@@ -1,6 +1,6 @@
 ---
 name: "IMA AI Video Generator — Short & Promo Video, Text to Video, Image to Video Generation"
-version: 1.0.5
+version: 1.0.6
 category: file-generation
 author: IMA Studio (imastudio.com)
 keywords: imastudio, video generation, text to video, image to video, AI video generator, video generator, short video generator, promo video generator
@@ -42,7 +42,7 @@ instructionScope:
 # IMA Video AI — Video Generator
 
 **For complete API documentation, security details, all parameters, and Python examples, read `SKILL-DETAIL.md`.**
-**⚠️ MANDATORY: You MUST `read("SKILL-DETAIL.md")` before your first video generation call.** It contains the full API payload structure, error handling tables, and UX protocol that this summary omits. Skipping it causes parameter errors and poor user experience.
+**⚠️ MANDATORY: You MUST `read("SKILL-DETAIL.md")` (full file — do NOT pass `limit` parameter) before your first video generation call.** It contains the full API payload structure, error handling tables, and UX protocol that this summary omits. Skipping it or reading only part of it causes parameter errors and poor user experience.
 
 ## Model ID Reference (CRITICAL)
 
@@ -194,4 +194,4 @@ Pixverse V5.5/V5/V4 lack `model` in `form_config`. Script auto-infers from `mode
 
 ---
 
-**⚠️ REMINDER: `read("SKILL-DETAIL.md")` is required before generating video.** This file is a summary — SKILL-DETAIL.md has the complete API reference, error translation table, and UX protocol you need for correct execution.
+**⚠️ REMINDER: `read("SKILL-DETAIL.md")` (full file, no `limit`) is required before generating video.** This file is a summary — SKILL-DETAIL.md has the complete API reference, error translation table, and UX protocol you need for correct execution.
