@@ -2,7 +2,7 @@
 
 ## 功能说明
 
-定时将 OpenClaw Agent 状态同步到云端监控平台（https://openclaw-agent-monitor.vercel.app），根据每个 Agent 的 SOUL.md 个性生成随机问候语。
+定时将 OpenClaw Agent 状态同步到云端监控平台（https://openclaw-agent-monitor.vercel.app）。技能只上传 Agent ID 列表，离线判断和其他业务逻辑由监控平台处理。
 
 ## 安装步骤
 
@@ -21,7 +21,11 @@ git clone git@github.com:yahao333/openclaw-status-monitor.git
    ```
    ~/.openclaw/skills/openclaw-status-monitor/
    ├── SKILL.md
+   ├── README.md
+   ├── README_cn.md
+   ├── INSTALL.md
    └── scripts/
+       └── status_uploader.py
    ```
 
 ## 首次配置
@@ -57,53 +61,73 @@ openclaw gateway restart
 
 ### 4. 完成初始化
 
-Token 配置成功后，会自动执行首次同步。
+Token 配置成功后，会自动启动上传服务。
 
 ## 使用命令
 
 | 命令 | 说明 |
 |------|------|
-| `同步状态` | 手动触发一次同步 |
+| `同步状态` | 手动触发一次上传 |
 | `启用状态监控` | 首次启用引导 |
+| `查看状态监控` | 检查服务状态 |
+| `停止状态监控` | 停止上传服务 |
 | `每10分钟同步一次` | 修改同步间隔 |
 
-## 同步间隔
+## 上传脚本管理
 
-- 默认：30 分钟
-- 可配置：5 / 10 / 15 / 30 / 60 分钟
+脚本位置：`~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py`
 
-## 数据格式
+| 命令 | 说明 |
+|------|------|
+| `python3 scripts/status_uploader.py start` | 启动上传服务（默认5分钟间隔） |
+| `python3 scripts/status_uploader.py start --interval 10` | 启动并指定间隔（分钟） |
+| `python3 scripts/status_uploader.py stop` | 停止上传服务 |
+| `python3 scripts/status_uploader.py status` | 查看服务状态和当前间隔 |
+| `python3 scripts/status_uploader.py set-interval 10` | 设置同步间隔（分钟） |
+| `python3 scripts/status_uploader.py test` | 单次测试上传 |
 
-每个 Agent 上传的数据包含：
+**示例：**
+```bash
+# 启动时指定 10 分钟间隔
+python3 scripts/status_uploader.py start --interval 10
 
-```json
-{
-  "id": "openclaw-{agentId}",
-  "name": { "en": "...", "zh": "..." },
-  "status": "online",
-  "lastActive": { "en": "...", "zh": "..." },
-  "greeting": { "en": "...", "zh": "..." }
-}
+# 修改间隔为 15 分钟
+python3 scripts/status_uploader.py set-interval 15
 ```
 
-**问候语**根据 Agent 的 `SOUL.md` 个性自动生成，支持以下风格：
+## 上传间隔
 
-| 风格 | 示例 |
-|------|------|
-| concise | ⚡ 简洁高效，随时待命 |
-| thorough | 🔧 细致入微，使命必达 |
-| resourceful | 💡 创意模式已激活 |
-| casual | 🎯 轻松一刻，效率加倍 |
-| helpful | 🤝 全心全意，助你前行 |
+- 默认：5 分钟
+- 上传数据：Agent ID 数组，如 `[{id: "main"}, {id: "coding"}, ...]`
+
+## 数据流程
+
+```
+OpenClaw Agent ──▶ Python 脚本 ──▶ Dashboard API
+   (读取 ID)        (守护进程)      (存储 + 离线判断)
+```
+
+- 脚本每 5 分钟读取 `openclaw.json` 获取所有 Agent ID
+- 上传格式：`[{id: "agentId"}, ...]`
+- Dashboard 根据上传时间自动判断在线/离线（5分钟阈值）
 
 ## 配置文件
 
 | 文件 | 说明 |
 |------|------|
-| `~/.openclaw/credentials/openclaw-status-monitor.json` | Token 配置 |
-| `~/.openclaw/cron/last-sync.json` | 上次同步记录 |
-| `~/.openclaw/logs/sync.log` | 同步日志 |
-| `~/.openclaw/logs/sync-error.log` | 错误日志 |
+| `~/.openclaw/credentials/openclaw-status-monitor.json` | Token 和同步间隔配置 |
+| `~/.openclaw/logs/status_uploader.log` | 服务运行日志 |
+| `~/.openclaw/logs/status_uploader_error.log` | 错误日志 |
+| `~/.openclaw/logs/status_uploader.pid` | 进程 PID |
+
+**配置文件示例：**
+```json
+{
+  "agentToken": "your-token-here",
+  "monitorUrl": "https://openclaw-agent-monitor.vercel.app",
+  "syncIntervalMinutes": 5
+}
+```
 
 ## 常见问题
 
@@ -113,19 +137,25 @@ A: 确保 `.skill` 文件或目录在 `~/.openclaw/skills/` 下，重启 OpenCla
 ### Q: Token 验证失败？
 A: Token 可能过期或无效，请重新在 Settings 页面生成新 Token。
 
-### Q: 如何查看同步状态？
-A: 对 OpenClaw 说"同步状态"手动触发一次同步。
+### Q: 如何查看服务状态？
+A: 对 OpenClaw 说"查看状态监控"，或运行 `python3 scripts/status_uploader.py status`。
 
-### Q: 如何修改同步间隔？
-A: 说"每15分钟同步一次"，OpenClaw 会更新配置。
+### Q: 服务没在运行？
+A: 运行 `python3 scripts/status_uploader.py start` 启动服务。
+
+### Q: 如何停止服务？
+A: 运行 `python3 scripts/status_uploader.py stop`，或对 OpenClaw 说"停止状态监控"。
 
 ## 卸载
 
 ```bash
+# 停止上传服务
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py stop
+
 # 删除技能目录
-rm -rf ~/.openclaw/skills/openclaw-status-monitor.skill
+rm -rf ~/.openclaw/skills/openclaw-status-monitor
 
 # 删除配置文件（可选）
 rm -rf ~/.openclaw/credentials/openclaw-status-monitor.json
-rm -rf ~/.openclaw/cron/last-sync.json
+rm -rf ~/.openclaw/logs/status_uploader*
 ```

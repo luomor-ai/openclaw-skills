@@ -1,444 +1,377 @@
 ---
 name: openclaw-status-monitor
-description: 定时将 OpenClaw Agent 状态同步到云端监控平台，根据 SOUL.md 个性生成随机问候语
+description: Manages OpenClaw Agent status upload scripts, periodically syncing agent online status to the cloud monitoring platform
 author: yanghao
-version: 1.2.0
+version: 4.0.0
 metadata:
   openclaw:
     categories: [system, monitor]
-    tags: [openclaw, status, sync, monitor, soul]
+    tags: [openclaw, status, sync, monitor]
     user-invocable: true
-    cron: "*/30 * * * *"
 ---
 
-## 触发条件
+## Script Location
 
-当满足以下任一条件时触发：
+```
+~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py
+```
 
-1. **首次初始化**：用户说"启用状态监控"、"开启监控同步"
-2. **手动触发**：用户发送"同步状态"、"更新监控"、"上传状态"等
-3. **定时触发**：每 30 分钟（默认）自动执行
-4. **指定间隔**：用户说"每10分钟同步一次"、"改成1小时"等
+## Two Running Modes
 
-## 初始化流程（首次使用必须执行）
+### Mode 1: Cron Scheduled Sync (Default)
 
-### 第一步：检查 Token 配置
+OpenClaw's built-in cron executes the script periodically:
 
-执行技能时，首先检查以下位置是否有 Token：
+```bash
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py
+```
 
-1. 环境变量 `MONITOR_PLATFORM_TOKEN`
-2. 文件 `~/.openclaw/credentials/openclaw-status-monitor.json`
-3. 文件 `~/.openclaw/.env` 中的 `MONITOR_PLATFORM_TOKEN`
+**Trigger phrases**: say "sync status", "restart sync" or "同步状态", "重启同步状态" — OpenClaw will trigger execution on schedule.
 
-### 第二步：Token 不存在时的处理
+### Mode 2: Daemon Mode
 
-如果未找到 Token，必须引导用户注册/登录：
+Use `--fork` to start a real background daemon:
 
-1. **提示用户**：
+| Command | Description |
+|---------|-------------|
+| `python3 scripts/status_uploader.py start --fork` | Start daemon |
+| `python3 scripts/status_uploader.py start --fork --interval 10` | Start with custom interval (minutes) |
+| `python3 scripts/status_uploader.py stop` | Stop service |
+| `python3 scripts/status_uploader.py status` | Check service status |
+| `python3 scripts/status_uploader.py set-interval <minutes>` | Set sync interval |
+| `python3 scripts/status_uploader.py test` | Single test upload |
+
+**Examples:**
+```bash
+# Start daemon
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py start --fork
+
+# Start with 10-minute interval
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py start --fork --interval 10
+```
+
+## Trigger Conditions
+
+Triggers when any of the following conditions are met:
+
+1. **First-time initialization**: say "enable status monitor", "setup status-monitor" or "启用状态监控", "开启监控同步", "配置 status-monitor"
+2. **Manual trigger**: say "sync status", "sync status-monitor", "upload status" or "同步状态", "同步 status-monitor", "上传状态" → single execution
+3. **Scheduled sync**: OpenClaw cron triggers → single execution
+4. **Check status**: say "check status monitor", "monitor status", "check upload service" or "查看状态监控", "状态监控状态", "检查上传服务"
+5. **Stop service**: say "stop status monitor", "stop upload service" or "停止状态监控", "停止上传服务"
+6. **Change interval**: say "sync every 10 minutes", "change to 15 minutes" or "每10分钟同步一次", "改成15分钟"
+7. **Daemon mode**: say "start status monitor", "start daemon", "run in background" or "启动状态监控", "启动守护进程", "后台运行" → execute `start --fork`
+
+**Additional triggers**: say "start status-monitor service", "restart status-monitor service" or "启动status-monitor服务", "重启status-monitor服务".
+
+## Initialization Flow (Must Execute on First Use)
+
+### Step 1: Check Token Configuration
+
+When the skill runs, first check for the token in these locations:
+
+1. Environment variable `MONITOR_PLATFORM_TOKEN`
+2. File `~/.openclaw/credentials/openclaw-status-monitor.json`
+
+### Step 2: Handling Missing Token
+
+If no token is found, guide the user to register/login:
+
+1. **Prompt the user**:
    ```
-   检测到未配置监控 Token，正在引导您完成设置...
+   No monitoring token found. Let me help you set up...
 
-   请选择登录方式：
-   1. 已有账号：访问 https://openclaw-agent-monitor.vercel.app 点击 Sign In 使用 Clerk 登录
-   2. 新用户：访问 https://openclaw-agent-monitor.vercel.app 点击 Sign Up 注册
+   Please choose a sign-in method:
+   1. Existing user: visit https://openclaw-agent-monitor.vercel.app and click Sign In
+   2. New user: visit https://openclaw-agent-monitor.vercel.app and click Sign Up
 
-   登录后：
-   - 进入 Settings 页面
-   - 生成并复制 Agent Token
-   - 告诉我生成的 Token
+   After signing in:
+   - Go to the Settings page
+   - Generate and copy your Agent Token
+   - Send me the generated token
    ```
 
-2. **等待用户回复 Token**
+2. **Wait for user to reply with token**
 
-3. **保存 Token**：
-   - 创建目录 `~/.openclaw/credentials/`
-   - 保存到 `~/.openclaw/credentials/openclaw-status-monitor.json`：
+3. **Save the token**:
+   - Create directory `~/.openclaw/credentials/`
+   - Save to `~/.openclaw/credentials/openclaw-status-monitor.json`:
      ```json
      {
-       "agentToken": "用户提供的token",
-       "createdAt": "2026-03-26T10:00:00.000Z",
+       "agentToken": "user-provided-token",
+       "createdAt": "2026-03-29T10:00:00.000Z",
        "monitorUrl": "https://openclaw-agent-monitor.vercel.app"
      }
      ```
 
-4. **验证 Token**：
-   - 调用 API 测试 Token 是否有效
-   - 如果无效，提示用户检查 Token 是否正确
+4. **Validate the token**
 
-### 第三步：Token 验证成功
+### Step 3: After Successful Token Validation
 
 ```
-✅ Token 配置成功！
+✅ Token configured successfully!
 
-正在执行首次同步...
-- 检测到 X 个 Agent
-- 上传数据...
-- 同步成功！
+Starting upload service...
+- Running initial sync test...
+- ✅ Service started successfully!
 
-监控平台地址：https://openclaw-agent-monitor.vercel.app
-同步间隔：30 分钟
+Monitor platform: https://openclaw-agent-monitor.vercel.app
+Upload interval: 5 minutes
 
-您可以随时说"同步状态"手动触发同步。
+Start command:
+python3 scripts/status_uploader.py start --fork
+
+Management commands:
+- Say "sync status" to manually trigger an upload
+- Say "check status monitor" to check service status
+- Say "stop status monitor" to stop the service
+- Say "restart status monitor" to restart the service
 ```
 
-## 核心功能：读取 SOUL.md 生成问候语
+## Core Functions: Managing the Upload Script
 
-### 1. 收集所有 Agent 和他们的 SOUL.md
-
-遍历 `~/.openclaw/` 下的所有 workspace 目录，查找对应的 SOUL.md 文件：
-
-```
-~/.openclaw/
-├── workspace/           → main agent
-├── workspace-bob/        → bob agent
-├── workspace-coding/     → coding agent
-├── workspace-bot/        → bot agent
-├── workspace-writer/     → writer agent
-├── workspaces/code-expert/ → code-expert agent
-├── workspace-assistant/  → assistant agent
-├── workspace-st-*       → st-* agents
-└── ...
-```
-
-### 2. 读取 SOUL.md 提取关键词
-
-从 SOUL.md 中提取以下信息：
-
-- **Vibe 描述**：`Be the assistant you'd actually want to talk to...`
-- **性格特点**：helpful, concise, thorough, resourceful 等
-- **语气风格**：casual, professional, witty 等
-- **Core Truths 关键词**：genuinely helpful, have opinions, earn trust 等
-
-### 3. 生成随机问候语模板
-
-根据 SOUL.md 的内容，从预设模板库中选择问候语：
-
-| SOUL 关键词 | 适用模板 |
-|------------|----------|
-| concise | "简洁高效，随时待命" |
-| thorough | "细致入微，使命必达" |
-| resourceful | "足智多谋，迎难而上" |
-| casual/witty | "轻松一刻，效率加倍" |
-| helpful | "全心全意，助你前行" |
-| professional | "专业可靠，值得信赖" |
-| default | "运转正常，随时在线" |
-
-### 4.问候语生成算法
-
-```
-1. 读取 agent 的 SOUL.md
-2. 提取关键词（最多3个）
-3. 从模板库选择匹配的模板
-4. 添加随机后缀（emoji + 时间相关）
-5. 生成最终问候语
-```
-
-**问候语格式示例：**
-```json
-{
-  "greeting": {
-    "en": "⚡ Running smooth, ready to help. Concise & efficient as always.",
-    "zh": "⚡ 运转如常，随时待命。简洁高效，使命必达。"
-  }
-}
-```
-
-### 5. 预设问候语模板库
-
-```typescript
-const GREETING_TEMPLATES = [
-  {
-    keywords: ["concise", "efficient", "minimal"],
-    en: "Running lean and mean, ready to assist.",
-    zh: "轻装上阵，高效出击。"
-  },
-  {
-    keywords: ["thorough", "detailed", "comprehensive"],
-    en: "System operational. Every detail covered.",
-    zh: "系统就绪，滴水不漏。"
-  },
-  {
-    keywords: ["resourceful", "creative", "solve"],
-    en: "Creative problem-solving mode: activated.",
-    zh: "创意模式已激活，难题迎刃而解。"
-  },
-  {
-    keywords: ["casual", "witty", "fun"],
-    en: "All systems go! Let's make magic happen.",
-    zh: "一切就绪，让我们一起创造精彩！"
-  },
-  {
-    keywords: ["helpful", "support", "assist"],
-    en: "Here to help, nothing more, nothing less.",
-    zh: "全心全意，助你前行。"
-  },
-  {
-    keywords: ["professional", "reliable", "trust"],
-    en: "Professional mode engaged. Ready for action.",
-    zh: "专业模式启动，值得信赖。"
-  },
-  {
-    keywords: ["bold", "confident", "opinion"],
-    en: "Got opinions, got solutions. Let's do this.",
-    zh: "有态度，有方案，行动！"
-  },
-  {
-    keywords: ["default", "generic"],
-    en: "Systems online. Standing by.",
-    zh: "系统在线，随时待命。"
-  }
-];
-```
-
-## 读取 OpenClaw 状态
-
-### 从 openclaw.json 提取 agent 列表
-
-```json
-{
-  "meta": {
-    "version": "2026.2.26",
-    "lastTouchedAt": "2026-03-25T02:58:08.331Z"
-  },
-  "agents": {
-    "list": [
-      { "id": "main", "name": "大总管小菌" },
-      { "id": "coding", "name": "coding" },
-      { "id": "bot", "name": "bot" }
-    ]
-  }
-}
-```
-
-### Agent 到 SOUL.md 的映射
-
-| Agent ID | SOUL.md 路径 |
-|----------|--------------|
-| main | ~/.openclaw/workspace/SOUL.md |
-| bob | ~/.openclaw/workspace-bob/SOUL.md |
-| coding | ~/.openclaw/workspace-coding/SOUL.md |
-| bot | ~/.openclaw/workspace-bot/SOUL.md |
-| writer | ~/.openclaw/workspace-writer/SOUL.md |
-| * | ~/.openclaw/workspace-{agentId}/SOUL.md |
-
-## 转换为 Agent 格式
-
-将 OpenClaw agent + SOUL.md 个性转换为监控平台格式：
-
-```json
-[
-  {
-    "id": "openclaw-{agentId}",
-    "name": {
-      "en": "{agentName}",
-      "zh": "{agentName}"
-    },
-    "status": "online",
-    "lastActive": {
-      "en": "{ISO时间}",
-      "zh": "{相对时间}"
-    },
-    "greeting": {
-      "en": "{根据SOUL生成的英文问候语}",
-      "zh": "{根据SOUL生成的中文问候语}"
-    }
-  }
-]
-```
-
-## 上传到 Vercel
-
-调用 `/api/upload` 接口：
+### 1. Check if Script Exists
 
 ```bash
-curl -X POST "https://openclaw-agent-monitor.vercel.app/api/upload" \
-  -H "x-agent-token: {MONITOR_PLATFORM_TOKEN}" \
-  -H "Content-Type: application/json" \
-  -d '{JSON_DATA}'
+if [ -f ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py ]; then
+  echo "Script exists"
+else
+  echo "Script not found"
+fi
 ```
 
-## 存储配置
+### 2. Start Service (Recommended)
 
-### Token 存储位置
+```bash
+# Start daemon with --fork (recommended)
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py start --fork --interval 10
+```
 
-`~/.openclaw/credentials/openclaw-status-monitor.json`：
+### 3. Set Sync Interval
+
+```bash
+# Method 1: specify at startup
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py start --fork --interval 15
+
+# Method 2: use set-interval command
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py set-interval 15
+```
+
+### 4. Stop Service
+
+```bash
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py stop
+```
+
+### 5. Check Service Status
+
+```bash
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py status
+```
+
+### 6. View Error Logs
+
+```
+~/.openclaw/logs/status_uploader_error.log
+~/.openclaw/logs/status_uploader.log
+```
+
+```bash
+# View recent errors
+tail -50 ~/.openclaw/logs/status_uploader_error.log
+
+# View service logs
+tail -50 ~/.openclaw/logs/status_uploader.log
+```
+
+**Log rotation**: log files auto-rotate when exceeding 10MB, format: `status_uploader.20260329_183500.log`
+
+### 7. Manually Trigger One Upload
+
+```bash
+python3 ~/.openclaw/skills/openclaw-status-monitor/scripts/status_uploader.py test
+```
+
+### Upload Logic (Simplified)
+
+The script only reads all agent IDs from `openclaw.json` and uploads them — **it does not perform any offline detection**.
+
+Offline detection is handled by the monitoring platform (openclaw-agent-monitor):
+- The platform automatically updates `lastActiveTimestamp` based on upload time
+- If no upload is received for 5+ minutes, the platform automatically marks the agent as offline
+
+## Storage Configuration
+
+### Token Storage Location
+
+`~/.openclaw/credentials/openclaw-status-monitor.json`:
 
 ```json
 {
   "agentToken": "e2d3262f-b626-4850-af11-5f2cb1c0dcad",
-  "createdAt": "2026-03-26T10:00:00.000Z",
+  "createdAt": "2026-01-26T10:00:00.000Z",
   "monitorUrl": "https://openclaw-agent-monitor.vercel.app",
-  "syncIntervalMinutes": 30
+  "syncIntervalMinutes": 5
 }
 ```
 
-### 上次同步记录
+## Log Locations
 
-`~/.openclaw/cron/last-sync.json`：
+- Service log: `~/.openclaw/logs/status_uploader.log`
+- Error log: `~/.openclaw/logs/status_uploader_error.log`
+- PID file: `~/.openclaw/logs/status_uploader.pid`
+- Token config: `~/.openclaw/credentials/openclaw-status-monitor.json`
 
-```json
-{
-  "lastSyncAt": "2026-03-26T10:30:00.000Z",
-  "agentCount": 12,
-  "success": true,
-  "greetingsGenerated": {
-    "main": "简洁高效，随时待命 ⚡",
-    "coding": "细致入微，代码无痕 🔧",
-    "bot": "轻松一刻，效率加倍 🎯"
-  }
-}
+## Error Handling
+
+### 1. Missing Token
+
+**During initialization**:
+```
+❌ No monitoring token detected
+
+Please complete these steps first:
+
+1. Visit https://openclaw-agent-monitor.vercel.app
+2. Click Sign In / Sign Up to log in or register
+3. After logging in, generate an Agent Token on the Settings page
+4. Send me the token
+
+Example: My token is abc123-def456...
 ```
 
-## 配置项
-
-| 配置项 | 环境变量 | 配置文件 | 默认值 | 说明 |
-|--------|----------|----------|--------|------|
-| 上传 Token | `MONITOR_PLATFORM_TOKEN` | credentials 文件 | 无 | 必填 |
-| 同步间隔 | `OPENCLAW_SYNC_MINUTES` | credentials 文件 | 30 | 分钟 |
-| Vercel API URL | `OPENCLAW_MONITOR_URL` | credentials 文件 | https://openclaw-agent-monitor.vercel.app | 可自定义 |
-
-## 错误处理
-
-### 1. 缺少 Token
-
-**初始化时**：
-```
-❌ 未检测到监控 Token
-
-请先完成以下步骤：
-
-1. 访问 https://openclaw-agent-monitor.vercel.app
-2. 点击 Sign In / Sign Up 登录或注册账号
-3. 登录后在 Settings 页面生成 Agent Token
-4. 将 Token 发送给我
-
-示例：我的 Token 是 abc123-def456...
-```
-
-**运行时环境变量缺失**：
-```
-请设置环境变量 MONITOR_PLATFORM_TOKEN
-或将其添加到 ~/.openclaw/credentials/openclaw-status-monitor.json
-```
-
-### 2. Token 无效
+### 2. Script Not Found
 
 ```
-❌ Token 验证失败
+❌ Upload script not found
 
-您提供的 Token 可能已过期或无效。
-
-请重新获取 Token：
-1. 登录 https://openclaw-agent-monitor.vercel.app
-2. 进入 Settings 页面
-3. 点击 Generate 生成新 Token
-4. 将新 Token 发送给我
+Please reinstall the skill or contact the developer.
 ```
 
-### 3. 缺少 SOUL.md
+### 3. Service Start Failed
 
-如果某个 agent 没有 SOUL.md，使用默认问候语：
+Check the error log:
 ```
-"系统在线，随时待命 📡"
+cat ~/.openclaw/logs/status_uploader_error.log
 ```
 
-### 4. 网络错误
+Common errors:
+- Token not configured
+- Network connection failed
+- Port already in use
 
-- 记录错误到 `~/.openclaw/logs/sync-error.log`
-- 返回友好提示
-- 下次同步时自动重试
+### 4. Invalid Token
 
-## 示例对话
+```
+❌ Token validation failed
 
-### 首次启用
+Your token may have expired or is invalid.
 
-**User:** 启用状态监控
+Please obtain a new token:
+1. Log in to https://openclaw-agent-monitor.vercel.app
+2. Go to the Settings page
+3. Click Generate to create a new Token
+4. Send me the new token
+```
+
+## Example Conversations
+
+### First-time Enable
+
+**User:** 启用状态监控 / enable status monitor
 **Agent:**
-正在检查监控配置...
+Checking monitoring configuration...
 
-❌ 未检测到 Agent Token
+❌ No Agent Token detected
 
-请先完成以下步骤：
+Please complete these steps first:
 
-1. 访问 https://openclaw-agent-monitor.vercel.app
-2. 点击 **Sign In** 登录（支持 Google/GitHub 等）
-3. 登录后在 **Settings** 页面生成 Agent Token
-4. 将 Token 发送给我
-
-**User:** 我的 Token 是 e2d3262f-b626-4850-af11-5f2cb1c0dcad
-**Agent:**
-正在验证 Token...
-
-✅ Token 验证成功！
-
-正在读取 Agent 个性（SOUL.md）...
-- 大总管小菌：简洁高效，随时待命 ⚡
-- coding：细致入微，使命必达 🔧
-- bot：轻松一刻，效率加倍 🎯
-
-执行首次同步...
-- 检测到 3 个 Agent
-- 上传数据...
-- ✅ 同步成功！
+1. Visit https://openclaw-agent-monitor.vercel.app
+2. Click **Sign In** (supports Google/GitHub, etc.)
+3. After logging in, generate an Agent Token on the **Settings** page
+4. Send me the token
 
 ---
 
-✅ **状态监控已启用！**
-
-- 监控平台：https://openclaw-agent-monitor.vercel.app
-- 同步间隔：30 分钟
-- 最近同步：2026-03-26 10:30:00
-
-### 正常运行
-
-**User:** 同步状态
+**User:** 我的 Token 是 e2d3262f-b626-4850-af11-5f2cb1c0dcad / My token is e2d3262f-b626-4850-af11-5f2cb1c0dcad
 **Agent:**
-正在同步 OpenClaw 状态...
+Validating token...
 
-正在读取 Agent 个性...
-- 大总管小菌：⚡ 运转如常
-- coding：🔧 代码无痕
-- ...
+✅ Token validated successfully!
 
-✅ 同步成功！
+Starting upload service...
+- Running initial sync test...
+- ✅ Service started successfully!
 
-最近同步：2026-03-26 10:30:00
-Agent 数量：3
+---
 
-### 查看问候语
+✅ **Status monitor enabled!**
 
-**User:** 给我看看现在的问候语
+- Monitor platform: https://openclaw-agent-monitor.vercel.app
+- Upload interval: 5 minutes
+- Service status: running
+
+Management commands:
+- Say "sync status" / "同步状态" to manually trigger an upload
+- Say "check status monitor" / "查看状态监控" to check service status
+- Say "stop status monitor" / "停止状态监控" to stop the service
+
+### Check Service Status
+
+**User:** 查看状态监控 / check status monitor
 **Agent:**
-当前各 Agent 的问候语：
+Checking upload service status...
 
-1. **大总管小菌**
-   - 英文：Running lean and mean, ready to assist.
-   - 中文：简洁高效，随时待命 ⚡
+✅ Service is running
+   PID: 12345
+   Sync interval: 5 minutes
+   Log file: ~/.openclaw/logs/status_uploader.log
 
-2. **coding**
-   - 英文：System operational. Every detail covered.
-   - 中文：细致入微，使命必达 🔧
+Recent logs:
+```
+2026-03-29 10:30:01 - INFO - Upload success: ['main', 'coding']
+2026-03-29 10:35:02 - INFO - Upload success: ['main', 'coding']
+```
 
-3. **bot**
-   - 英文：Creative problem-solving mode: activated.
-   - 中文：创意模式已激活，难题迎刃而解 🚀
+Error log: none
 
-## 日志位置
+### Stop Service
 
-- 同步日志：`~/.openclaw/logs/sync.log`
-- 错误日志：`~/.openclaw/logs/sync-error.log`
-- 上次同步：`~/.openclaw/cron/last-sync.json`
-- Token 配置：`~/.openclaw/credentials/openclaw-status-monitor.json`
+**User:** 停止状态监控 / stop status monitor
+**Agent:**
+Stopping upload service...
 
-## SOUL.md 个性映射表
+✅ Service stopped
 
-| 关键词 | 英文问候语 | 中文问候语 | Emoji |
-|--------|-----------|-----------|-------|
-| concise | Running lean and mean | 轻装上阵 | ⚡ |
-| thorough | Every detail covered | 滴水不漏 | 🔧 |
-| resourceful | Creative mode activated | 创意模式已激活 | 💡 |
-| casual | Let's make magic happen | 让我们创造精彩 | 🎯 |
-| helpful | Here to help, always | 全心全意 | 🤝 |
-| professional | Professional mode engaged | 专业模式启动 | 🎩 |
-| bold | Got opinions, got solutions | 有态度有方案 | 💪 |
-| default | Systems online | 系统在线 | 📡 |
+To restart, say "start status monitor" / "启动状态监控".
+
+### Manual Sync
+
+**User:** 同步状态 / sync status
+**Agent:**
+Executing manual upload...
+
+Online agents: ['main', 'coding']
+Upload result: ✅ Success
+
+### Restart Service
+
+**User:** 重启状态监控 / restart status monitor
+**Agent:**
+Restarting upload service...
+
+✅ Service restarted, PID: 67890
+
+### Check Errors
+
+**User:** 查看状态监控错误日志 / check status monitor error log
+**Agent:**
+Checking error logs...
+
+Recent errors:
+```
+2026-03-29 09:15:03 - HTTP 401: Unauthorized
+2026-03-29 09:20:01 - Network: [Errno 8] nodename nor servname provided
+```
+
+Suggestion: Check if the token is correct, or check your network connection.
