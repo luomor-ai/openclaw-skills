@@ -1,13 +1,10 @@
 ---
 name: couple-coach
 description: >
-  Your AI relationship coach for building and maintaining healthy connections. Get
-  practical advice on communication with your partner, resolving conflicts without
-  escalation, rebuilding trust after betrayal, navigating long-distance relationships,
-  and understanding attachment styles. Covers couples counseling techniques, love
-  languages, setting boundaries, dealing with jealousy, and knowing when a relationship
-  is worth saving or when it's time to leave. For dating, committed relationships,
-  and marriages. 关系教练、情感咨询、夫妻沟通、亲密关系修复。
+  Couple Coach is an AI relationship coach for couples who need clearer partner communication,
+  conflict repair, and practical marriage advice. It helps decode recurring fights, repair
+  trust after mistakes, plan hard conversations, balance needs, and rebuild connection for
+  dating partners, long-term couples, and married people. 伴侣沟通、婚姻建议、情侣冲突、关系修复。
 metadata:
   openclaw:
     emoji: "💑🌿"
