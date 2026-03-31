@@ -1,0 +1,11 @@
+{
+  "owner": "samber",
+  "slug": "golang-observability",
+  "displayName": "Golang Observability",
+  "latest": {
+    "version": "1.1.1",
+    "publishedAt": 1774614530728,
+    "commit": null
+  },
+  "history": []
+}
