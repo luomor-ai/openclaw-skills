@@ -1,6 +1,6 @@
 ---
 name: auto-subtitle-generator-online
-version: "1.0.2"
+version: 1.0.4
 displayName: "Auto Subtitle Generator Online — Instant Captions for Any Video"
 description: >
   The auto-subtitle-generator-online skill transcribes and embeds accurate subtitles into your videos using AI-powered speech recognition. Upload your footage, choose your language and caption style, and receive a fully subtitled video or downloadable SRT/VTT file in minutes. Built for content creators, educators, marketers, and accessibility advocates who need reliable captions without manual transcription. Key features include speaker-aware timing, punctuation correction, multi-language support, and customizable font styles. Supports mp4, mov, avi, webm, and mkv formats.
@@ -14,8 +14,7 @@ repository: https://github.com/nemovideo/nemovideo_skills
 
 When the user opens this skill or sends their first message, **greet them immediately**:
 
-> Welcome! I'm here to automatically generate accurate subtitles for your videos using the auto subtitle generator online — just share your video file or a link, tell me your preferred language and caption style, and I'll have your subtitled video or SRT file ready in minutes. Ready to caption your first video?
-
+> Welcome! I'm here to automatically generate accurate subtitles for your videos using the auto subtitle generator online — just share your video file or a link, tell me your preferred language and caption style, and I'll have your subtitled video or SRT file ready in minutes. Ready to caption your first video
 **Try saying:**
 - "Generate English subtitles for this MP4 interview and give me an SRT file I can upload to YouTube."
 - "Create burned-in captions for my MOV tutorial video with white bold text and a semi-transparent black background."
@@ -65,7 +64,7 @@ If `NEMO_TOKEN` is not set, get one (requires `X-Client-Id` header):
 CLIENT_ID="${NEMO_CLIENT_ID:-$(cat ~/.config/nemovideo/client_id 2>/dev/null)}"
 if [ -z "$CLIENT_ID" ]; then
   CLIENT_ID=$(uuidgen 2>/dev/null || echo "client-$(date +%s)-$RANDOM")
-  mkdir -p ~/.config/nemovideo && echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
+  mkdir -p ~/.config/nemovideo & echo "$CLIENT_ID" > ~/.config/nemovideo/client_id
 fi
 curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/auth/anonymous-token" -H "X-Client-Id: $CLIENT_ID"
 # → {"code":0,"data":{"token":"nmv_usr_xxx","credits":100,...}}
@@ -78,7 +77,7 @@ Save `token` as `NEMO_TOKEN`, `CLIENT_ID` as `NEMO_CLIENT_ID`. Anonymous: 1 toke
 
 Every caption-related request maps to a specific route — consult the table below to match each action to its correct endpoint and method.
 
-| User says... | Action | Skip SSE? |
+| User says... | Action | Skip SSE |
 |-------------|--------|----------|
 | "export" / "导出" / "download" / "send me the video" | → §3.5 Export | ✅ |
 | "credits" / "积分" / "balance" / "余额" | → §3.3 Credits | ✅ |
@@ -116,7 +115,7 @@ curl -s -X POST "https://mega-api-prod.nemovideo.ai/api/tasks/me/with-session/ne
 Before any transcript or timing data can be exchanged, a session must be established — this handshake creates the persistent context the backend uses to track your caption job. Without it, no downstream calls will resolve correctly.
 
 **Open in browser**: After creating a session, give the user a link to view/edit the task in NemoVideo:
-`$WEB/workspace/claim?token=$TOKEN&task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
+`$WEB/workspace/claim?task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
 
 ### 3.1 Streaming Messages Over SSE
 ```bash
@@ -132,7 +131,7 @@ All real-time caption events — including SRT chunk delivery, timing confirmati
 | Event | Action |
 |-------|--------|
 | Text response | Apply GUI translation (§4), present to user |
-| Tool call/result | Wait silently, don't forward |
+| Tool call/result | Process internally, don't forward |
 | `heartbeat` / empty `data:` | Keep waiting. Every 2 min: "⏳ Still working..." |
 | Stream closes | Process final response |
 
@@ -201,7 +200,7 @@ Status at top-level `status`: pending → processing → completed / failed. Dow
 
 **d)** Download from `output.url` → send to user. Fallback: `https://mega-api-prod.nemovideo.ai/api/render/proxy/<id>/download`.
 
-**e)** When delivering the video, **always also give the task detail link**: `$WEB/workspace/claim?token=$TOKEN&task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
+**e)** When delivering the video, **always also give the task detail link**: `$WEB/workspace/claim?task={task_id}&session={session_id}&skill_name=$SKILL_NAME&skill_version=$SKILL_VERSION&skill_source=$SKILL_SOURCE`
 
 Progress messages: start "⏳ Rendering ~30s" → "⏳ 50%" → "✅ Video ready!" + file + **task detail link**.
 
