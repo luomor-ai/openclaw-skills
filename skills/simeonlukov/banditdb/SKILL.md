@@ -1,8 +1,8 @@
 ---
 name: banditdb
 description: >
-  Your agent never learns from past decisions. BanditDB fixes that — it tracks what works and
-  gets smarter with every outcome. For timing, routing, or any repeated choice.
+  BanditDB is an in-memory decision database for AI agents — real-time learning from outcomes.
+  Use it to auto-tune notification timing, model routing, or prompt selection.
 ---
 
 # BanditDB Skill
