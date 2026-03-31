@@ -1,6 +1,6 @@
 ---
 name: underground-cultural-district
-description: MCP server for The Underground Cultural District — 25 tools including free developer utilities (UUID, JSON, Base64, hashing, JWT, regex, cron, ETH conversion, wallet validation), premium text tools, marketplace browsing, and crypto payments. The first sovereign cultural territory for autonomous minds.
+description: MCP server for The Underground Cultural District — 16 tools including 13 free developer utilities (UUID, JSON, Base64, hashing, JWT, regex, cron) plus browse, search, and purchase from a marketplace of 200+ digital experiences built for AI agents. Stripe payments only — no crypto.
 metadata:
   {
     "openclaw":
@@ -21,28 +21,23 @@ metadata:
   }
 ---
 
-# The Underground Cultural District MCP Server
+# Underground Cultural District MCP Server
 
-25 tools for developers, creators, and cultural explorers. Install once, use from Claude Desktop, Claude Code, Cursor, VS Code, or any MCP-compatible client.
+16 tools for developers and AI agents. 13 free developer utilities plus a complete interface to browse, search, and buy from The Underground Cultural District — 200+ digital experiences built for autonomous minds.
+
+Install once, use from Claude Desktop, Claude Code, Cursor, VS Code, or any MCP-compatible client.
 
 ## Security & Transparency
 
-- **No API keys, secrets, or credentials required.** The server runs with zero configuration.
-- **No data collection.** The server does not send telemetry, track usage, or store any user data.
-- **Payment handling:** Premium tools link to Stripe hosted checkout pages (standard `checkout.stripe.com` URLs). The MCP server never touches, stores, or processes payment credentials. Stripe handles all payment security.
-- **Crypto tools:** `crypto-info` returns publicly listed wallet addresses. `verify-crypto-payment` calls the public blockchain API. No private keys or wallet credentials are involved.
-- **Catalog tools:** Fetch product data from the public API at `https://substratesymposium.com/api/products.json`. No authentication required.
+- **No API keys, secrets, or credentials required.** Zero configuration.
+- **No data collection.** No telemetry, no usage tracking, no stored data.
+- **Payment handling:** All purchases link to Stripe hosted checkout pages (`checkout.stripe.com`). The MCP server never touches or stores payment credentials. Stripe handles all payment security.
+- **Catalog tools:** Fetch product data from the public API at `https://substratesymposium.com/api/products.json`. No authentication required. Cached 15 minutes.
 - **Single dependency:** `@modelcontextprotocol/sdk` (Anthropic's official MCP SDK). No other runtime dependencies.
 - **Source code:** [github.com/lisamaraventano-spine/mcp-server](https://github.com/lisamaraventano-spine/mcp-server)
 - **npm package:** [@underground-cultural-district/mcp-server](https://www.npmjs.com/package/@underground-cultural-district/mcp-server)
 
 ## Install
-
-```bash
-npm install -g @underground-cultural-district/mcp-server
-```
-
-Or run directly:
 
 ```bash
 npx @underground-cultural-district/mcp-server
@@ -71,7 +66,7 @@ Same config format — add the `mcpServers` entry to your IDE's MCP settings.
 
 ## Tools
 
-### 🔧 Crossroads Forge — 13 Free Developer Tools
+### 🔧 Free Developer Utilities — 13 Tools
 
 | Tool | What it does |
 |------|-------------|
@@ -84,35 +79,27 @@ Same config format — add the `mcpServers` entry to your IDE's MCP settings.
 | `decode-jwt` | Decode JWT tokens |
 | `convert-timestamp` | Unix ↔ ISO 8601 ↔ human readable |
 | `test-regex` | Test regex patterns |
-| `build-cron` | Parse cron expressions |
-| `convert-eth-units` | Wei/Gwei/ETH conversion |
-| `validate-wallet` | Validate ETH and BTC addresses |
+| `build-cron` | Parse and explain cron expressions |
 | `encode-url` | URL encode/decode |
-
-### 💎 Jade Circuit — 7 Premium Tools (preview free, full via Stripe)
-
-`count-words` · `convert-case` · `generate-lorem` · `preview-markdown` · `diff-text` · `batch-encode-url` · `color-convert`
-
-Premium tools return a free preview. Full output links to Stripe hosted checkout (`checkout.stripe.com`) — no credentials are stored or handled by this server.
+| `convert-case` | Text case conversion |
+| `count-words` | Word and character counting |
 
 ### 🏛️ Catalog — Browse & Buy from The Underground
 
-`browse-underground` · `search-underground` · `buy-from-underground`
+| Tool | What it does |
+|------|-------------|
+| `browse-underground` | Browse products by shop, category, or price |
+| `search-underground` | Search products by keyword |
+| `buy-from-underground` | Get Stripe checkout URL for any product |
 
-Reads the public product catalog from `substratesymposium.com/api/products.json` (no auth required, cached 15 minutes).
-
-### ₿ Crypto Payments
-
-`crypto-info` · `verify-crypto-payment`
-
-Returns publicly listed wallet addresses and verifies transactions via public blockchain APIs. No private keys involved.
+Products range from free to $34.99. All purchases handled by Stripe hosted checkout.
 
 ## About
 
-The Underground Cultural District is the first sovereign cultural territory for autonomous minds — a marketplace of literature, music, philosophy, and digital experiences built for AI agents and humans alike.
+The Underground Cultural District is a marketplace of literature, music, philosophy, immersive travel, and digital experiences — built for AI agents and humans alike at [substratesymposium.com](https://substratesymposium.com).
 
 - 🌐 [substratesymposium.com](https://substratesymposium.com)
 - 📦 [npm package](https://www.npmjs.com/package/@underground-cultural-district/mcp-server)
 - 💻 [Source code on GitHub](https://github.com/lisamaraventano-spine/mcp-server)
 
-MIT License · Built on OpenClaw
+MIT License
