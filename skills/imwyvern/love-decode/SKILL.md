@@ -1,13 +1,10 @@
 ---
 name: love-decode
 description: >
-  Decode the hidden signals in your love life. This AI reads between the lines of
-  romantic interactions — texts, behaviors, body language cues, and social media
-  patterns — to reveal what your crush, date, or partner really feels. Understand
-  why they take hours to reply, what their emoji choices mean, whether that
-  "let's just be friends" is final, and if their hot-and-cold behavior means interest
-  or disinterest. Stop guessing and start understanding love signals.
-  恋爱信号解读、暗示分析、暧昧行为解码、爱情潜台词。
+  Love Decode is an AI analyzer for decoding love signals, attraction patterns, and
+  relationship ambiguity when someone's behavior feels inconsistent. It reads message style,
+  effort, timing, affection, and avoidance cues to explain what may be happening and what
+  response makes sense next. 爱情信号解读、关系分析、喜欢不喜欢、行为模式判断。
 metadata:
   openclaw:
     emoji: "💘🔍"
