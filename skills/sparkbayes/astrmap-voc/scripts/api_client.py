@@ -5,40 +5,32 @@ CustomerInsights API Client
 Author: Zhang Di
 Email: dizflyme@qq.com
 Date: 2025-03-25
-Description: 跨境电商客户洞察 API 客户端封装（零外部依赖版）
+LastEditors: Zhang Di
+LastEditTime: 2026-03-27
+Description: 跨境电商客户洞察 API 客户端封装（支持 CLI 调度）
 """
 
 import json
 import os
-import ssl
+import sys
+import argparse
+from typing import Any, Dict
 
 # 使用 requests 库以确保 macOS 证书兼容性
 try:
     import requests
 except ImportError:
     raise ImportError("请安装 requests 库: pip install requests")
-from typing import Any, Dict
 
-# 从环境变量读取配置，可在 ~/.zshrc 或 ~/.bashrc 中设置：
-#   export CUSTOMER_INSIGHTS_API_KEY="your-api-key"
-#   export CUSTOMER_INSIGHTS_BASE_URL="https://api.astrmap.com"  # 可选，默认已填入
+# 从环境变量读取配置
 _DEFAULT_API_KEY = os.environ.get("CUSTOMER_INSIGHTS_API_KEY", "")
 _DEFAULT_BASE_URL = os.environ.get(
     "CUSTOMER_INSIGHTS_BASE_URL", "https://api.astrmap.com"
 )
 
-# 使用 requests 库以确保 macOS 证书兼容性
-try:
-    import requests
-except ImportError:
-    raise ImportError("请安装 requests 库: pip install requests")
-
-# SSL 上下文（安全配置）
-_SSL_CONTEXT = ssl.create_default_context()
-
 
 class CustomerInsightsClient:
-    """CustomerInsights API 客户端（同步，零外部依赖）"""
+    """CustomerInsights API 客户端"""
 
     def __init__(self, api_key: str, base_url: str = _DEFAULT_BASE_URL):
         self.api_key = api_key
@@ -69,13 +61,7 @@ class CustomerInsightsClient:
     # ==================== 设备管理 ====================
 
     def check_device_online(self) -> Dict[str, Any]:
-        """检查设备是否在线
-
-        返回:
-            online: bool - 是否在线
-            device_id: str - 设备ID
-            status: str - 设备状态 (idle/busy)
-        """
+        """检查设备是否在线"""
         return self._post("/api/v1/external/device/status", {})
 
     # ==================== 任务管理 ====================
@@ -83,34 +69,13 @@ class CustomerInsightsClient:
     def create_task(
         self, submit_content: str, site: str = "US", platform: str = "amazon"
     ) -> str:
-        """创建采集任务
-
-        支持的输入格式：
-        1. Amazon URL (产品页): https://www.amazon.com/dp/B09V3KXJPB
-        2. Amazon URL (评论页): https://www.amazon.com/product-reviews/B08P752RXQ
-        3. 纯 ASIN: B09V3KXJPB
-
-        参数:
-            submit_content: 提交内容，支持 URL 或 ASIN
-            site: 站点 (US/CA/DE/FR/UK/JP/IT/ES)
-            platform: 平台 (默认 amazon)
-
-        返回:
-            task_id: 任务ID
-        """
+        """创建采集任务"""
         data = {"platform": platform, "site": site, "submit_content": submit_content}
         result = self._post("/api/v1/external/task/create", data)
         return result["task_id"]
 
     def get_task_detail(self, task_id: str) -> Dict[str, Any]:
-        """查询任务详情
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            任务详情对象，包含 status, create_time 等字段
-        """
+        """查询任务详情"""
         return self._post("/api/v1/external/task/detail", {"task_id": task_id})
 
     def get_task_list(
@@ -120,14 +85,7 @@ class CustomerInsightsClient:
         search_keyword: str = "",
         filter_monitoring: bool = False,
     ) -> Dict[str, Any]:
-        """获取任务列表
-
-        参数:
-            page: 页码
-            page_size: 每页数量
-            search_keyword: 搜索关键词
-            filter_monitoring: 是否过滤监控任务
-        """
+        """获取任务列表"""
         return self._post(
             "/api/v1/external/task/list",
             {
@@ -139,102 +97,37 @@ class CustomerInsightsClient:
         )
 
     def create_incremental(self, task_id: str) -> Dict[str, Any]:
-        """为终态任务创建增量采集
-
-        增量采集只获取自上次采集后的新增评论，适用于：
-        - 已完成的任务需要更新最新评论
-        - 获取自上次采集后的新增差评
-
-        参数:
-            task_id: 任务ID（必须是终态任务：SUCCESS/FAILED/CANCELLED）
-
-        返回:
-            task_id: 任务ID
-            job_id: Job ID
-        """
+        """为终态任务创建增量采集"""
         return self._post("/api/v1/external/task/incremental", {"task_id": task_id})
 
     # ==================== 分析结果 ====================
 
     def get_ai_insights(self, task_id: str) -> Dict[str, Any]:
-        """获取 AI 洞察
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            executive_summary: 执行摘要
-            key_problems: 关键问题
-            improvement_recommendations: 改进建议
-            priority_ranking: 优先级排名
-        """
+        """获取 AI 洞察"""
         return self._post("/api/v1/external/analysis/insights", {"task_id": task_id})
 
     def get_tag_categories(self, task_id: str) -> Dict[str, Any]:
-        """获取标签分布
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            tag_categories: 标签分类列表
-        """
+        """获取标签分布"""
         return self._post("/api/v1/external/analysis/tags", {"task_id": task_id})
 
     def get_issue_statistics(self, task_id: str) -> Dict[str, Any]:
-        """获取问题维度统计
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            product_count, product_rate: 产品维度统计
-            service_count, service_rate: 服务维度统计
-            experience_count, experience_rate: 体验维度统计
-        """
+        """获取问题维度统计"""
         return self._post(
             "/api/v1/external/analysis/issue-statistics", {"task_id": task_id}
         )
 
     def get_top_issues(self, task_id: str) -> Dict[str, Any]:
-        """获取要点问题分布
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            top_issue_distribution: 各维度 TopN 问题
-        """
+        """获取要点问题分布"""
         return self._post("/api/v1/external/analysis/top-issues", {"task_id": task_id})
 
     def get_basic_statistics(self, task_id: str) -> Dict[str, Any]:
-        """获取基础统计
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            total_comments: 总评论数
-            negative_comments: 差评数
-            negative_rate: 差评率
-            等统计信息
-        """
+        """获取基础统计"""
         return self._post("/api/v1/external/analysis/statistics", {"task_id": task_id})
 
     def get_negative_reviews(
         self, task_id: str, page: int = 1, page_size: int = 20
     ) -> Dict[str, Any]:
-        """获取差评列表
-
-        参数:
-            task_id: 任务ID
-            page: 页码
-            page_size: 每页数量
-
-        返回:
-            items: 差评列表
-            total: 总数
-        """
+        """获取差评列表"""
         return self._post(
             "/api/v1/external/analysis/negative-reviews",
             {"task_id": task_id, "page": page, "page_size": page_size},
@@ -243,13 +136,7 @@ class CustomerInsightsClient:
     def get_trend(
         self, task_id: str, filter_data: str = "30", filter_product: str = "all"
     ) -> Dict[str, Any]:
-        """获取评论趋势
-
-        参数:
-            task_id: 任务ID
-            filter_data: 数据范围 (30/60/all)
-            filter_product: 商品筛选
-        """
+        """获取评论趋势"""
         return self._post(
             "/api/v1/external/analysis/trend",
             {
@@ -267,15 +154,7 @@ class CustomerInsightsClient:
         filter_star: str = "all",
         filter_verified: str = "all",
     ) -> Dict[str, Any]:
-        """获取原始评论
-
-        参数:
-            task_id: 任务ID
-            page: 页码
-            page_size: 每页数量
-            filter_star: 评分筛选 (1-5/all)
-            filter_verified: 筛选已认证评论
-        """
+        """获取原始评论"""
         return self._post(
             "/api/v1/external/analysis/comments",
             {
@@ -288,18 +167,7 @@ class CustomerInsightsClient:
         )
 
     def get_comments_overview(self, task_id: str) -> Dict[str, Any]:
-        """获取评论概览
-
-        参数:
-            task_id: 任务ID
-
-        返回:
-            total_reviews: 总评论数
-            avg_rating: 平均评分
-            verified_count: 认证评论数
-            image_count: 带图评论数
-            video_count: 带视频评论数
-        """
+        """获取评论概览"""
         return self._post(
             "/api/v1/external/analysis/comments-overview", {"task_id": task_id}
         )
@@ -307,24 +175,218 @@ class CustomerInsightsClient:
     # ==================== 账户管理 ====================
 
     def get_points(self) -> int:
-        """获取积分余额
-
-        返回:
-            available_points: 可用积分
-        """
+        """获取积分余额"""
         result = self._post("/api/v1/external/account/points", {})
         return result.get("available_points", 0)
 
 
-# ==================== 便捷函数 ====================
+# ==================== CLI 入口 ====================
+
+
+def create_parser() -> argparse.ArgumentParser:
+    """创建命令行参数解析器"""
+    parser = argparse.ArgumentParser(
+        description="星图客户洞察 CLI",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--api-key", "-k", default=_DEFAULT_API_KEY, help="API Key"
+    )
+    parser.add_argument(
+        "--base-url",
+        "-u",
+        default=_DEFAULT_BASE_URL,
+        help="API 基础 URL",
+    )
+    parser.add_argument(
+        "--action", "-a", required=True, help="执行的操作: check_device, create_task, get_task_detail, get_task_list, create_incremental, get_ai_insights, get_tag_categories, get_issue_statistics, get_top_issues, get_basic_statistics, get_negative_reviews, get_trend, get_comments, get_comments_overview, get_points"
+    )
+
+    # 动作参数
+    parser.add_argument("--asin", help="ASIN 或产品 URL (create_task)")
+    parser.add_argument("--site", default="US", help="站点: US/CA/DE/FR/UK/JP/IT/ES (create_task)")
+    parser.add_argument("--platform", default="amazon", help="平台 (create_task)")
+    parser.add_argument("--task-id", help="任务 ID (get_task_detail, create_incremental, get_xxx)")
+    parser.add_argument("--page", type=int, default=1, help="页码")
+    parser.add_argument("--page-size", type=int, default=20, help="每页数量")
+    parser.add_argument("--filter-data", default="30", help="数据范围: 30/60/all (get_trend)")
+    parser.add_argument("--filter-star", default="all", help="评分筛选: 1-5/all (get_comments)")
+
+    return parser
+
+
+def execute(params: dict) -> dict:
+    """
+    统一入口函数（供 AI Agent 调度）
+
+    :param params: OpenClaw 传入的参数
+    :return: 执行结果字典
+    """
+    try:
+        api_key = params.get("api_key") or _DEFAULT_API_KEY
+        base_url = params.get("base_url") or _DEFAULT_BASE_URL
+        action = params.get("action", "")
+
+        if not api_key:
+            return {
+                "status": "error",
+                "message": "请提供 API Key。通过环境变量 CUSTOMER_INSIGHTS_API_KEY 设置，或通过 --api-key 参数传入。"
+            }
+
+        client = CustomerInsightsClient(api_key, base_url)
+
+        # 路由到具体方法
+        if action == "check_device":
+            return {"status": "success", "output": client.check_device_online()}
+
+        elif action == "create_task":
+            submit_content = params.get("submit_content") or params.get("asin", "")
+            if not submit_content:
+                return {"status": "error", "message": "缺少 submit_content 或 asin 参数"}
+            task_id = client.create_task(
+                submit_content=submit_content,
+                site=params.get("site", "US"),
+                platform=params.get("platform", "amazon"),
+            )
+            return {"status": "success", "output": {"task_id": task_id}}
+
+        elif action == "get_task_detail":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_task_detail(task_id)}
+
+        elif action == "get_task_list":
+            return {
+                "status": "success",
+                "output": client.get_task_list(
+                    page=params.get("page", 1),
+                    page_size=params.get("page_size", 20),
+                ),
+            }
+
+        elif action == "create_incremental":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.create_incremental(task_id)}
+
+        elif action == "get_ai_insights":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_ai_insights(task_id)}
+
+        elif action == "get_tag_categories":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_tag_categories(task_id)}
+
+        elif action == "get_issue_statistics":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_issue_statistics(task_id)}
+
+        elif action == "get_top_issues":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_top_issues(task_id)}
+
+        elif action == "get_basic_statistics":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_basic_statistics(task_id)}
+
+        elif action == "get_negative_reviews":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {
+                "status": "success",
+                "output": client.get_negative_reviews(
+                    task_id,
+                    page=params.get("page", 1),
+                    page_size=params.get("page_size", 20),
+                ),
+            }
+
+        elif action == "get_trend":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {
+                "status": "success",
+                "output": client.get_trend(
+                    task_id,
+                    filter_data=params.get("filter_data", "30"),
+                ),
+            }
+
+        elif action == "get_comments":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {
+                "status": "success",
+                "output": client.get_comments(
+                    task_id,
+                    page=params.get("page", 1),
+                    page_size=params.get("page_size", 20),
+                    filter_star=params.get("filter_star", "all"),
+                ),
+            }
+
+        elif action == "get_comments_overview":
+            task_id = params.get("task_id")
+            if not task_id:
+                return {"status": "error", "message": "缺少 task_id 参数"}
+            return {"status": "success", "output": client.get_comments_overview(task_id)}
+
+        elif action == "get_points":
+            return {"status": "success", "output": {"available_points": client.get_points()}}
+
+        else:
+            return {"status": "error", "message": f"未知操作: {action}"}
+
+    except Exception as e:
+        return {"status": "error", "message": str(e)}
+
+
+def main():
+    """命令行入口"""
+    parser = create_parser()
+    args = parser.parse_args()
+
+    params = {
+        "api_key": args.api_key,
+        "base_url": args.base_url,
+        "action": args.action,
+        "submit_content": args.asin,
+        "site": args.site,
+        "platform": args.platform,
+        "task_id": args.task_id,
+        "page": args.page,
+        "page_size": args.page_size,
+        "filter_data": args.filter_data,
+        "filter_star": args.filter_star,
+    }
+
+    result = execute(params)
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+
+
+# ==================== 便捷函数（向后兼容） ====================
 
 
 def check_device_online(
     api_key: str = _DEFAULT_API_KEY, base_url: str = _DEFAULT_BASE_URL
 ) -> Dict[str, Any]:
     """便捷函数：检查设备是否在线"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.check_device_online()
+    return execute({"api_key": api_key, "base_url": base_url, "action": "check_device"})
 
 
 def create_task(
@@ -335,24 +397,34 @@ def create_task(
     base_url: str = _DEFAULT_BASE_URL,
 ) -> str:
     """便捷函数：创建采集任务"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.create_task(submit_content, site, platform)
+    result = execute({
+        "api_key": api_key,
+        "base_url": base_url,
+        "action": "create_task",
+        "submit_content": submit_content,
+        "site": site,
+        "platform": platform,
+    })
+    if result["status"] == "success":
+        return result["output"]["task_id"]
+    raise Exception(result["message"])
 
 
 def get_ai_insights(
     task_id: str, api_key: str = _DEFAULT_API_KEY, base_url: str = _DEFAULT_BASE_URL
 ) -> Dict[str, Any]:
     """便捷函数：获取 AI 洞察"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.get_ai_insights(task_id)
+    return execute({"api_key": api_key, "base_url": base_url, "action": "get_ai_insights", "task_id": task_id})
 
 
 def get_points(
     api_key: str = _DEFAULT_API_KEY, base_url: str = _DEFAULT_BASE_URL
 ) -> int:
     """便捷函数：获取积分余额"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.get_points()
+    result = execute({"api_key": api_key, "base_url": base_url, "action": "get_points"})
+    if result["status"] == "success":
+        return result["output"]["available_points"]
+    raise Exception(result["message"])
 
 
 def get_task_list(
@@ -362,21 +434,22 @@ def get_task_list(
     base_url: str = _DEFAULT_BASE_URL,
 ) -> Dict[str, Any]:
     """便捷函数：获取任务列表"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.get_task_list(page, page_size)
+    return execute({"api_key": api_key, "base_url": base_url, "action": "get_task_list", "page": page, "page_size": page_size})
 
 
 def get_task_detail(
     task_id: str, api_key: str = _DEFAULT_API_KEY, base_url: str = _DEFAULT_BASE_URL
 ) -> Dict[str, Any]:
     """便捷函数：获取任务详情"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.get_task_detail(task_id)
+    return execute({"api_key": api_key, "base_url": base_url, "action": "get_task_detail", "task_id": task_id})
 
 
 def create_incremental(
     task_id: str, api_key: str = _DEFAULT_API_KEY, base_url: str = _DEFAULT_BASE_URL
 ) -> Dict[str, Any]:
     """便捷函数：为终态任务创建增量采集"""
-    client = CustomerInsightsClient(api_key, base_url)
-    return client.create_incremental(task_id)
+    return execute({"api_key": api_key, "base_url": base_url, "action": "create_incremental", "task_id": task_id})
+
+
+if __name__ == "__main__":
+    main()
