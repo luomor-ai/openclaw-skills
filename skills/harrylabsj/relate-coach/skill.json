@@ -1,0 +1,21 @@
+{
+  "name": "relationship-coach",
+  "slug": "relate-coach",
+  "description": "Relationship Coach — Provides self-help tools for communication skills, relationship maintenance, conflict resolution, and boundary setting. Includes non-violent communication, active listening, conflict management, and interpersonal skills. Note: this tool does not provide marriage counseling, emotional therapy, or act as a substitute for personal social interaction; when professional help is needed, users are referred appropriately.",
+  "version": "1.0.0",
+  "author": "Golden Bean",
+  "tags": ["psychology", "relationship", "communication", "conflict", "boundary", "self-help"],
+  "safety": {
+    "no_diagnosis": true,
+    "no_treatment": true,
+    "crisis_escalation": false,
+    "boundary_check": true,
+    "disclaimer_required": true,
+    "scope_limitation": true
+  },
+  "modules": {
+    "handler": "scripts/handler.py",
+    "boundary": "scripts/boundary_checker.py"
+  },
+  "entry": "scripts/handler.py"
+}
