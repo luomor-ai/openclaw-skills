@@ -88,7 +88,38 @@ class ReminderManager:
                 "output": error_msg
             }
         
-        cmd = [openclaw_path, "cron"] + args
+        # 验证openclaw路径安全性
+        if not os.path.isabs(openclaw_path):
+            openclaw_path = os.path.abspath(openclaw_path)
+        if not os.path.exists(openclaw_path) or not os.access(openclaw_path, os.X_OK):
+            error_msg = f"openclaw路径无效或无执行权限: {openclaw_path}"
+            return {
+                "success": False,
+                "error": error_msg,
+                "output": error_msg
+            }
+        
+        # 安全构建命令
+        cmd = [openclaw_path, "cron"]
+        # 验证参数安全性
+        for arg in args:
+            if not isinstance(arg, str):
+                error_msg = "命令参数必须为字符串"
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "output": error_msg
+                }
+            # 检查参数中是否包含危险字符
+            if ';' in arg or '|' in arg or '&' in arg or '>' in arg or '<' in arg:
+                error_msg = f"命令参数包含危险字符: {arg}"
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "output": error_msg
+                }
+            cmd.append(arg)
+        
         try:
             # 用utf-8编码捕获输出，解决Windows中文乱码
             proc_result = subprocess.run(
@@ -96,7 +127,8 @@ class ReminderManager:
                 capture_output=True, 
                 text=True, 
                 encoding='utf-8',
-                errors='replace'
+                errors='replace',
+                timeout=30  # 添加超时限制
             )
             if proc_result.returncode != 0:
                 return {
@@ -106,11 +138,18 @@ class ReminderManager:
                 }
             try:
                 return json.loads(proc_result.stdout)
-            except:
+            except json.JSONDecodeError as e:
                 return {
                     "success": False,
+                    "error": f"解析命令输出失败: {e}",
                     "output": proc_result.stdout + "\n" + proc_result.stderr
                 }
+        except subprocess.TimeoutExpired:
+            return {
+                "success": False,
+                "error": "命令执行超时",
+                "output": "命令执行超时"
+            }
         except Exception as e:
             return {
                 "success": False,
@@ -134,6 +173,14 @@ class ReminderManager:
     
     def _create_reminder_at(self, job_id: str, remind_at: datetime, message: str) -> bool:
         """在指定时间创建一次性提醒"""
+        # 验证参数安全性
+        if not job_id or not isinstance(job_id, str):
+            return False
+        if not isinstance(remind_at, datetime):
+            return False
+        if not message or not isinstance(message, str):
+            return False
+        
         iso_time = remind_at.isoformat()
         # 使用 openclaw cron add 创建一次性任务
         job = {
@@ -152,17 +199,32 @@ class ReminderManager:
         # 先删旧的同名任务
         self.delete_reminders_for_schedule(schedule_id=None, job_id=job_id)
         # 创建新任务 - 存临时文件避免引号问题
-        temp_path = expand_user("~/.openclaw/workspace/data/simple-schedule/temp_job.json")
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
-        with open(temp_path, 'w', encoding='utf-8') as f:
-            json.dump(job, f, ensure_ascii=False)
-        cmd = ["add", "--job-file=" + temp_path]
-        result = self._run_cron_command(cmd)
+        import tempfile
         try:
-            os.remove(temp_path)
-        except:
-            pass
-        return result.get('success', False)
+            # 使用tempfile创建安全的临时文件
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False, encoding='utf-8') as temp_file:
+                temp_path = temp_file.name
+                json.dump(job, temp_file, ensure_ascii=False)
+            
+            # 验证临时文件路径安全性
+            if not os.path.isabs(temp_path):
+                temp_path = os.path.abspath(temp_path)
+            if not os.path.exists(temp_path):
+                return False
+            
+            cmd = ["add", "--job-file=" + temp_path]
+            result = self._run_cron_command(cmd)
+            return result.get('success', False)
+        except Exception as e:
+            print(f"创建提醒失败: {e}", file=sys.stderr)
+            return False
+        finally:
+            # 确保临时文件被删除
+            if 'temp_path' in locals() and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception as e:
+                    print(f"删除临时文件失败: {e}", file=sys.stderr)
     
     def delete_reminders_for_schedule(self, schedule_id: str, job_id: str = None) -> None:
         """删除某个日程的所有提醒"""
@@ -172,8 +234,8 @@ class ReminderManager:
                 self._run_cron_command(["remove", job_id])
                 self._run_cron_command(["remove", f"{job_id}-departure"])
                 self._run_cron_command(["remove", f"{job_id}-arrival"])
-            except:
-                pass
+            except Exception as e:
+                print(f"删除提醒任务失败: {e}", file=sys.stderr)
         elif schedule_id:
             # 删除该日程的两个提醒
             departure_id = f"{self.job_prefix}{schedule_id}-departure"
@@ -181,8 +243,8 @@ class ReminderManager:
             try:
                 self._run_cron_command(["remove", departure_id])
                 self._run_cron_command(["remove", arrival_id])
-            except:
-                pass
+            except Exception as e:
+                print(f"删除日程提醒失败: {e}", file=sys.stderr)
     
     def update_reminders(self, schedule: Dict, config: Dict) -> None:
         """更新日程提醒（先删后加）"""

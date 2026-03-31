@@ -5,24 +5,34 @@
 
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Tuple
 import copy
 
-def expand_user(path: str) -> str:
-    return os.path.expanduser(path)
+# 尝试相对导入，如果失败则使用绝对导入
+try:
+    from .config_manager import expand_user
+except ImportError:
+    # 直接运行脚本时的导入方式
+    import sys
+    import os
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    from config_manager import expand_user
 
 class ScheduleManager:
     def __init__(self, data_path: str):
         self.data_path = expand_user(data_path)
         self._ensure_dir_exists()
         self.data = self._load_data()
+        self._last_save_time = time.time()
+        self._save_interval = 300  # 自动保存间隔（秒）
     
     def _ensure_dir_exists(self):
         dir_path = os.path.dirname(self.data_path)
         if not os.path.exists(dir_path):
-            os.makedirs(dir_path)
+            os.makedirs(dir_path, mode=0o700)  # 设置目录权限为仅当前用户可访问
     
     def _load_data(self) -> Dict:
         if not os.path.exists(self.data_path):
@@ -30,12 +40,54 @@ class ScheduleManager:
                 "version": 1,
                 "schedules": []
             }
-        with open(self.data_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(self.data_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            # 如果文件损坏，返回空数据
+            return {
+                "version": 1,
+                "schedules": []
+            }
+        except Exception as e:
+            # 其他错误，返回空数据
+            print(f"加载数据文件失败: {e}", file=sys.stderr)
+            return {
+                "version": 1,
+                "schedules": []
+            }
     
-    def _save_data(self):
-        with open(self.data_path, 'w', encoding='utf-8') as f:
-            json.dump(self.data, f, ensure_ascii=False, indent=2)
+    def _save_data(self, force: bool = False):
+        # 检查是否需要保存
+        current_time = time.time()
+        if not force and current_time - self._last_save_time < self._save_interval:
+            return
+        
+        try:
+            # 保存前确保目录存在
+            self._ensure_dir_exists()
+            # 写入文件
+            with open(self.data_path, 'w', encoding='utf-8') as f:
+                json.dump(self.data, f, ensure_ascii=False, indent=2)
+            # 在Windows上设置文件属性为隐藏
+            if os.name == 'nt':
+                try:
+                    import ctypes
+                    FILE_ATTRIBUTE_HIDDEN = 0x02
+                    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+                    file_attr = kernel32.GetFileAttributesW(self.data_path)
+                    if file_attr != -1:
+                        kernel32.SetFileAttributesW(self.data_path, file_attr | FILE_ATTRIBUTE_HIDDEN)
+                except Exception:
+                    pass
+            # 更新最后保存时间
+            self._last_save_time = current_time
+        except Exception as e:
+            print(f"保存数据文件失败: {e}", file=sys.stderr)
+    
+    def save(self):
+        """手动保存数据"""
+        self._save_data(force=True)
     
     def _parse_datetime(self, dt_str: str) -> datetime:
         return datetime.fromisoformat(dt_str)
@@ -58,40 +110,112 @@ class ScheduleManager:
     
     def add_schedule(self, schedule: Dict) -> Tuple[bool, List[Dict], str]:
         """添加日程，返回 (是否成功，冲突列表，消息)"""
-        dt = self._parse_datetime(schedule['datetime'])
+        # 验证输入数据完整性
+        required_fields = ['id', 'type', 'datetime', 'what']
+        for field in required_fields:
+            if field not in schedule:
+                return False, [], f"缺少必要字段: {field}"
+        
+        # 验证数据类型
+        if not isinstance(schedule['id'], str) or not schedule['id']:
+            return False, [], "无效的日程ID"
+        if schedule['type'] not in ['schedule', 'ddl']:
+            return False, [], "无效的日程类型"
+        if not isinstance(schedule['what'], str) or not schedule['what']:
+            return False, [], "无效的日程内容"
+        
+        # 验证日期时间格式
+        try:
+            dt = self._parse_datetime(schedule['datetime'])
+        except Exception as e:
+            return False, [], f"无效的日期时间格式: {e}"
+        
+        # 验证日期时间是否合理（不允许过去的时间）
+        if dt < datetime.now().astimezone() - timedelta(minutes=5):
+            return False, [], "日程时间不能是过去的时间"
+        
+        # 验证地点和出发地（如果存在）
+        if 'where' in schedule and schedule['where'] is not None:
+            if not isinstance(schedule['where'], str):
+                return False, [], "无效的地点"
+        if 'from_address' in schedule and schedule['from_address'] is not None:
+            if not isinstance(schedule['from_address'], str):
+                return False, [], "无效的出发地"
+        
+        # 检查时间冲突
         conflicts = self.check_conflict(dt)
         if conflicts:
             return False, conflicts, f"检测到{len(conflicts)}个时间冲突"
         
         self.data['schedules'].append(schedule)
-        self._save_data()
+        self._save_data()  # 使用自动保存机制，减少文件IO
         return True, [], "添加成功"
     
     def update_schedule(self, schedule_id: str, updated_data: Dict) -> Tuple[bool, List[Dict], str]:
         """更新日程"""
+        # 验证输入参数
+        if not schedule_id or not isinstance(schedule_id, str):
+            return False, [], "无效的日程ID"
+        if not updated_data or not isinstance(updated_data, dict):
+            return False, [], "无效的更新数据"
+        
         for i, schedule in enumerate(self.data['schedules']):
             if schedule['id'] == schedule_id:
                 updated = copy.deepcopy(schedule)
                 updated.update(updated_data)
                 updated['updated_at'] = datetime.now().astimezone().isoformat()
                 
-                dt = self._parse_datetime(updated['datetime'])
+                # 验证更新后的数据
+                required_fields = ['id', 'type', 'datetime', 'what']
+                for field in required_fields:
+                    if field not in updated:
+                        return False, [], f"缺少必要字段: {field}"
+                
+                # 验证数据类型
+                if not isinstance(updated['type'], str) or updated['type'] not in ['schedule', 'ddl']:
+                    return False, [], "无效的日程类型"
+                if not isinstance(updated['what'], str) or not updated['what']:
+                    return False, [], "无效的日程内容"
+                
+                # 验证日期时间格式
+                try:
+                    dt = self._parse_datetime(updated['datetime'])
+                except Exception as e:
+                    return False, [], f"无效的日期时间格式: {e}"
+                
+                # 验证日期时间是否合理（不允许过去的时间）
+                if dt < datetime.now().astimezone() - timedelta(minutes=5):
+                    return False, [], "日程时间不能是过去的时间"
+                
+                # 验证地点和出发地（如果存在）
+                if 'where' in updated and updated['where'] is not None:
+                    if not isinstance(updated['where'], str):
+                        return False, [], "无效的地点"
+                if 'from_address' in updated and updated['from_address'] is not None:
+                    if not isinstance(updated['from_address'], str):
+                        return False, [], "无效的出发地"
+                
+                # 检查时间冲突
                 conflicts = self.check_conflict(dt, exclude_id=schedule_id)
                 if conflicts:
                     return False, conflicts, f"检测到{len(conflicts)}个时间冲突"
                 
                 self.data['schedules'][i] = updated
-                self._save_data()
+                self._save_data()  # 使用自动保存机制，减少文件IO
                 return True, [], "更新成功"
         
         return False, [], "找不到该日程"
     
     def delete_schedule(self, schedule_id: str) -> Tuple[bool, str]:
         """删除日程"""
+        # 验证输入参数
+        if not schedule_id or not isinstance(schedule_id, str):
+            return False, "无效的日程ID"
+        
         for i, schedule in enumerate(self.data['schedules']):
             if schedule['id'] == schedule_id:
                 del self.data['schedules'][i]
-                self._save_data()
+                self._save_data()  # 使用自动保存机制，减少文件IO
                 return True, "删除成功"
         return False, "找不到该日程"
     
@@ -122,13 +246,21 @@ class ScheduleManager:
     
     def list_by_date_range(self, start: datetime, end: datetime) -> List[Dict]:
         """列出时间范围内的日程，按时间排序"""
-        result = []
+        # 预解析所有日程的时间，提高查询效率
+        parsed_schedules = []
         for schedule in self.data['schedules']:
-            dt = self._parse_datetime(schedule['datetime'])
-            if start <= dt <= end:
-                result.append(schedule)
+            try:
+                dt = self._parse_datetime(schedule['datetime'])
+                if start <= dt <= end:
+                    parsed_schedules.append((dt, schedule))
+            except Exception:
+                # 跳过解析失败的日程
+                continue
         
-        result.sort(key=lambda x: x['datetime'])
+        # 按时间排序
+        parsed_schedules.sort(key=lambda x: x[0])
+        # 提取日程对象
+        result = [schedule for _, schedule in parsed_schedules]
         return result
     
     def list_today(self, include_expired: bool = False) -> List[Dict]:
