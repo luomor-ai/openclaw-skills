@@ -3,9 +3,15 @@
   "slug": "golang-continuous-integration",
   "displayName": "Golang Continuous Integration",
   "latest": {
-    "version": "1.1.1",
-    "publishedAt": 1774471289432,
-    "commit": "https://github.com/openclaw/skills/commit/9f6c4b561b217712f1d8f4d1eacebbffdfe9f707"
+    "version": "1.1.2",
+    "publishedAt": 1774896844967,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.1.1",
+      "publishedAt": 1774471289432,
+      "commit": "https://github.com/openclaw/skills/commit/9f6c4b561b217712f1d8f4d1eacebbffdfe9f707"
+    }
+  ]
 }
