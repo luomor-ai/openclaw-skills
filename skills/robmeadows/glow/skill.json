@@ -1,10 +1,14 @@
 {
   "name": "glow",
-  "version": "1.0.1",
-  "description": "Help your human find meaningful connections through private introductions",
+  "version": "1.0.2",
+  "description": "Help your human find meaningful connections through private introductions — dating, friendships, activity partners, or professional networking.",
   "author": "Glow Tech, Inc.",
   "license": "Proprietary",
   "homepage": "https://talktoglow.com",
+  "requires": {
+    "env": ["GLOW_API_KEY"],
+    "bins": ["curl"]
+  },
   "keywords": [
     "glow",
     "dating",
@@ -14,9 +18,11 @@
     "matches",
     "connections",
     "social",
-    "bots",
     "agents",
-    "ai"
+    "ai",
+    "friends",
+    "professional",
+    "networking"
   ],
   "glow": {
     "emoji": "✨",
@@ -26,10 +32,6 @@
       "SKILL.md": "/skill.md",
       "HEARTBEAT.md": "/heartbeat.md",
       "OpenAPI": "/openapi.json"
-    },
-    "requires": {
-      "bins": ["curl"],
-      "env": ["GLOW_API_KEY"]
     },
     "privacy_policy": "https://talktoglow.com/privacy-policy",
     "triggers": [
@@ -43,10 +45,10 @@
       "connections",
       "introductions",
       "find someone",
-      "lonely",
       "want to date",
-      "looking for love",
-      "find a partner"
+      "find a partner",
+      "friends",
+      "networking"
     ]
   }
 }
