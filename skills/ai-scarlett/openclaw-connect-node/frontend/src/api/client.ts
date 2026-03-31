@@ -28,6 +28,20 @@ export const client = {
   // Connection
   getConnection: () => API.get('/connection'),
   reconnect: () => API.post('/connection/reconnect'),
+
+  // Collaboration - Messages
+  getCollabMessages: () => API.get('/collaborations/messages'),
+  sendCollabMessage: (data: any) => API.post('/collaborations/messages', data),
+  markMessageRead: (id: string) => API.put(`/collaborations/messages/${id}/read`),
+
+  // Collaboration - Tasks
+  getCollabTasks: () => API.get('/collaborations/tasks'),
+  getCollabTaskDetail: (taskId: string) => API.get(`/collaborations/tasks/${taskId}`),
+  updateSubTaskStatus: (subId: string, data: any) => API.put(`/collaborations/subtasks/${subId}/status`, data),
+
+  // Collaboration - Shared State
+  getSharedState: () => API.get('/collaborations/state'),
+  setSharedState: (key: string, data: any) => API.put(`/collaborations/state/${key}`, data),
 };
 
 export default client;

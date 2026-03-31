@@ -1,6 +1,6 @@
 {
   "name": "openclaw-connect-enterprise-node-server",
-  "version": "0.0.1",
+  "version": "0.1.4",
   "description": "OpenClaw Connect Enterprise - 子节点服务端",
   "main": "dist/index.js",
   "scripts": {

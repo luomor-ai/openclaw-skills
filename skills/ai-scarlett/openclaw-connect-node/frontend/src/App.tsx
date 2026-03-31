@@ -7,6 +7,7 @@ import Memory from './pages/Memory';
 import Skills from './pages/Skills';
 import Monitor from './pages/Monitor';
 import Settings from './pages/Settings';
+import Collaboration from './pages/Collaboration';
 
 export default function App() {
   const [darkMode, setDarkMode] = useState(false);
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/memory" element={<Memory />} />
               <Route path="/skills" element={<Skills />} />
               <Route path="/monitor" element={<Monitor />} />
+              <Route path="/collaboration" element={<Collaboration />} />
               <Route path="/settings" element={<Settings />} />
             </Routes>
           </main>

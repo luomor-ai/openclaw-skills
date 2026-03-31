@@ -1,9 +1,10 @@
 import { useNavigate, useLocation } from 'react-router-dom';
-import { LayoutDashboard, ListTodo, Brain, Wrench, Activity, Settings, Sun, Moon } from 'lucide-react';
+import { LayoutDashboard, ListTodo, Brain, Wrench, Activity, Settings, Sun, Moon, MessageSquare } from 'lucide-react';
 
 const menuItems = [
   { path: '/', icon: LayoutDashboard, label: '📊 总览' },
   { path: '/tasks', icon: ListTodo, label: '📋 任务列表' },
+  { path: '/collaboration', icon: MessageSquare, label: '🤝 协作中心' },
   { path: '/memory', icon: Brain, label: '🧠 记忆管理' },
   { path: '/skills', icon: Wrench, label: '🔧 技能列表' },
   { path: '/monitor', icon: Activity, label: '📡 系统监控' },

@@ -3,8 +3,8 @@ import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  // Build with relative paths so it works at any mount point (/node or /)
-  base: './',
+  // Absolute base path so assets always resolve to /node/assets/
+  base: '/node/',
   server: {
     port: 5174,
     proxy: {
