@@ -7,9 +7,9 @@ function loadConfig() {
   const section = content.match(/## 禅道 API \(ZenTao API\)([\s\S]*?)(?=##|$)/)?.[1];
   if (!section) throw new Error('未找到禅道 API 配置');
   
-  const apiUrl = section.match(/API 地址[:：]\s*(.+)/)?.[1]?.trim();
-  const username = section.match(/用户名[:：]\s*(.+)/)?.[1]?.trim();
-  const password = section.match(/密码[:：]\s*(.+)/)?.[1]?.trim();
+  const apiUrl = section.match(/API 地址[:：]\s*(.+)/)?.[1]?.trim()?.replace(/\*\*/g, '').trim();
+  const username = section.match(/用户名[:：]\s*(.+)/)?.[1]?.trim()?.replace(/\*\*/g, '').trim();
+  const password = section.match(/密码[:：]\s*(.+)/)?.[1]?.trim()?.replace(/\*\*/g, '').trim();
   
   if (!apiUrl || !username || !password) throw new Error('禅道 API 配置不完整');
   
@@ -26,6 +26,23 @@ async function getToken(config) {
   const data = await res.json();
   if (!data.token) throw new Error('未获取到 token');
   return data.token;
+}
+
+async function findExecutionByName(config, token, name) {
+  let page = 1;
+  while (page <= 10) {
+    const res = await fetch(`${config.apiUrl}/api.php/v1/executions?page=${page}&limit=100`, {
+      headers: { 'Content-Type': 'application/json', 'token': token }
+    });
+    if (!res.ok) throw new Error(`获取执行列表失败: ${res.status}`);
+    const data = await res.json();
+    if (!data.executions?.length) break;
+    
+    const match = data.executions.find(e => e.name?.includes(name));
+    if (match) return match;
+    page++;
+  }
+  return null;
 }
 
 export async function zentao_login() {
@@ -54,7 +71,7 @@ export async function zentao_list_executions(keyword = '') {
       if (!data.executions?.length) break;
       
       if (keyword) {
-        executions.push(...data.executions.filter(e => e.name?.includes(keyword) || e.project?.includes(keyword)));
+        executions.push(...data.executions.filter(e => e.name?.includes(keyword) || String(e.project || '').includes(keyword)));
       } else {
         executions.push(...data.executions);
       }
@@ -67,10 +84,21 @@ export async function zentao_list_executions(keyword = '') {
   }
 }
 
-export async function zentao_create_task(executionId, name, assignedTo, options = {}) {
+export async function zentao_create_task(executionIdOrName, name, assignedTo, options = {}) {
   try {
     const config = loadConfig();
     const token = await getToken(config);
+    
+    // 判断是ID还是名称
+    let executionId = executionIdOrName;
+    if (isNaN(parseInt(executionIdOrName))) {
+      // 是名称，需要查找
+      const execution = await findExecutionByName(config, token, executionIdOrName);
+      if (!execution) throw new Error(`未找到执行: ${executionIdOrName}`);
+      executionId = execution.id;
+    } else {
+      executionId = parseInt(executionIdOrName);
+    }
     
     const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
     const dayAfter = new Date(); dayAfter.setDate(dayAfter.getDate() + 2);
@@ -100,10 +128,22 @@ export async function zentao_create_task(executionId, name, assignedTo, options 
   }
 }
 
-export async function zentao_list_tasks(executionId, status = '') {
+export async function zentao_list_tasks(executionIdOrName, status = '') {
   try {
     const config = loadConfig();
     const token = await getToken(config);
+    
+    // 判断是ID还是名称
+    let executionId = executionIdOrName;
+    if (isNaN(parseInt(executionIdOrName))) {
+      // 是名称，需要查找
+      const execution = await findExecutionByName(config, token, executionIdOrName);
+      if (!execution) throw new Error(`未找到执行: ${executionIdOrName}`);
+      executionId = execution.id;
+    } else {
+      executionId = parseInt(executionIdOrName);
+    }
+    
     let url = `${config.apiUrl}/api.php/v1/executions/${executionId}/tasks`;
     if (status) url += `?status=${status}`;
     
