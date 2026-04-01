@@ -1,0 +1,11 @@
+{
+  "owner": "ryanlee-gemini",
+  "slug": "qqbot-installer",
+  "displayName": "Qqbot Installer",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1775048727972,
+    "commit": null
+  },
+  "history": []
+}
