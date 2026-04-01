@@ -1,0 +1,11 @@
+{
+  "owner": "del-zhenwu",
+  "slug": "postme-deploy",
+  "displayName": "PostMe Deploy",
+  "latest": {
+    "version": "1.0.3",
+    "publishedAt": 1774843345799,
+    "commit": null
+  },
+  "history": []
+}
