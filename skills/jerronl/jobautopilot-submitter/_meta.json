@@ -3,9 +3,15 @@
   "slug": "jobautopilot-submitter",
   "displayName": "Jobautopilot Submitter",
   "latest": {
-    "version": "1.2.1",
-    "publishedAt": 1775053404149,
-    "commit": "https://github.com/openclaw/skills/commit/fe12d74b4e26c4acc5cd8dba5fab709f463e8512"
+    "version": "1.2.6",
+    "publishedAt": 1775079916532,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.2.1",
+      "publishedAt": 1775053404149,
+      "commit": "https://github.com/openclaw/skills/commit/fe12d74b4e26c4acc5cd8dba5fab709f463e8512"
+    }
+  ]
 }

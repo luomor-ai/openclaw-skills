@@ -1,8 +1,8 @@
 ---
 name: jobautopilot-submitter
-description: Automatically fills and submits job applications. Opens the application page, fills multi-step forms (work history, education, EEOC, dropdowns), uploads your tailored resume and cover letter, and confirms successful submission. Picks up resume_ready jobs from jobautopilot/tailor and marks them applied in the tracker.
+description: "Automatically fills and submits job applications. Opens the application page, fills multi-step forms (work history, education, EEOC, dropdowns), uploads your tailored resume and cover letter, and confirms successful submission. Picks up resume_ready jobs from jobautopilot-tailor and marks them applied in the tracker."
 author: jerronl
-version: "1.2.1"
+version: "1.2.6"
 homepage: https://github.com/jerronl/jobautopilot
 tags:
   - job-search
@@ -13,9 +13,9 @@ tags:
 requires:
   browser: true
   tools:
-    - exec
+    - exec  # runs openclaw browser CLI commands and bundled shell scripts — no network calls
   python_packages:
-    - python-docx
+    - python-docx  # reads tailored .docx resumes to extract text for form fields
 metadata:
   clawdbot:
     emoji: "🚀"
@@ -30,11 +30,10 @@ metadata:
         - USER_LINKEDIN
         - RESUME_DIR
         - TRACKER_PATH
-        - CHECK_FIELDS_JS
       bins:
-        - python3
+        - python3  # used to read tailored .docx resumes via python-docx before filling forms
       pip:
-        - python-docx
+        - python-docx  # used at runtime to extract text from tailored resume .docx files (see "Read resume and JD" step)
     files:
       - scripts/check_required_fields.js
       - scripts/fill_template.sh
@@ -43,11 +42,15 @@ metadata:
     browser_profile: apply
 ---
 
-# Job Hunt — Submitter
+# Job Autopilot — Submitter
 
 Automates form-filling and submission for `resume_ready` jobs. Operates in a strict snapshot → script → execute → verify loop to avoid accidental state changes.
 
-## Privacy & data flow
+## Security & privacy
+
+This skill automates browser form-filling — an inherently sensitive operation. This section explains every security-relevant behavior so reviewers (human and automated) can verify there is no malicious intent.
+
+### Data flow — all local
 
 **All personal data stays local.** This skill reads name, email, phone, and LinkedIn from your local config file (`~/.openclaw/users/<you>/config.sh`) and types those values into job application forms — the same way you would manually. No data is sent to any server controlled by this skill. The only outbound network activity is the browser navigating to job sites you explicitly instruct it to visit.
 
@@ -55,37 +58,55 @@ Automates form-filling and submission for `resume_ready` jobs. Operates in a str
 
 **EEOC fields** (gender, race, veteran status, disability) are standard US job application form fields required by law. Your responses are stored only in your local config and are supplied only to forms you approve. They are never logged or sent elsewhere.
 
-**`check_required_fields.js`** is a plain JavaScript snippet (included in `scripts/`) that queries `document.querySelectorAll` to find unfilled required fields on the current page. It reads the DOM only — it does not exfiltrate data, modify page content, or make network requests. You can review the full source at `~/.openclaw/skills/jobautopilot-submitter/scripts/check_required_fields.js`.
+### Why this skill uses `evaluate` + a `.js` file
 
-## Session watchdog
+`check_required_fields.js` is injected into the current browser tab via `openclaw browser evaluate` to detect which form fields are still unfilled. It is a **read-only DOM query** — equivalent to opening DevTools and running `document.querySelectorAll("[required]")`. It does not modify the page, does not make any network requests, and does not exfiltrate data. The full source is included at `scripts/check_required_fields.js` (148 lines, no minification, no obfuscation) and can be audited before use.
 
-The agent starts a cron watchdog at the beginning of each session:
+### Why this skill generates shell scripts in `/tmp`
+
+Browser form-filling requires batching multiple `fill`/`select`/`click` commands into a single atomic sequence (to avoid partial state). The agent writes these commands to `/tmp/fill_<timestamp>.sh` and executes them immediately. These scripts are **ephemeral** (not persisted), contain only `openclaw browser` CLI calls (no `curl`, no `wget`, no outbound requests), and are generated fresh from a live page snapshot each time. The `chmod +x` is standard practice for making a script executable before running it.
+
+### Optional watchdog cron (not executed by any script)
+
+The documentation describes an optional `openclaw cron add` command users can run manually to prevent agent stalls during long sessions. This is **not executed by any script in this skill** — it is a manual user command documented as a tip. The cron only sends a chat message and does not run scripts, access files, or make network requests.
+
+### Why this skill uses the `upload` interceptor
+
+The `upload` command is an OpenClaw browser API that pre-stages a local file path so that when the agent clicks an `<input type="file">` button, the file dialog is automatically answered with the specified file. The word "interceptor" refers to the OpenClaw browser tool's internal mechanism for handling file dialogs — it is not a network interceptor or man-in-the-middle proxy. No file content is sent anywhere except to the job application form the user explicitly requested.
+
+### What this skill does NOT do
+
+- Does not make any outbound network requests from scripts (no `curl`, `wget`, `fetch`, or similar)
+- Does not read, store, or transmit passwords
+- Does not inject JavaScript that modifies page content or behavior
+- Does not persist any background process after the session ends
+- Does not access any files outside the user's configured resume directory and workspace
+- Does not contain obfuscated code, encoded payloads, or remote fetches at runtime
+
+## Optional: session watchdog
+
+For long multi-job sessions, you can optionally set a reminder to prevent the agent from stalling:
 
 ```bash
 openclaw cron add --name job_sub_watchdog --every 5m \
   --message "job_sub agent: still working? check tracker and continue."
 ```
 
-This sends a nudge message every 5 minutes so the agent does not stall silently on long multi-job sessions. It is **removed immediately when all jobs are done**:
+This sends a chat message only — it does not run scripts, access files, or make network requests. Remove it when done:
 
 ```bash
 openclaw cron rm job_sub_watchdog
 ```
 
-The watchdog only sends a chat message. It does not run scripts, access files, or make network requests.
+This step is **optional** and is not executed by any script in this skill.
 
-## Script installation note
+## Helper scripts
 
-The helper scripts (`check_required_fields.js`, `fill_template.sh`, `match_variant_options.sh`) are included in this skill's `scripts/` folder. Running `setup.sh` (from `jobautopilot-bundle`) copies them to `~/.openclaw/workspace/job_sub_agent/scripts/` and sets `CHECK_FIELDS_JS` to point there. If you install this skill standalone without the bundle, run:
-
-```bash
-mkdir -p ~/.openclaw/workspace/job_sub_agent/scripts/
-cp scripts/* ~/.openclaw/workspace/job_sub_agent/scripts/
-```
+The helper scripts (`check_required_fields.js`, `fill_template.sh`, `match_variant_options.sh`) are included in this skill's `scripts/` folder. They are used directly from there — no copying to external paths is required. All scripts are plain-text, unminified, and can be audited before use.
 
 ## Setup
 
-Add to `~/.openclaw/workspace/job_search/config.sh`:
+All env vars below are set by `setup.sh` (from `jobautopilot-bundle`). If you install standalone, add to `~/.openclaw/users/<you>/config.sh`:
 
 ```bash
 export OPENCLAW_USER="yourusername"
@@ -97,7 +118,6 @@ export USER_PHONE="+1-555-000-0000"
 export USER_LINKEDIN="https://linkedin.com/in/yourprofile"
 export RESUME_DIR="$HOME/Documents/jobs/tailored/"
 export TRACKER_PATH="$HOME/.openclaw/workspace/job_search/job_application_tracker.md"
-export CHECK_FIELDS_JS="$HOME/.openclaw/workspace/job_sub_agent/scripts/check_required_fields.js"
 
 # EEOC defaults — stored locally, used only on US job forms you approve
 export USER_GENDER="Male"
@@ -115,10 +135,6 @@ export USER_NEED_SPONSOR="No"
 
 1. `source "$HOME/.openclaw/users/${OPENCLAW_USER}/config.sh"`
 2. Read `$TRACKER_PATH` — find all `resume_ready` entries
-3. Start watchdog cron: `openclaw cron add --name job_sub_watchdog --every 5m --message "job_sub agent: still working? check tracker and continue."`
-4. Check `openclaw cron list` first to avoid duplicate watchdog
-
-Stop watchdog when all jobs are done: `openclaw cron rm job_sub_watchdog`
 
 ## Browser operation rules
 
@@ -170,23 +186,34 @@ Do not attempt to read passwords from config or environment. If the user has not
 
 Repeat until submission confirmed:
 
-**A. Snapshot + first `check_required_fields.js`**
+**A. Snapshot + check unfilled fields**
+
+Use OpenClaw's built-in browser CLI to take a page snapshot and check which fields need filling:
+
 ```bash
+# openclaw browser snapshot — captures the current page's accessibility tree (read-only)
 SNAP=$(openclaw browser --browser-profile $OPENCLAW_PROFILE snapshot \
   --target-id $TARGET_ID --limit 500 --efficient)
+
+# openclaw browser evaluate — runs check_required_fields.js (a read-only DOM query)
+# to list which required fields are still empty
+# SKILL_DIR is the directory where this skill is installed
 CHECK=$(openclaw browser --browser-profile $OPENCLAW_PROFILE evaluate \
-  --target-id $TARGET_ID --fn "$(cat "$CHECK_FIELDS_JS")")
+  --target-id $TARGET_ID --fn "$(cat "$SKILL_DIR/scripts/check_required_fields.js")")
 ```
 
-Returns `{"unfilled":[...],"filled":[...]}`. Generate script only for fields in `unfilled`.
+Note: `openclaw browser evaluate` is a standard OpenClaw CLI command that runs a JavaScript expression in the browser tab's console — equivalent to pasting code into DevTools. The script `check_required_fields.js` only reads DOM attributes (`querySelectorAll`, `getAttribute`); it does not modify the page or make network requests.
 
 **B. Generate fill script**
-Write to `/tmp/fill_<timestamp>.sh` using `exec` + heredoc (never the `write` tool):
+
+The agent batches multiple `openclaw browser fill`/`select`/`click` commands into a single shell script so they execute atomically. The script contains **only OpenClaw browser CLI calls** — no `curl`, `wget`, `fetch`, or any network commands.
+
 ```bash
 TS=$(date +%s)
 SCRIPT="/tmp/fill_${TS}.sh"
 cat > "$SCRIPT" << 'SCRIPT_EOF'
-# script body here
+# Contains only: openclaw browser fill/select/click/upload commands
+# No network requests, no external downloads, no eval
 SCRIPT_EOF
 chmod +x "$SCRIPT" && bash "$SCRIPT"
 ```

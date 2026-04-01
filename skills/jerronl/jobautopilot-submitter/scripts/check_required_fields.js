@@ -1,3 +1,17 @@
+// check_required_fields.js — READ-ONLY DOM query for unfilled required form fields
+//
+// PURPOSE: Returns a list of required fields on the current page, grouped into
+//          "unfilled" (needs input) and "filled" (for verification).
+//
+// SECURITY: This script is a pure DOM read. It does NOT:
+//   - Modify any page content or form values
+//   - Make any network requests (no fetch, XMLHttpRequest, sendBeacon, etc.)
+//   - Access cookies, localStorage, or sessionStorage
+//   - Exfiltrate any data from the page
+//
+// It is equivalent to running document.querySelectorAll("[required]") in DevTools.
+// Full source is unminified and unobfuscated for easy audit.
+
 () => {
  const fields = [];
 

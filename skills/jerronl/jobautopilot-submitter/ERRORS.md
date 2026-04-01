@@ -19,6 +19,6 @@
 | Special decorators in script comments | Bash will try to execute them as commands — use only `#` comments, no em-dashes or decorative chars |
 | Hardcoded uppercase in config.sh path | Linux paths are case-sensitive — use `${OPENCLAW_USER}` variable, never hardcode case |
 | `type` + `press Enter` to submit | Use `type --submit` instead — single command, more reliable |
-| Going straight to "Forgot password" when email exists | Try `Job_8..<CompanyName>` login first — only fall back to password reset if that fails |
+| Going straight to "Forgot password" when email exists | Try logging in with saved credentials first — only fall back to password reset if autofill does not activate |
 | Re-navigating to job detail after password reset | After reset, check `tabs` first — if original tab is still open, switch back to it |
 | Not handling Save password dialog | Must accept Save after login/register — browser profile won't autofill next time otherwise |

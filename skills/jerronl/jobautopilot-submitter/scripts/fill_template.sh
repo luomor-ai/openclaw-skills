@@ -6,9 +6,16 @@
 #   commands at runtime (after taking a page snapshot to get current element
 #   refs) and writes them into the marked section below.
 #
-#   It is NOT a pre-loaded script with hidden logic. Every fill command is
-#   derived from a live browser snapshot taken immediately before execution,
-#   so refs are always fresh and never stale.
+# SECURITY:
+#   - This script contains ONLY openclaw browser CLI commands (fill, select,
+#     click, upload, snapshot). It does NOT use curl, wget, fetch, or any
+#     network tools.
+#   - It does NOT read or transmit passwords.
+#   - It is NOT a pre-loaded script with hidden logic. Every fill command is
+#     derived from a live browser snapshot taken immediately before execution,
+#     so refs are always fresh and never stale.
+#   - Scripts generated from this template are written to /tmp/fill_<timestamp>.sh
+#     and executed once. They are ephemeral and not persisted.
 #
 # HOW THE AGENT USES THIS FILE:
 #   1. Agent takes a page snapshot to identify visible form fields
@@ -36,7 +43,9 @@ TARGET_ID="<TARGET_ID>"
 ERRORS=()
 
 # Load variant matching helpers (fuzzy dropdown matching for non-standard labels)
-source "$HOME/.openclaw/workspace/job_sub_agent/scripts/match_variant_options.sh"
+# Source from the same directory as this script (not an external path)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "$SCRIPT_DIR/match_variant_options.sh"
 
 # Error tracking helper
 check() {

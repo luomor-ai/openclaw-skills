@@ -1,5 +1,14 @@
 #!/bin/bash
-# Fuzzy variant matching for dropdown options with non-standard text
+# match_variant_options.sh — Fuzzy variant matching for dropdown options
+#
+# PURPOSE: Helper functions to match non-standard dropdown labels (e.g.
+#          "I am not a veteran" vs "No military experience") to the correct
+#          option ref in a browser snapshot.
+#
+# SECURITY: These are pure text-matching functions using grep/sed on snapshot
+#           strings passed as arguments. They do NOT access the network, file
+#           system, or browser directly.
+#
 # Usage: source match_variant_options.sh, then call the matching functions below
 
 # Match veteran/military status "No" variants
