@@ -1,0 +1,11 @@
+{
+  "owner": "eze-is",
+  "slug": "web-access",
+  "displayName": "Web Access Clawhub",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774837829459,
+    "commit": null
+  },
+  "history": []
+}
