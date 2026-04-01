@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.1 - 2026-03-31
+
+- 修复 `src/gateway/thread-rollover.ts` 的压力评估逻辑：当 `totalTokens` 缺失时，回退使用 `inputTokens` / `outputTokens` / `inputTokens + outputTokens`
+- 更新 `assets/patch/thread-continuity.patch`，同步这条 continuity hotfix
+- 更新 `src/gateway/thread-rollover.test.ts` 的 source-side 对齐测试，补充 `totalTokens = null` 时仍应进入 `rollover_required` 的用例
+- 更新 `references/release-notes.md` 与 `references/verify.md`，加入“null totalTokens / heavy successor”这类实战复验场景
+
 ## v0.3.0 - 2026-03-30
 
 - 将分发包同步到 Codex 已验证通过的 live continuity 行为

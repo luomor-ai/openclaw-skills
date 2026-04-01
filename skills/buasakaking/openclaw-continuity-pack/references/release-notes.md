@@ -1,5 +1,34 @@
 # Release Notes
 
+## OpenClaw Continuity Pack v0.3.1
+
+这是一次只针对 continuity 运行时稳定性的热修复，不新增能力。
+
+### 本次修复
+
+1. 修复 `totalTokens` 缺失时的 rollover 误判  
+   现在 `thread-rollover` 在评估上下文压力时，会优先使用 `totalTokens`，但当它缺失时，会回退读取：
+   - `inputTokens`
+   - `outputTokens`
+   - `inputTokens + outputTokens`
+
+2. 修复的直接症状  
+   某些长线程已经真实进入 successor session，但当前 active successor 的 `totalTokens = null`，旧逻辑会误判为“不需要继续 rollover”，最终把超重会话拖到 provider timeout。
+
+3. live 复验结果  
+   已在 disposable live thread 上复验通过：
+   - 前台仍是同一个 thread
+   - backend 真创建 successor 并切换 active session
+   - successor transcript 中存在 hidden handoff
+   - 用户可见历史中没有 hidden handoff
+   - 即使人为制造 `totalTokens = null`、只保留超大的 `inputTokens/outputTokens`，rollover 仍能继续触发
+
+### 对使用者的影响
+
+- 这次 hotfix 与模型供应商无关，属于 continuity / rollover 运行时逻辑修复
+- 如果你的 OpenClaw 也会出现“旧 thread 越聊越重，最后超时，但 successor 不继续切”的情况，这个版本就是针对该问题的
+
+
 ## OpenClaw Continuity Pack v0.3.0
 
 这是一轮把 **live 已验收通过的 silent continuity / rollover 行为** 回灌进分发包的同步发布。重点不是新增一整套新产品线，而是让 ClawHub 上的 skill 与当前真正跑通的 live 行为重新对齐。
