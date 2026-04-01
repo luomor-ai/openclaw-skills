@@ -1,0 +1,11 @@
+{
+  "owner": "hybrid1labs",
+  "slug": "binance-pro-hybrid",
+  "displayName": "Binance Pro (Hybrid Labs)",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774973773707,
+    "commit": null
+  },
+  "history": []
+}
