@@ -1,7 +1,7 @@
 ---
 name: doorstep
 description: Get things done in the real world — pickups, deliveries, errands, and gifts handled by a human tasker. San Francisco only.
-version: 1.0.0
+version: 1.0.6
 metadata:
   openclaw:
     requires:
