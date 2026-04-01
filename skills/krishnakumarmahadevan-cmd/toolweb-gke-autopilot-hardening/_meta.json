@@ -1,0 +1,11 @@
+{
+  "owner": "krishnakumarmahadevan-cmd",
+  "slug": "toolweb-gke-autopilot-hardening",
+  "displayName": "GKE Autopilot Hardening",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774987010255,
+    "commit": null
+  },
+  "history": []
+}
