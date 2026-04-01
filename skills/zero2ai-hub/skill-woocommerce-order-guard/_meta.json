@@ -1,0 +1,11 @@
+{
+  "owner": "zero2ai-hub",
+  "slug": "skill-woocommerce-order-guard",
+  "displayName": "WooCommerce Order Guard",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774739634248,
+    "commit": null
+  },
+  "history": []
+}
