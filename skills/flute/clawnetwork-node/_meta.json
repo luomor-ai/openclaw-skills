@@ -1,0 +1,11 @@
+{
+  "owner": "flute",
+  "slug": "clawnetwork-node",
+  "displayName": "ClawNetwork Node",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774966928460,
+    "commit": null
+  },
+  "history": []
+}
