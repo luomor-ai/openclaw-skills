@@ -1,0 +1,11 @@
+{
+  "owner": "webspeaks",
+  "slug": "azure-devops-reports",
+  "displayName": "Azure DevOps Reports",
+  "latest": {
+    "version": "1.0.5",
+    "publishedAt": 1774859762977,
+    "commit": null
+  },
+  "history": []
+}
