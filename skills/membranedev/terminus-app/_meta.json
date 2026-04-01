@@ -1,0 +1,11 @@
+{
+  "owner": "membranedev",
+  "slug": "terminus-app",
+  "displayName": "Terminus App",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774767768092,
+    "commit": null
+  },
+  "history": []
+}
