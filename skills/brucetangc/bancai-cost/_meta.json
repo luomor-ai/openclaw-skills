@@ -1,0 +1,11 @@
+{
+  "owner": "brucetangc",
+  "slug": "bancai-cost",
+  "displayName": "板材费用统计",
+  "latest": {
+    "version": "3.5.0",
+    "publishedAt": 1774856549957,
+    "commit": null
+  },
+  "history": []
+}
