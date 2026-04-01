@@ -1,7 +1,7 @@
 ---
 name: openclaw-dual-agent
 description: "Run two OpenClaw agents simultaneously — a paid Anthropic agent and a free OpenRouter agent, each with its own Telegram bot. Trigger phrases: multi-agent setup, add a second agent, free agent openclaw, run two agents, openrouter openclaw, parallel agents, cost optimization agent."
-metadata: {"clawdbot": {"emoji": "🤖", "requires": {"bins": ["jq"]}, "env": ["ANTHROPIC_API_KEY", "OPENROUTER_API_KEY"], "os": ["darwin", "linux", "win32"]}}
+metadata: {"clawdbot": {"emoji": "🤖", "requires": {"bins": ["jq"]}, "env": ["ANTHROPIC_API_KEY", "OPENROUTER_API_KEY", "TELEGRAM_BOT_TOKEN"], "os": ["darwin", "linux", "win32"]}, "homepage": "https://clawhub.com/djc00p/openclaw-dual-agent"}
 ---
 
 # Multi-Agent OpenClaw Setup
