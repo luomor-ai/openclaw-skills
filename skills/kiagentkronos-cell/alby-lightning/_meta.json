@@ -1,0 +1,11 @@
+{
+  "owner": "kiagentkronos-cell",
+  "slug": "alby-lightning",
+  "displayName": "Alby Lightning Payments",
+  "latest": {
+    "version": "1.1.2",
+    "publishedAt": 1775112068236,
+    "commit": null
+  },
+  "history": []
+}
