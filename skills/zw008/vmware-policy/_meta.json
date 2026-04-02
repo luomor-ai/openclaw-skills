@@ -1,0 +1,11 @@
+{
+  "owner": "zw008",
+  "slug": "vmware-policy",
+  "displayName": "Vmware Policy",
+  "latest": {
+    "version": "1.4.4",
+    "publishedAt": 1775058559494,
+    "commit": null
+  },
+  "history": []
+}
