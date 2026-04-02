@@ -1,0 +1,11 @@
+{
+  "owner": "aipoch-ai",
+  "slug": "toxicity-structure-alert",
+  "displayName": "Toxicity Structure Alert",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775031104757,
+    "commit": null
+  },
+  "history": []
+}
