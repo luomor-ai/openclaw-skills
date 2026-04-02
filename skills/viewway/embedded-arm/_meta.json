@@ -1,0 +1,11 @@
+{
+  "owner": "viewway",
+  "slug": "embedded-arm",
+  "displayName": "Embedded ARM Development",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775143843837,
+    "commit": null
+  },
+  "history": []
+}
