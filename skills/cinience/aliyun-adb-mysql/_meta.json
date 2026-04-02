@@ -1,0 +1,11 @@
+{
+  "owner": "cinience",
+  "slug": "aliyun-adb-mysql",
+  "displayName": "Aliyun Adb Mysql",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775085042581,
+    "commit": null
+  },
+  "history": []
+}
