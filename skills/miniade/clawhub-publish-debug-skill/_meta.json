@@ -1,0 +1,11 @@
+{
+  "owner": "miniade",
+  "slug": "clawhub-publish-debug-skill",
+  "displayName": "Clawhub Publish Debug Skill",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1775021059715,
+    "commit": null
+  },
+  "history": []
+}
