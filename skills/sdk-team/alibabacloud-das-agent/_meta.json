@@ -1,0 +1,11 @@
+{
+  "owner": "sdk-team",
+  "slug": "alibabacloud-das-agent",
+  "displayName": "Alibabacloud Das Agent",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1775023262486,
+    "commit": null
+  },
+  "history": []
+}
