@@ -1,0 +1,11 @@
+{
+  "owner": "wearflatshoestowalktheworld",
+  "slug": "global-bug",
+  "displayName": "Bug问题上报",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775117301921,
+    "commit": null
+  },
+  "history": []
+}
