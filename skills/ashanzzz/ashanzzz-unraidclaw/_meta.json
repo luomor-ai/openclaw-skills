@@ -3,9 +3,15 @@
   "slug": "ashanzzz-unraidclaw",
   "displayName": "Unraidclaw",
   "latest": {
-    "version": "1.0.0",
-    "publishedAt": 1775131254327,
-    "commit": "https://github.com/openclaw/skills/commit/3a876ce21246c86a7cce62c0570af33ceb40ba22"
+    "version": "1.0.2",
+    "publishedAt": 1775131959982,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.0",
+      "publishedAt": 1775131254327,
+      "commit": "https://github.com/openclaw/skills/commit/3a876ce21246c86a7cce62c0570af33ceb40ba22"
+    }
+  ]
 }

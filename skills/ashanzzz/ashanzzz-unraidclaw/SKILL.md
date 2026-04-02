@@ -1,20 +1,24 @@
 ---
 name: unraidclaw
 description: |
-  通过 UnraidCLaW API 管理 Unraid 服务器的全套操作。
-  用于：
-  - Docker 容器管理（创建/启动/停止/删除/查看日志）
-  - VM 管理（启动/停止/重启/暂停）
-  - 阵列管理（启动/停止/奇偶校验）
-  - 硬盘/共享/用户/网络/通知查询
-  - 系统重启/关机
-  - 完整权限矩阵与 API Key 管理
+  Complete Unraid server management via the UnraidCLaW REST API.
+  Covers:
+  - Docker containers (create/start/stop/remove/logs)
+  - VMs (start/stop/restart/pause)
+  - Array operations (start/stop/parity)
+  - Disks, shares, users, network, notifications, system
+  - Full permission matrix and API key management
 
-  前置条件：已在 Unraid 安装 UnraidCLaW 插件，插件已启用 HTTPS + API Key。
-  API Base URL：https://<UNRAID_IP>:9876
-  认证：Header `x-api-key: <API_KEY>`
+  Requires: UnraidCLaW plugin installed and enabled on Unraid.
+  API Base: https://<UNRAID_IP>:9876 | Auth: x-api-key header
 
-  重要：UnraidCLaW API 通过 docker CLI 操作容器，因此镜像必须能从 Unraid 主机访问到（注意国内网络访问 ghcr.io 可能需要代理）。
+  Version requirement: **Always sync with the latest UnraidCLaW version.**
+  Currently tested against: **v0.1.27**.
+  If `GET /api/health` returns a different (older) version, alert the user
+  that a newer UnraidCLaW is available and suggest upgrading.
+
+  Use when: managing Unraid containers, VMs, array, or system tasks
+  via API rather than SSH or WebUI.
 ---
 
 # UnraidCLaW 全套操作指南
@@ -25,6 +29,28 @@ description: |
 - **认证**: `x-api-key: <API_KEY>` (Header)
 - **返回格式**: 统一包络 `{ "ok": true, "data": {...} }` 或 `{ "ok": false, "error": {...} }`
 - **TLS**: 默认自签名证书，请求时加 `-k` 或在业务系统中关闭证书验证
+
+## 版本检查（每次操作前必读）
+
+**当前测试版本**: `v0.1.27`
+
+每次执行 UnraidCLaW 操作前，先检查插件版本：
+
+```bash
+curl -s -k -H "x-api-key: $TOKEN" https://<UNRAID_IP>:9876/api/health
+# 返回: {"ok":true,"data":{"status":"ok","version":"0.1.27","uptime":...}}
+```
+
+**如果版本低于当前测试版本**：
+- 提醒用户："检测到 UnraidCLaW 版本为 X.X.X，最新版本为 0.1.27，建议升级以获得更好的兼容性"
+- 升级方式：在 Unraid 社区应用里搜索 "UnraidClaw" 更新，或手动下载最新 txz 包
+
+**如果版本高于 0.1.27**：
+- 说明：技能描述基于 0.1.27，如遇 API 差异请告知
+
+**已知版本历史**:
+- `0.1.27` — 当前测试版本
+- `0.1.21` — 历史安装包（仍存在于磁盘）
 
 ## API 端点总表
 
