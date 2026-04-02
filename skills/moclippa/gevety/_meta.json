@@ -3,11 +3,16 @@
   "slug": "gevety",
   "displayName": "Gevety MCP",
   "latest": {
-    "version": "1.8.0",
-    "publishedAt": 1773997567422,
-    "commit": "https://github.com/openclaw/skills/commit/8cefa1fb43ea763a83f15ff6db55fccef37a8c07"
+    "version": "1.9.0",
+    "publishedAt": 1775041465862,
+    "commit": null
   },
   "history": [
+    {
+      "version": "1.8.0",
+      "publishedAt": 1773997567422,
+      "commit": "https://github.com/openclaw/skills/commit/8cefa1fb43ea763a83f15ff6db55fccef37a8c07"
+    },
     {
       "version": "1.6.0",
       "publishedAt": 1772173457015,
