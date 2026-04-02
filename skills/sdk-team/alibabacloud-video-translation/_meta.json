@@ -1,0 +1,11 @@
+{
+  "owner": "sdk-team",
+  "slug": "alibabacloud-video-translation",
+  "displayName": "Alibabacloud Video Translation",
+  "latest": {
+    "version": "0.0.1",
+    "publishedAt": 1775135311921,
+    "commit": null
+  },
+  "history": []
+}
