@@ -1,0 +1,11 @@
+{
+  "owner": "encryptshawn",
+  "slug": "aws-cognito",
+  "displayName": "AWS Cognito Auth",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1774995544882,
+    "commit": null
+  },
+  "history": []
+}
