@@ -1,0 +1,17 @@
+{
+  "name": "meeting-copilot",
+  "description": "Meeting operations copilot for pre-meeting briefings, structured meeting notes, post-meeting action tracking, and follow-up drafts. Supports both boss mode and executor mode outputs. Does not provide real-time transcription, calendar integration, or automated reminders.",
+  "version": "1.0.2",
+  "author": "Harry",
+  "tags": ["meeting", "ops", "minutes", "briefing", "followup", "workplace"],
+  "safety": {
+    "no_diagnosis": false,
+    "no_treatment": false,
+    "disclaimer_required": true,
+    "high_risk_keyword_detection": false
+  },
+  "modules": {
+    "handler": "handler.py"
+  },
+  "entry": "handler.py"
+}
