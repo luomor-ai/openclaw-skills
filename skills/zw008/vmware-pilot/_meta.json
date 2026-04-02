@@ -1,0 +1,11 @@
+{
+  "owner": "zw008",
+  "slug": "vmware-pilot",
+  "displayName": "Vmware Pilot",
+  "latest": {
+    "version": "1.4.4",
+    "publishedAt": 1775058566005,
+    "commit": null
+  },
+  "history": []
+}
