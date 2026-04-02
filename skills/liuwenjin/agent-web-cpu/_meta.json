@@ -1,0 +1,11 @@
+{
+  "owner": "liuwenjin",
+  "slug": "agent-web-cpu",
+  "displayName": "Agent Web Cpu",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775019885827,
+    "commit": null
+  },
+  "history": []
+}
