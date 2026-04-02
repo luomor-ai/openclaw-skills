@@ -1,0 +1,11 @@
+{
+  "owner": "shihuaijun777",
+  "slug": "feishu-voice-skill-v2",
+  "displayName": "飞书语音气泡生成",
+  "latest": {
+    "version": "1.0.1",
+    "publishedAt": 1775141831568,
+    "commit": null
+  },
+  "history": []
+}
