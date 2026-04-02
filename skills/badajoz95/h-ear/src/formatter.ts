@@ -6,6 +6,8 @@
 import type {
     ClassifyResult, ClassesResult, HealthResult,
     UsageResult, JobsResult, JobResult, AsyncAccepted,
+    EnterpriseWebhookListResult, EnterpriseWebhook, EnterpriseWebhookCreateResult,
+    PingResult, WebhookDeliveriesResult,
 } from '@h-ear/core';
 
 export function formatClassifyResult(result: ClassifyResult): string {
@@ -174,4 +176,98 @@ export function formatAlertRegistered(soundClass: string): string {
 
 export function formatAlertDeregistered(soundClass: string): string {
     return `Alert for **${soundClass}** has been removed.`;
+}
+
+export function formatWebhookList(result: EnterpriseWebhookListResult): string {
+    const lines: string[] = [
+        `**Webhooks** (${result.webhooks.length}/${result.maxWebhooks})`,
+        '',
+    ];
+
+    if (result.webhooks.length > 0) {
+        lines.push('| ID | URL | Events | Status | Failures |');
+        lines.push('|----|-----|--------|--------|----------|');
+
+        for (const w of result.webhooks) {
+            const id = w.id.substring(0, 8);
+            const url = w.url.length > 40 ? w.url.substring(0, 37) + '...' : w.url;
+            const events = w.events.join(', ');
+            lines.push(`| ${id}... | ${url} | ${events} | ${w.status} | ${w.failureCount} |`);
+        }
+    } else {
+        lines.push('No webhooks registered.');
+    }
+
+    if (result.canCreate) {
+        lines.push('', `_${result.maxWebhooks - result.webhooks.length} webhook slot(s) available._`);
+    }
+
+    return lines.join('\n');
+}
+
+export function formatWebhookDetail(webhook: EnterpriseWebhook): string {
+    const lines: string[] = [
+        `**Webhook ${webhook.id.substring(0, 8)}...**`,
+        `URL: ${webhook.url}`,
+        `Events: ${webhook.events.join(', ')}`,
+        `Status: ${webhook.status}`,
+        `Failures: ${webhook.failureCount}`,
+    ];
+
+    if (webhook.taxonomyFilter) lines.push(`Taxonomy filter: ${webhook.taxonomyFilter.join(', ')}`);
+    if (webhook.notificationTierDepth) {
+        lines.push(`Tier depth: ${webhook.notificationTierDepth}`);
+        if (webhook.notificationTierValues) lines.push(`Tier values: ${webhook.notificationTierValues.join(', ')}`);
+    }
+    if (webhook.description) lines.push(`Description: ${webhook.description}`);
+    if (webhook.lastDeliveryAt) lines.push(`Last delivery: ${webhook.lastDeliveryAt} (${webhook.lastDeliveryStatus})`);
+    if (webhook.disabledReason) lines.push(`Disabled reason: ${webhook.disabledReason}`);
+    lines.push(`Created: ${webhook.createdAt}`);
+
+    return lines.join('\n');
+}
+
+export function formatWebhookCreated(result: EnterpriseWebhookCreateResult): string {
+    return [
+        `**Webhook Created**`,
+        `ID: ${result.webhook.id}`,
+        `URL: ${result.webhook.url}`,
+        `Events: ${result.webhook.events.join(', ')}`,
+        '',
+        `**Secret: \`${result.secret}\`**`,
+        `_This secret is shown ONCE. Save it now for webhook signature verification._`,
+    ].join('\n');
+}
+
+export function formatWebhookPing(result: PingResult): string {
+    const status = result.success ? 'Success' : 'Failed';
+    return [
+        `**Webhook Ping ${status}**`,
+        `Delivery ID: ${result.deliveryId}`,
+        `Response: ${result.responseStatus ?? 'N/A'}`,
+        `Duration: ${result.durationMs}ms`,
+    ].join('\n');
+}
+
+export function formatWebhookDeliveries(result: WebhookDeliveriesResult): string {
+    const lines: string[] = [
+        `**Webhook Deliveries** (${result.deliveries.length})`,
+        '',
+    ];
+
+    if (result.deliveries.length > 0) {
+        lines.push('| Event | Status | Success | Attempt | Time |');
+        lines.push('|-------|--------|---------|---------|------|');
+
+        for (const d of result.deliveries) {
+            const status = d.responseStatus ?? '-';
+            const success = d.success ? 'yes' : 'no';
+            const time = d.createdAt.substring(0, 16).replace('T', ' ');
+            lines.push(`| ${d.event} | ${status} | ${success} | ${d.attempt} | ${time} |`);
+        }
+    } else {
+        lines.push('No delivery records found.');
+    }
+
+    return lines.join('\n');
 }

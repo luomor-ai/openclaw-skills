@@ -15,12 +15,15 @@ export { healthCommand } from './commands/health.js';
 export { usageCommand } from './commands/usage.js';
 export { jobsCommand, jobDetailCommand } from './commands/jobs.js';
 export { alertOnCommand, alertOffCommand } from './commands/alerts.js';
+export { webhookListCommand, webhookDetailCommand, webhookCreateCommand, webhookPingCommand, webhookDeliveriesCommand } from './commands/webhooks.js';
 
 // Formatter
 export {
     formatClassifyResult, formatClassesList, formatHealth,
     formatUsage, formatJobsList, formatJobDetail,
     formatAlertRegistered, formatAlertDeregistered,
+    formatWebhookList, formatWebhookDetail, formatWebhookCreated,
+    formatWebhookPing, formatWebhookDeliveries,
 } from './formatter.js';
 
 // Config

@@ -28,8 +28,13 @@ export HEAR_API_KEY=ncm_sk_your_key
 | `usage` | Show API usage statistics |
 | `jobs [last N]` | List recent classification jobs |
 | `job <id>` | Show detailed job results |
-| `alerts on <sound>` | Enable alerts for a sound class |
-| `alerts off <sound>` | Disable alerts for a sound class |
+| `alerts on <sound>` | Register a simple sound alert via webhook |
+| `alerts off <sound>` | Remove a sound alert |
+| `webhook list` | List enterprise webhook registrations |
+| `webhook detail <id>` | Webhook details with filter config |
+| `webhook create <url>` | Create enterprise webhook (returns signing secret once) |
+| `webhook ping <id>` | Test webhook connectivity |
+| `webhook deliveries <id>` | Delivery audit trail |
 | `health` | Check API status |
 
 ## Example
