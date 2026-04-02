@@ -1,6 +1,6 @@
 {
   "name": "ai-orchestrator",
-  "version": "3.3.3",
+  "version": "3.3.1",
   "description": "AI Orchestrator — один браузер, две вкладки (DeepSeek + Perplexity)",
   "main": "ask-puppeteer.js",
   "type": "commonjs",

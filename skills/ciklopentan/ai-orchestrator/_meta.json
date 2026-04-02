@@ -3,9 +3,15 @@
   "slug": "ai-orchestrator",
   "displayName": "AI Orchestrator",
   "latest": {
-    "version": "3.3.3",
-    "publishedAt": 1775097026552,
-    "commit": "https://github.com/openclaw/skills/commit/6a847b68c1c4c7f54e878270aa56b740e8c52f43"
+    "version": "3.3.1",
+    "publishedAt": 1775096030271,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "3.3.3",
+      "publishedAt": 1775097026552,
+      "commit": "https://github.com/openclaw/skills/commit/6a847b68c1c4c7f54e878270aa56b740e8c52f43"
+    }
+  ]
 }
