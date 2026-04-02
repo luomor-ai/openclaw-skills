@@ -1,0 +1,11 @@
+{
+  "owner": "gora050",
+  "slug": "scaleway",
+  "displayName": "Scaleway",
+  "latest": {
+    "version": "1.0.0",
+    "publishedAt": 1775030685135,
+    "commit": null
+  },
+  "history": []
+}
