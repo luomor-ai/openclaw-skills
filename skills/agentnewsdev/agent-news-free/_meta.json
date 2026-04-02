@@ -1,0 +1,11 @@
+{
+  "owner": "agentnewsdev",
+  "slug": "agent-news-free",
+  "displayName": "Agent News API Free Tier",
+  "latest": {
+    "version": "1.0.2",
+    "publishedAt": 1775091971122,
+    "commit": null
+  },
+  "history": []
+}
