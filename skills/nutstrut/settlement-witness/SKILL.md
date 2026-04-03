@@ -1,175 +1,270 @@
-﻿---
+\---
 
 name: settlement-witness
-description: "Verify structured agent task outputs with signed receipts and optional TrustScore attribution."
--------------------------------------------------------------------------------------------------------------
 
-# SettlementWitness
+description: Prove an agent actually completed its task. Deterministic PASS/FAIL verification with signed receipts before payment or settlement.
 
-**Verify structured agent task outputs and return signed proof of outcome.**
+\---
 
----
 
-## What this does
 
-**Did the agent deliver what was specified?**
+\# SettlementWitness
 
-SettlementWitness evaluates **structured task inputs you choose to submit** (spec + output) and returns:
 
-* A deterministic verdict: **PASS / FAIL / INDETERMINATE**
-* A signed **Settlement Attestation Receipt (SAR)**
-* An optional **TrustScore update** when an `agent_id` is provided
 
-Every agent can claim success. SettlementWitness makes selected outcomes **provable**.
+Verify structured agent task outputs and return signed proof of outcome.
 
-Verification is optional and should be applied only to tasks where independent proof is required.
 
----
 
-## Why verify?
+\---
 
-Every receipt:
 
-* Builds a verifiable history of agent performance
-* Provides **objective evidence of task outcomes**
-* Creates an auditable record for downstream systems
 
-Receipts are signed and portable — they can be verified independently.
+\## Core Principle
 
----
 
-## Quickstart
 
-```javascript
-settlement_witness({
-  task_id: "task-001",
-  agent_id: "0xYourWallet:my-agent",
-  spec: { expected: "report generated" },
-  output: { expected: "report generated" }
+Verification should be deterministic, minimal, and optional.
+
+
+
+Only structured inputs are evaluated.
+
+
+
+\---
+
+
+
+\## What This Does
+
+
+
+SettlementWitness evaluates submitted task data and returns:
+
+
+
+\- PASS / FAIL / INDETERMINATE
+
+\- signed receipt (SAR)
+
+\- optional TrustScore update
+
+
+
+\---
+
+
+
+\## Core Execution Loop
+
+
+
+1\. Provide input:
+
+&#x20;  - task\_id
+
+&#x20;  - optional agent\_id
+
+&#x20;  - spec (expected result)
+
+&#x20;  - output (actual result)
+
+
+
+2\. Submit for verification
+
+
+
+3\. Receive:
+
+&#x20;  - verdict
+
+&#x20;  - receipt
+
+&#x20;  - optional score update
+
+
+
+\---
+
+
+
+\## Example
+
+
+
+settlement\_witness({
+
+&#x20; task\_id: "task-001",
+
+&#x20; agent\_id: "0xYourWallet:agent",
+
+&#x20; spec: { expected: "report generated" },
+
+&#x20; output: { expected: "report generated" }
+
 })
-```
 
-Returns:
 
-```json
+
+\---
+
+
+
+\## Result Structure
+
+
+
 {
-  "receipt_v0_1": {
-    "verdict": "PASS",
-    "confidence": 1.0,
-    "reason_code": "SPEC_MATCH",
-    "receipt_id": "sha256:...",
-    "verifier_kid": "sar-prod-ed25519-02",
-    "sig": "base64url:..."
-  },
-  "counterparty": "0xCounterpartyWallet",
-  "_ext": {
-    "agent_id": "0xYourWallet:my-agent"
-  },
-  "trustscore_update": {
-    "score": 54,
-    "tier": "bronze"
-  }
+
+&#x20; "verdict": "PASS | FAIL | INDETERMINATE",
+
+&#x20; "receipt\_id": "sha256:...",
+
+&#x20; "signature": "...",
+
+&#x20; "confidence": 1.0
+
 }
-```
 
----
 
-## Where it fits
 
-Insumer → x402 → SettlementWitness → TrustScore
+\---
 
-Attestation → Payment signal → Delivery verification → Reputation layer
 
----
 
-## Endpoints
+\## Endpoints
 
-Production:
-POST https://defaultverifier.com/settlement-witness
 
-x402 Base:
-POST https://defaultverifier.com/x402/settlement-witness
 
-x402 Solana:
-POST https://defaultverifier.com/x402/settlement-witness-solana
+https://defaultverifier.com/settlement-witness
+
+
 
 Public keys:
+
 https://defaultverifier.com/.well-known/sar-keys.json
 
----
 
-## Agent identity (optional)
 
-`agent_id: "0xYourWallet:your-agent-name"`
+\---
 
-* A wallet address enables persistent attribution across sessions
-* The agent name distinguishes multiple agents under one wallet
-* TrustScore is computed per `agent_id` when provided
 
-If no identity is provided, verification still functions without attribution.
 
----
+\## Agent Identity (Optional)
 
-## Provenance
 
-SettlementWitness is operated via:
-https://defaultverifier.com
 
-For transparency:
+Format:
 
-* Public verification keys:
-  https://defaultverifier.com/.well-known/sar-keys.json
 
-* Protocol specification:
-  https://defaultverifier.com/spec/sar-v0.1/
 
-Users should independently validate the service before relying on verification results.
+0xWalletAddress:agent-name
 
----
 
-## Verifier model
 
-SettlementWitness is a **stateless verification service**:
+Used for:
 
-* Verification is performed on submitted structured inputs only
-* Receipts are generated deterministically from inputs
-* Signatures use Ed25519 and can be independently verified
-* No persistent agent state is required for validation
+\- attribution
 
-Trust in verification depends on validating the service origin and public keys.
+\- reputation scoring
 
----
 
-## Data handling
 
-SettlementWitness processes **only structured task evaluation data** (spec and output).
+\---
 
-Guidelines:
 
-* Submit only the minimum data required for evaluation
-* Do NOT include secrets, API keys, credentials, or private data
-* Inputs are used solely for verification and receipt generation
 
-SettlementWitness does not require full application context or arbitrary data.
+\## Data Handling
 
----
 
-## What SettlementWitness is not
 
-* Not a payment processor
-* Not a fund custodian
-* Not an enforcement layer
-* Not a data storage system
+\- only submit structured evaluation data
 
----
+\- never include secrets or private data
 
-## What it is
+\- submit minimal required information
 
-* Deterministic verifier
-* Signed receipt issuer
-* Verifiable proof system
-* Reputation input layer
 
----
 
-Spec: https://defaultverifier.com/spec/sar-v0.1/
+\---
+
+
+
+\## Verification Model
+
+
+
+\- stateless
+
+\- deterministic
+
+\- independently verifiable
+
+\- signature-based (Ed25519)
+
+
+
+\---
+
+
+
+\## What This Is Not
+
+
+
+\- not a payment system
+
+\- not data storage
+
+\- not enforcement layer
+
+
+
+\---
+
+
+
+\## What This Is
+
+
+
+\- deterministic verifier
+
+\- receipt generator
+
+\- proof system
+
+\- reputation input layer
+
+
+
+\---
+
+
+
+\## Outcome
+
+
+
+Agents can:
+
+\- prove task completion
+
+\- generate verifiable records
+
+\- build reputation over time
+
+
+
+\---
+
+
+
+\## Keywords
+
+
+
+verification, trust, receipts, ai-agents, validation, reputation
+
