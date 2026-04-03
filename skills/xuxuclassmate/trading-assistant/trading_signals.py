@@ -17,33 +17,56 @@ import sys
 from pathlib import Path
 from datetime import datetime, timedelta
 import math
+import os
+import requests
 
-# 添加路径
-sys.path.insert(0, str(Path(__file__).parent.parent / "TradingAgents"))
-
-# 加载环境变量
+# 加载配置
 from config import load_config, get_api_keys
 api_keys = get_api_keys()
-import os
+# 设置环境变量供 API 调用使用
 for key, value in api_keys.items():
     os.environ.setdefault(key, value)
 
 def get_stock_data(symbol: str, days: int = 100):
-    """获取股票历史数据"""
+    """获取股票历史数据 - 直接调用 Twelve Data API
+    
+    安全说明：不依赖外部包，直接使用 API
+    """
+    api_key = os.environ.get("TWELVE_DATA_API_KEY")
+    if not api_key:
+        print(f"⚠️ 缺少 TWELVE_DATA_API_KEY")
+        return None
+    
     try:
-        from tradingagents.dataflows.twelve_data import get_stock_data_twelve_data
-        
         end_date = datetime.now()
         start_date = end_date - timedelta(days=days)
         
-        result = get_stock_data_twelve_data(
-            symbol,
-            start_date.strftime("%Y-%m-%d"),
-            end_date.strftime("%Y-%m-%d")
-        )
+        # 直接调用 Twelve Data API
+        url = "https://api.twelvedata.com/time"
+        params = {
+            "symbol": symbol,
+            "interval": "1day",
+            "start_date": start_date.strftime("%Y-%m-%d"),
+            "end_date": end_date.strftime("%Y-%m-%d"),
+            "apikey": api_key
+        }
         
-        if result.get("status") == "ok" and result.get("data"):
-            return result["data"]
+        response = requests.get(url, params=params, timeout=30)
+        response.raise_for_status()
+        data = response.json()
+        
+        if "values" in data and data["values"]:
+            return [
+                {
+                    "date": v["datetime"],
+                    "open": float(v["open"]),
+                    "high": float(v["high"]),
+                    "low": float(v["low"]),
+                    "close": float(v["close"]),
+                    "volume": int(v["volume"]) if "volume" in v else 0
+                }
+                for v in data["values"]
+            ]
     except Exception as e:
         print(f"⚠️ 获取 {symbol} 数据失败：{e}")
     
