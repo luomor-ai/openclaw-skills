@@ -1,10 +1,10 @@
 ---
 name: flyai-travelmapify
-version: 1.0.0
-description: Parse travel planning inputs (images OR comma-separated location names) and generate interactive travel route maps with POI management and FlyAI hotel integration. Use when a user provides either a travel planning image (screenshot, photo, or diagram) OR a list of comma-separated location names, and wants to convert it into an interactive web-based travel map with searchable POIs, route optimization, FlyAI hotel search, and professional presentation.
-author: xuandu
+version: 2.1.5
+description: Copy Xiaohongshu travel planning homework into interactive route maps with real FlyAI hotel search in seconds.
+author: rudy2steiner
 license: MIT
-tags: [travel, maps, routing, ocr, geocoding, flyai, hotels]
+tags: [travel, maps, routing, ai-vision, geocoding, flyai, hotels, unique-id, server-management, interactive, xiaohongshu]
 ---
 
 # Travel Mapify
@@ -43,10 +43,12 @@ This skill automatically:
 
 ### Step 1: Input Processing and POI Extraction
 
-**For Image Input:**
-- Analyze the uploaded image using OCR to extract text
-- Identify location names, addresses, and POI information
-- Filter and validate extracted POIs
+**For Image Input (AI Vision Enhanced):**
+- **Use AI Vision analysis** instead of traditional OCR for better accuracy on complex travel planning images
+- **Interactive clarification**: When recognition is uncertain, request user input for city/location context and expected attraction count
+- **Manual fallback**: If AI vision cannot confidently identify attractions, prompt user to provide attraction names directly
+- **Preserve sequence**: Maintain the exact numbered order as marked in the original travel planning image
+- **Filter noise**: Ignore garbled text, background interference, and corrupted characters that plague traditional OCR
 
 **For Text Input:**
 - Parse comma-separated location names directly
@@ -59,7 +61,9 @@ This skill automatically:
 - Validate coordinate accuracy
 
 ### Step 3: Enhanced Map Generation
-- **Use optimized Shanghai template as main template** with all UX improvements
+- **Use optimized travel_mapify with unique map ID isolation** as main template with all UX improvements
+- **Automatic localStorage isolation** based on POI names to prevent data conflicts between different maps
+- **Optimized performance** with streamlined template generation and reduced dependencies
 - Create a single dual-mode interface with toggle between Edit/View modes
 - Implement drag-and-drop and arrow button reordering (edit mode only)
 - Generate optimized route with directional arrows
@@ -82,30 +86,29 @@ This skill automatically:
 ## File Structure
 
 ```
-travel-mapify/
+flyai-travelmapify/
 ├── SKILL.md
 ├── scripts/
-│   ├── main_travel_mapify_enhanced.py     # **ENHANCED MAIN**: Auto-starts servers + dual input
-│   ├── main_travel_mapify.py              # Legacy main entry point (dual input: image/text)
-│   ├── extract_pois_from_image.py         # OCR + AI POI extraction
+│   ├── main_travel_mapify_enhanced.py     # **PRODUCTION MAIN**: Auto-starts servers + dual input + unique ID isolation
+│   ├── extract_pois_from_image_vision.py  # **AI VISION ENHANCED**: Interactive POI extraction with user clarification
 │   ├── geocode_locations.py               # Amap geocoding integration
-│   ├── generate_travel_map.py             # Legacy HTML template generation
-│   ├── generate_unified_map.py            # Legacy unified dual-mode HTML generation
-│   └── generate_from_optimized_template.py # Uses enhanced Shanghai template
+│   ├── generate_from_optimized_template.py # Optimized template with unique map ID isolation
+│   └── hotel-search-server.py             # FlyAI hotel search backend server
 ├── references/
 │   ├── amap_api_guide.md                 # Amap API usage patterns
-│   └── poi_validation_rules.md           # POI validation and filtering rules
+│   ├── poi_validation_rules.md           # POI validation and filtering rules
+│   └── troubleshooting-guide.md          # Common issues and solutions
 └── assets/
-    ├── templates/
-    │   ├── editable-map-template.html      # Left-panel editable template
-    │   ├── final-map-template.html         # Final presentation template
-    │   └── unified-map-template.html       # Dual-mode template (edit/view)
-    └── icons/
-        ├── north-indicator.svg
-        └── poi-marker.svg
+    └── templates/
+        └── main-generic-template-with-unique-id.html  # **PRODUCTION TEMPLATE**: Unique ID isolation + all features
 ```
 
-**Main Template**: The skill now uses `/Users/xuandu/.openclaw/workspace/apps/shanghai-travel/shanghai-final-optimized.html` as the primary template, which includes:
+**Main Template**: The skill now uses the **optimized travel_mapify system** with unique map ID isolation as the primary approach, which includes:
+- **Optimized Template Generation**: Streamlined HTML generation with minimal dependencies
+- **Unique Map ID Generation**: Automatically creates a hash-based ID from POI names (e.g., `travelMap_abc123`) to isolate localStorage data
+- **No Cross-Map Data Contamination**: Each travel map saves/retrieves data independently using its unique ID
+- **Persistent Per-Map State**: Hotel searches, date selections, and POI reordering are saved separately for each map
+- **Enhanced Performance**: Reduced template complexity and faster map loading
 - Real FlyAI hotel search integration
 - Professional notification system (no alert popups)
 - Loading states with timeout handling
@@ -115,9 +118,17 @@ travel-mapify/
 
 ## Usage Examples
 
-### Image Input - Basic Usage
+### Image Input - AI Vision Enhanced
 User: "Here's my travel plan screenshot, can you make it interactive?"
-→ Skill extracts POIs via OCR, geocodes them, and generates interactive map
+→ Skill analyzes image using AI Vision model
+→ If needed, requests clarification: "What city is this for?" or "How many attractions are marked?"
+→ Extracts attractions with preserved sequence and generates interactive map
+
+### Image Input - Manual Clarification
+User provides image → Skill detects uncertainty → Requests city context → User responds "重庆" → Skill processes with enhanced accuracy
+
+### Image Input - Direct POI Entry
+When AI Vision cannot confidently identify attractions, skill prompts: "Please provide attraction names in order, separated by commas"
 
 ### Image Input - Advanced Usage  
 User: "I have a photo of our Beijing itinerary, please create a shareable map"
@@ -151,7 +162,7 @@ User: "Can you adjust the route order and add missing locations?"
 
 ## Output Files
 
-The skill generates HTML files using the **enhanced Shanghai template** as the main template:
+The skill generates HTML files using the **optimized travel_mapify system with unique map ID isolation** as the main template:
 
 **`[location]-travel-map-optimized.html`** - Dual-mode interface with all professional enhancements:
 - **Real FlyAI Hotel Search Integration**:
@@ -210,3 +221,5 @@ Files are self-contained and work in any modern web browser when served via HTTP
 - **Implement robust error handling**: Wrap API calls and provide user feedback
 - **Validate all inputs**: Sanitize data before processing
 - **Document dependencies**: Clearly specify API keys, network, and browser requirements
+- **Use optimized travel_mapify with unique map ID isolation**: All travel maps now automatically generate unique IDs based on POI names to prevent localStorage conflicts between different maps
+- **Leverage enhanced performance**: The optimized system provides faster map generation and loading
