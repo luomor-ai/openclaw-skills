@@ -3,9 +3,15 @@
   "slug": "crypto-analytics",
   "displayName": "Crypto Analytics",
   "latest": {
-    "version": "1.0.1",
-    "publishedAt": 1775118826428,
-    "commit": "https://github.com/openclaw/skills/commit/5ba138078fe690ae322edecf5525b8a4318da984"
+    "version": "1.0.3",
+    "publishedAt": 1775208117513,
+    "commit": null
   },
-  "history": []
+  "history": [
+    {
+      "version": "1.0.1",
+      "publishedAt": 1775118826428,
+      "commit": "https://github.com/openclaw/skills/commit/5ba138078fe690ae322edecf5525b8a4318da984"
+    }
+  ]
 }

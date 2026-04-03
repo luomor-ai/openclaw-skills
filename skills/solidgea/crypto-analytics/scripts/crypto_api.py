@@ -20,18 +20,24 @@ import requests
 from decimal import Decimal
 from address_validator import AddressValidator
 
-# Load .env if available (fallback to manual parsing if dotenv not installed)
-import os
-# Try to find .env in workspace root (search upwards)
-env_path = Path(__file__).parents[3] / '.env'  # workspace root
-if not env_path.exists():
-    env_path = Path('.') / '.env'  # fallback to cwd
-if env_path.exists():
-    for line in env_path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith('#') and '=' in line:
-            key, value = line.split('=', 1)
-            os.environ[key.strip()] = value.strip()
+# Optional: load .env from workspace root if python-dotenv is installed
+try:
+    from dotenv import load_dotenv
+    # Find OpenClaw workspace root by looking for AGENTS.md or .git
+    def find_workspace_root():
+        p = Path(__file__).resolve()
+        while p != p.parent:
+            if (p / 'AGENTS.md').exists() or (p / '.git').exists():
+                return p
+            p = p.parent
+        return Path(__file__).parent  # fallback
+    workspace_root = find_workspace_root()
+    env_path = workspace_root / '.env'
+    if env_path.exists():
+        load_dotenv(dotenv_path=env_path)
+except ImportError:
+    # dotenv not installed – rely on system environment
+    pass
 
 # Cache directory (use workspace cache)
 CACHE_DIR = Path.home() / ".openclaw" / "cache" / "crypto-analytics"

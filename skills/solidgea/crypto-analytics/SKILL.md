@@ -1,11 +1,11 @@
 ---
 name: crypto-analytics
 slug: crypto-analytics
-version: 1.0.1
+version: 1.0.3
 homepage: https://clawhub.com/skills/crypto-analytics
 repository: https://github.com/yourusername/crypto-analytics
 description: "Multi-chain blockchain analytics for wallet balances, transaction history, and address validation. Supports 60+ EVM chains via Etherscan V2, plus Bitcoin and Solana. Use to check wallet balances, view transactions, get transaction details, validate addresses, or list supported chains."
-changelog: "v1.0.1: Added missing 'tokens' command handler. Fixed CHAINS typo in get_wallet_tokens."
+changelog: "v1.0.3: Fixed privacy section to accurately describe local caching (may store queried addresses). Improved .env loading to only use workspace root (AGENTS.md/.git detection). v1.0.2: Published version before false-positive appeal. v1.0.1: Added missing 'tokens' command handler. Fixed CHAINS typo in get_wallet_tokens."
 ---
 
 # Crypto Analytics
@@ -21,6 +21,33 @@ A comprehensive multi-chain blockchain analysis tool using live API data:
 - No credentials needed for basic usage (API key increases Etherscan limits)
 
 **All commands return JSON with optional human-readable formatting.**
+
+---
+
+## Privacy & Data Handling
+
+This skill respects your privacy and operates transparently:
+
+- **External data collection:** None. Only standard blockchain APIs receive your queries:
+  - `api.etherscan.io` (Etherscan V2)
+  - `blockchair.com` (Blockchair)
+  - Public Solana RPC endpoints
+- **Local caching:** API responses are cached for 5 minutes to respect rate limits. Cache files are stored in `~/.openclaw/cache/crypto-analytics/api_responses/` and may contain queried addresses, transaction hashes, and other public blockchain data you requested. Files are automatically expired and can be manually deleted. This data never leaves your machine.
+- **Environment variables:** Optionally reads `ETHERSCAN_API_KEY` from a `.env` file located in the OpenClaw workspace root. No other environment variables are accessed.
+- **No subprocesses or dynamic code execution:** Pure Python with `requests` library only.
+
+You can audit the source code in `scripts/crypto_api.py` – it's straightforward HTTP + JSON.
+
+---
+
+## Configuration (Optional)
+
+Set `ETHERSCAN_API_KEY` to increase rate limits (free tier: 5 calls/sec). Get a key from https://etherscan.io/apis
+
+```bash
+export ETHERSCAN_API_KEY=your_key_here
+# Or add to ~/.openclaw/workspace/.env
+```
 
 ## Core Commands
 
