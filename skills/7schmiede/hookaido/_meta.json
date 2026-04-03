@@ -3,11 +3,16 @@
   "slug": "hookaido",
   "displayName": "Hookaido Webhook Integration",
   "latest": {
-    "version": "2.0.1",
-    "publishedAt": 1773161619049,
-    "commit": "https://github.com/openclaw/skills/commit/f6d01070419d62ba8054b7ae633ea50da68820a9"
+    "version": "2.2.3",
+    "publishedAt": 1774887943708,
+    "commit": null
   },
   "history": [
+    {
+      "version": "2.0.1",
+      "publishedAt": 1773161619049,
+      "commit": "https://github.com/openclaw/skills/commit/f6d01070419d62ba8054b7ae633ea50da68820a9"
+    },
     {
       "version": "2.0.0",
       "publishedAt": 1773092213815,

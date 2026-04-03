@@ -1,6 +1,6 @@
-# claw-skill-hookaido
+# hookaido
 
-Public OpenClaw skill repository for Hookaido.
+Public OpenClaw skill for [Hookaido](https://github.com/nuetzliches/hookaido) — webhook infrastructure that just works.
 
 Repository link for skill distribution:
 
@@ -10,8 +10,8 @@ Upstream Hookaido project:
 
 - `https://github.com/nuetzliches/hookaido`
 
-This skill is pinned to Hookaido `v2.0.0` and keeps existing inbound/outbound/pull workflows as the default path.
-New v2 capabilities such as `queue postgres`, gRPC pull workers, batch `ack`/`nack`, and release verification are documented as additive modules so existing usage does not receive breaking changes by default.
+This skill is pinned to Hookaido `v2.2.1` and keeps existing inbound/outbound/pull workflows as the default path.
+New capabilities such as `deliver exec` (subprocess delivery), provider-compatible HMAC (GitHub/Gitea), `queue postgres`, gRPC pull workers, batch `ack`/`nack`, and release verification are documented as additive modules so existing usage does not receive breaking changes by default.
 
 Main files:
 

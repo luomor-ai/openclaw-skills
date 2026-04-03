@@ -2,10 +2,44 @@
 
 ## GitHub Release Summary
 
-Recommended tag: `v2.0.0`
+Recommended tag: `v2.2.1`
 
-Public Hookaido skill refresh for upstream `v2.0.0`.
-This update pins installer assets and checksums to the latest Hookaido release, switches the skill metadata to the public repository URL, and documents v2 features such as `queue postgres`, batch pull lease operations, gRPC pull workers, and release verification as additive guidance without changing the default workflow.
+Bugfix-only update pinning to upstream Hookaido `v2.2.1`.
+Upstream fixes: dispatcher delivery logging, zero-target route warning, hot-reload for delivery config changes.
+
+## v2.2.1 - 2026-03-30
+
+Bugfix-only update pinning to upstream Hookaido `v2.2.1`.
+
+### Highlights
+
+- Pinned all binary installer actions and checksums to Hookaido `v2.2.1`.
+- Upstream fixes: dispatcher delivery logging (previously silent), zero-target route warning, hot-reload for delivery config changes via `--watch`/SIGHUP.
+
+### Compatibility
+
+No new features. All existing skill workflows remain unchanged.
+
+## v2.2.0 - 2026-03-28
+
+This release updates the public Hookaido skill to upstream Hookaido `v2.2.0`.
+
+### Highlights
+
+- Pinned all binary installer actions and checksums to Hookaido `v2.2.0`.
+- Added `deliver exec` playbook for subprocess delivery (payload on stdin, exit-code retry semantics).
+- Added provider-compatible HMAC playbook for GitHub (`X-Hub-Signature-256`) and Gitea/Forgejo (`X-Gitea-Signature`).
+- Updated operations reference with exec delivery and provider-HMAC config examples.
+
+### Compatibility
+
+Additive v2.2.0 coverage includes:
+
+- `deliver exec` for local script/binary execution with env-var metadata and exit-code retry semantics
+- `auth hmac { provider github }` / `auth hmac { provider gitea }` for native webhook signature verification
+- Custom outbound headers in deliver blocks with placeholder interpolation
+
+All existing skill workflows remain unchanged.
 
 ## v2.0.0 - 2026-03-09
 
